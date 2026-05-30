@@ -1,0 +1,888 @@
+// Active charts and series references
+let priceChart = null;
+let priceSeries = null;
+let twapChart = null;
+let twapSeriesMap = {};
+
+let activeCharts = []; // Price, TWAP, and dynamic subcharts
+let dynamicPanels = []; // list of: { panelId, chart, activeMetrics }
+let panelCount = 0; // panel numbering index
+
+let currentBuckets = [];
+let selectedTimeframe = '1m';
+let selectedTwapMode = 'spotPerp';
+
+// UI Selectors
+const snapshotCount = document.querySelector('#snapshotCount');
+const priceRange = document.querySelector('#priceRange');
+const timeframeButtons = [...document.querySelectorAll('.timeframe')];
+const twapModeButtons = [...document.querySelectorAll('.twap-mode')];
+const metricInputs = [...document.querySelectorAll('[data-metric]')];
+const addNewPanelBtn = document.querySelector('#addNewPanelBtn');
+const exchangeSourceSelect = document.querySelector('#exchangeSourceSelect');
+const chartsStack = document.querySelector('#chartsStack');
+
+// Chart Theme styling
+const chartTheme = {
+  layout: {
+    background: { type: 'solid', color: '#11161a' },
+    textColor: '#81908b',
+    fontSize: 11,
+    fontFamily: 'Segoe UI, sans-serif'
+  },
+  grid: {
+    vertLines: { color: 'rgba(38, 49, 55, 0.4)' },
+    horzLines: { color: 'rgba(38, 49, 55, 0.4)' }
+  },
+  crosshair: {
+    mode: 0 // Normal
+  },
+  rightPriceScale: {
+    borderColor: '#263137',
+    alignLabels: true
+  },
+  timeScale: {
+    borderColor: '#263137',
+    timeVisible: true,
+    secondsVisible: false
+  }
+};
+
+// Compact number formatting (e.g. 100500 -> $100.5k, 5400000 -> $5.4M)
+function formatKandM(val) {
+  if (val === null || val === undefined || !Number.isFinite(val)) return '';
+  const absVal = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  if (absVal >= 1_000_000) {
+    return sign + '$' + (absVal / 1_000_000).toFixed(1) + 'M';
+  }
+  if (absVal >= 1_000) {
+    return sign + '$' + (absVal / 1_000).toFixed(1) + 'k';
+  }
+  return sign + '$' + absVal.toFixed(2);
+}
+
+function formatPrice(value) {
+  return Number.isFinite(value) ? `$${value.toFixed(4)}` : '--';
+}
+
+// Automatic Resizing Observer
+const resizeObserver = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    const container = entry.target;
+    const chart = activeCharts.find(c => c._container === container);
+    if (chart && entry.contentRect.height > 10) {
+      chart.resize(entry.contentRect.width, entry.contentRect.height);
+    }
+  }
+});
+
+// Timescale Synchronization Logic (Registered once per chart instance on init)
+let isTimescaleSyncing = false;
+function handleTimescaleChange(srcChart, range) {
+  if (isTimescaleSyncing || !range) return;
+  isTimescaleSyncing = true;
+  activeCharts.forEach((targetChart) => {
+    if (targetChart !== srcChart) {
+      targetChart.timeScale().setVisibleLogicalRange(range);
+    }
+  });
+  isTimescaleSyncing = false;
+}
+
+// Crosshair Synchronization Logic (Registered once per chart instance on init)
+let isCrosshairSyncing = false;
+function handleCrosshairMove(srcChart, param) {
+  if (isCrosshairSyncing) return;
+  isCrosshairSyncing = true;
+
+  const time = param.time;
+  activeCharts.forEach((targetChart) => {
+    if (targetChart !== srcChart) {
+      if (time === undefined || param.logical === undefined) {
+        targetChart.clearCrosshairPosition();
+      } else {
+        const targetSeries = targetChart._syncSeries;
+        if (targetSeries) {
+          const bucket = currentBuckets.find(
+            (b) => Math.floor(new Date(b.timestamp).getTime() / 1000) === time
+          );
+
+          let targetPrice = 0;
+          if (bucket) {
+            if (targetChart._type === 'price') {
+              targetPrice = bucket.close ?? bucket.price ?? 0;
+            } else if (targetChart._type === 'twap') {
+              const mode = selectedTwapMode;
+              targetPrice = bucket.twapModes?.[mode]?.twapNet1h ?? bucket.twapNet1h ?? 0;
+            } else if (targetChart._type === 'dynamic') {
+              const panelId = targetChart._panelId;
+              const panel = dynamicPanels.find(p => p.panelId === panelId);
+              if (panel) {
+                // Find first active metric key to snap to
+                const firstKey = Object.keys(panel.activeMetrics)[0];
+                if (firstKey) {
+                  const metric = panel.activeMetrics[firstKey];
+                  const type = metric.type;
+                  const suffix = metric.depth.replace('.', '_');
+                  const source = exchangeSourceSelect.value;
+                  
+                  if (type === 'bid' || type === 'ask') {
+                    if (source === 'combined') {
+                      targetPrice = ((bucket[`bybit_${type}_${suffix}`] || 0) + (bucket[`hl_${type}_${suffix}`] || 0)) || 0;
+                    } else if (source === 'hl') {
+                      targetPrice = bucket[`hl_${type}_${suffix}`] ?? 0;
+                    } else {
+                      targetPrice = bucket[`bybit_${type}_${suffix}`] ?? 0;
+                    }
+                  } else if (type === 'diff') {
+                    let bidVal = 0;
+                    let askVal = 0;
+                    if (source === 'bybit') {
+                      bidVal = bucket[`bybit_bid_${suffix}`] || 0;
+                      askVal = bucket[`bybit_ask_${suffix}`] || 0;
+                    } else if (source === 'hl') {
+                      bidVal = bucket[`hl_bid_${suffix}`] || 0;
+                      askVal = bucket[`hl_ask_${suffix}`] || 0;
+                    } else {
+                      bidVal = (bucket[`bybit_bid_${suffix}`] || 0) + (bucket[`hl_bid_${suffix}`] || 0);
+                      askVal = (bucket[`bybit_ask_${suffix}`] || 0) + (bucket[`hl_ask_${suffix}`] || 0);
+                    }
+                    targetPrice = bidVal - askVal;
+                  }
+                }
+              }
+            }
+          }
+          targetChart.setCrosshairPosition(targetPrice, time, targetSeries);
+        }
+      }
+    }
+  });
+
+  isCrosshairSyncing = false;
+}
+
+// 1. Initializing Price Chart
+function initPriceChart() {
+  const container = document.querySelector('#priceChart');
+  const rect = container.getBoundingClientRect();
+  
+  priceChart = LightweightCharts.createChart(container, {
+    ...chartTheme,
+    width: rect.width,
+    height: rect.height || 300,
+    localization: {
+      priceFormatter: formatPrice
+    }
+  });
+
+  priceSeries = priceChart.addSeries(LightweightCharts.CandlestickSeries, {
+    upColor: '#35d083',
+    downColor: '#ef5e5e',
+    borderVisible: false,
+    wickUpColor: '#35d083',
+    wickDownColor: '#ef5e5e',
+    priceLineVisible: false
+  });
+
+  priceChart._type = 'price';
+  priceChart._container = container;
+  priceChart._syncSeries = priceSeries;
+
+  activeCharts.push(priceChart);
+  resizeObserver.observe(container);
+
+  // Register Event Listeners once
+  priceChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+    handleTimescaleChange(priceChart, range);
+  });
+  priceChart.subscribeCrosshairMove((param) => {
+    handleCrosshairMove(priceChart, param);
+  });
+}
+
+// 2. Initializing TWAP Chart
+function initTwapChart() {
+  const container = document.querySelector('#twapChart');
+  const rect = container.getBoundingClientRect();
+
+  twapChart = LightweightCharts.createChart(container, {
+    ...chartTheme,
+    width: rect.width,
+    height: rect.height || 240,
+    localization: {
+      priceFormatter: formatKandM
+    }
+  });
+
+  twapSeriesMap = {
+    twapNet1h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#5aa7ff', lineWidth: 2, title: 'Net 1H', priceLineVisible: false }),
+    twapNet24h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#eef4ee', lineWidth: 1.5, title: 'Net 24H', priceLineVisible: false }),
+    twapBuy24h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#35d083', lineWidth: 1.5, title: 'Buy 24H', priceLineVisible: false }),
+    twapSell24h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#ef5e5e', lineWidth: 1.5, title: 'Sell 24H', priceLineVisible: false })
+  };
+
+  twapChart._type = 'twap';
+  twapChart._container = container;
+  twapChart._syncSeries = twapSeriesMap.twapNet1h;
+
+  activeCharts.push(twapChart);
+  resizeObserver.observe(container);
+  updateTwapSeriesVisibility();
+
+  // Register Event Listeners once
+  twapChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+    handleTimescaleChange(twapChart, range);
+  });
+  twapChart.subscribeCrosshairMove((param) => {
+    handleCrosshairMove(twapChart, param);
+  });
+}
+
+// Update TWAP Series visibility based on checklist
+function updateTwapSeriesVisibility() {
+  metricInputs.forEach((input) => {
+    const key = input.dataset.metric;
+    const series = twapSeriesMap[key];
+    if (series) {
+      series.applyOptions({
+        visible: input.checked
+      });
+    }
+  });
+}
+
+// Custom colors mapping based on type and depth percentages
+function getMetricColor(type, depth) {
+  const colors = {
+    '1.5': { bid: '#2af598', ask: '#ff4e50', diff: '#5aa7ff' },
+    '3':   { bid: '#35d083', ask: '#ef5e5e', diff: '#00c6ff' },
+    '5':   { bid: '#7efeb4', ask: '#ff9595', diff: '#0072ff' },
+    '8':   { bid: '#10ac84', ask: '#ee5253', diff: '#5f27cd' },
+    '15':  { bid: '#05c46b', ask: '#ff3f34', diff: '#ff9f43' },
+    '30':  { bid: '#00d2d3', ask: '#ff6b6b', diff: '#f5d020' },
+    '60':  { bid: '#1dd1a1', ask: '#ff6b81', diff: '#95afc0' }
+  };
+  return colors[depth]?.[type] ?? '#ffffff';
+}
+
+// Update dynamic subchart metric series visibility based on exchange source selection
+function updatePanelMetricVisibility(panel, metricKey) {
+  const source = exchangeSourceSelect.value;
+  const metric = panel.activeMetrics[metricKey];
+  if (!metric) return;
+
+  if (metric.type === 'bid' || metric.type === 'ask') {
+    const s = metric.series;
+    s.bybit.applyOptions({ visible: (source === 'bybit' || source === 'all') });
+    s.hl.applyOptions({ visible: (source === 'hl' || source === 'all') });
+    s.combined.applyOptions({ visible: (source === 'combined') });
+  } else if (metric.type === 'diff') {
+    metric.series.diff.applyOptions({ visible: true });
+  }
+}
+
+// Update all dynamic subcharts when global configurations change
+function updateAllSubcharts() {
+  dynamicPanels.forEach((panel) => {
+    Object.keys(panel.activeMetrics).forEach((metricKey) => {
+      updatePanelMetricVisibility(panel, metricKey);
+      if (panel.activeMetrics[metricKey].type === 'diff') {
+        populatePanelDiffData(panel, metricKey);
+      }
+    });
+  });
+}
+
+// Create a new empty dynamic subchart panel
+function createNewPanel() {
+  panelCount++;
+  const panelId = `panel_${Date.now()}`;
+
+  const wrapperDiv = document.createElement('div');
+  wrapperDiv.className = 'chart-wrapper-container dynamic-panel-container';
+  wrapperDiv.setAttribute('data-panel-id', panelId);
+
+  wrapperDiv.innerHTML = `
+    <div class="panel-header-controls">
+      <span class="panel-label">Subchart #${panelCount}</span>
+      <div class="panel-actions-group">
+        <select class="add-metric-select" data-panel-id="${panelId}">
+          <option value="" disabled selected>+ Add Metric...</option>
+          <optgroup label="Bid Depth">
+            <option value="bid_1.5">Bid Depth 1.5%</option>
+            <option value="bid_3">Bid Depth 3%</option>
+            <option value="bid_5">Bid Depth 5%</option>
+            <option value="bid_8">Bid Depth 8%</option>
+            <option value="bid_15">Bid Depth 15%</option>
+            <option value="bid_30">Bid Depth 30%</option>
+            <option value="bid_60">Bid Depth 60%</option>
+          </optgroup>
+          <optgroup label="Ask Depth">
+            <option value="ask_1.5">Ask Depth 1.5%</option>
+            <option value="ask_3">Ask Depth 3%</option>
+            <option value="ask_5">Ask Depth 5%</option>
+            <option value="ask_8">Ask Depth 8%</option>
+            <option value="ask_15">Ask Depth 15%</option>
+            <option value="ask_30">Ask Depth 30%</option>
+            <option value="ask_60">Ask Depth 60%</option>
+          </optgroup>
+          <optgroup label="Difference (Bid - Ask)">
+            <option value="diff_1.5">Diff Depth 1.5%</option>
+            <option value="diff_3">Diff Depth 3%</option>
+            <option value="diff_5">Diff Depth 5%</option>
+            <option value="diff_8">Diff Depth 8%</option>
+            <option value="diff_15">Diff Depth 15%</option>
+            <option value="diff_30">Diff Depth 30%</option>
+            <option value="diff_60">Diff Depth 60%</option>
+          </optgroup>
+        </select>
+        <button class="close-panel-btn" data-panel-id="${panelId}" type="button">×</button>
+      </div>
+    </div>
+    <div class="active-metrics-badges" id="badges_${panelId}"></div>
+    <div id="chart_${panelId}" class="lightweight-chart-wrapper subchart-wrapper"></div>
+  `;
+
+  chartsStack.appendChild(wrapperDiv);
+
+  const container = document.getElementById(`chart_${panelId}`);
+  const rect = container.getBoundingClientRect();
+
+  const chart = LightweightCharts.createChart(container, {
+    ...chartTheme,
+    width: rect.width || 300,
+    height: rect.height || 160,
+    localization: {
+      priceFormatter: formatKandM
+    }
+  });
+
+  chart._type = 'dynamic';
+  chart._panelId = panelId;
+  chart._container = container;
+
+  const panelObj = {
+    panelId,
+    chart,
+    activeMetrics: {}
+  };
+
+  dynamicPanels.push(panelObj);
+  activeCharts.push(chart);
+  resizeObserver.observe(container);
+
+  // Synchronization event listeners
+  chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+    handleTimescaleChange(chart, range);
+  });
+  chart.subscribeCrosshairMove((param) => {
+    handleCrosshairMove(chart, param);
+  });
+
+  // Setup Event Listeners
+  wrapperDiv.querySelector('.close-panel-btn').addEventListener('click', () => {
+    removePanel(panelId);
+  });
+
+  wrapperDiv.querySelector('.add-metric-select').addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (!val) return;
+    const parts = val.split('_');
+    addMetricToPanel(panelId, parts[0], parts[1]);
+    e.target.value = ''; // reset dropdown select
+  });
+
+  // Sync to current timescale range
+  const currentRange = priceChart.timeScale().getVisibleLogicalRange();
+  if (currentRange) {
+    chart.timeScale().setVisibleLogicalRange(currentRange);
+  }
+}
+
+// Add a specific metric onto a dynamic subchart panel
+function addMetricToPanel(panelId, type, depth) {
+  const panel = dynamicPanels.find(p => p.panelId === panelId);
+  if (!panel) return;
+
+  const metricKey = `${type}_${depth}`;
+  if (panel.activeMetrics[metricKey]) return; // already added
+
+  const color = getMetricColor(type, depth);
+  const series = {};
+
+  if (type === 'bid' || type === 'ask') {
+    series.bybit = panel.chart.addSeries(LightweightCharts.LineSeries, {
+      color: color,
+      lineWidth: 1.5,
+      title: `Bybit ${type === 'bid' ? 'Bid' : 'Ask'} ${depth}%`,
+      priceLineVisible: false
+    });
+    series.hl = panel.chart.addSeries(LightweightCharts.LineSeries, {
+      color: color,
+      lineWidth: 1.2,
+      lineStyle: 2,
+      title: `HL ${type === 'bid' ? 'Bid' : 'Ask'} ${depth}%`,
+      priceLineVisible: false
+    });
+    series.combined = panel.chart.addSeries(LightweightCharts.LineSeries, {
+      color: color,
+      lineWidth: 2.2,
+      title: `Combined ${type === 'bid' ? 'Bid' : 'Ask'} ${depth}%`,
+      priceLineVisible: false
+    });
+  } else if (type === 'diff') {
+    series.diff = panel.chart.addSeries(LightweightCharts.LineSeries, {
+      color: color,
+      lineWidth: 2,
+      title: `Diff ${depth}%`,
+      priceLineVisible: false
+    });
+  }
+
+  panel.activeMetrics[metricKey] = {
+    type,
+    depth,
+    color,
+    series
+  };
+
+  // Sync crosshair snap series reference to the first metric added
+  const firstKey = Object.keys(panel.activeMetrics)[0];
+  if (firstKey) {
+    const firstMetric = panel.activeMetrics[firstKey];
+    panel.chart._syncSeries = firstMetric.type === 'diff' ? firstMetric.series.diff : firstMetric.series.combined;
+  }
+
+  updatePanelBadges(panelId);
+  updatePanelMetricVisibility(panel, metricKey);
+
+  if (type === 'diff') {
+    populatePanelDiffData(panel, metricKey);
+  } else {
+    populatePanelDepthData(panel, metricKey);
+  }
+}
+
+// Remove a specific metric from a dynamic subchart panel
+function removeMetricFromPanel(panelId, metricKey) {
+  const panel = dynamicPanels.find(p => p.panelId === panelId);
+  if (!panel) return;
+
+  const metric = panel.activeMetrics[metricKey];
+  if (!metric) return;
+
+  Object.values(metric.series).forEach((seriesInstance) => {
+    panel.chart.removeSeries(seriesInstance);
+  });
+
+  delete panel.activeMetrics[metricKey];
+
+  // Update crosshair snap reference
+  const firstKey = Object.keys(panel.activeMetrics)[0];
+  if (firstKey) {
+    const firstMetric = panel.activeMetrics[firstKey];
+    panel.chart._syncSeries = firstMetric.type === 'diff' ? firstMetric.series.diff : firstMetric.series.combined;
+  } else {
+    panel.chart._syncSeries = null;
+  }
+
+  updatePanelBadges(panelId);
+}
+
+// Render active metric badges inside panel header
+function updatePanelBadges(panelId) {
+  const panel = dynamicPanels.find(p => p.panelId === panelId);
+  if (!panel) return;
+
+  const badgesDiv = document.getElementById(`badges_${panelId}`);
+  if (!badgesDiv) return;
+
+  badgesDiv.innerHTML = '';
+
+  Object.keys(panel.activeMetrics).forEach((metricKey) => {
+    const metric = panel.activeMetrics[metricKey];
+    const label = `${metric.type.toUpperCase()} ${metric.depth}%`;
+
+    const badge = document.createElement('div');
+    badge.className = 'metric-badge';
+    badge.innerHTML = `
+      <span class="badge-color-dot" style="background-color: ${metric.color};"></span>
+      <span>${label}</span>
+      <button class="remove-badge-btn" type="button" data-metric-key="${metricKey}">×</button>
+    `;
+
+    badge.querySelector('.remove-badge-btn').addEventListener('click', () => {
+      removeMetricFromPanel(panelId, metricKey);
+    });
+
+    badgesDiv.appendChild(badge);
+  });
+}
+
+// Remove dynamic panel instance
+function removePanel(panelId) {
+  const panelIndex = dynamicPanels.findIndex(p => p.panelId === panelId);
+  if (panelIndex === -1) return;
+
+  const panel = dynamicPanels[panelIndex];
+
+  if (panel._container) {
+    resizeObserver.unobserve(panel._container);
+  }
+
+  activeCharts = activeCharts.filter((c) => c !== panel.chart);
+  dynamicPanels.splice(panelIndex, 1);
+
+  const wrapper = chartsStack.querySelector(`[data-panel-id="${panelId}"]`);
+  if (wrapper) {
+    wrapper.remove();
+  }
+
+  // Re-sync logical range for remaining charts
+  const range = priceChart.timeScale().getVisibleLogicalRange();
+  if (range) {
+    activeCharts.forEach((targetChart) => {
+      targetChart.timeScale().setVisibleLogicalRange(range);
+    });
+  }
+}
+
+// Populate Data
+function populatePriceData() {
+  const candles = currentBuckets.map((bucket) => ({
+    time: Math.floor(new Date(bucket.timestamp).getTime() / 1000),
+    open: bucket.open ?? bucket.price,
+    high: bucket.high ?? bucket.price,
+    low: bucket.low ?? bucket.price,
+    close: bucket.close ?? bucket.price
+  })).filter((c) => Number.isFinite(c.open));
+
+  priceSeries.setData(candles);
+
+  if (candles.length > 0) {
+    const minPrice = Math.min(...candles.map(c => c.low));
+    const maxPrice = Math.max(...candles.map(c => c.high));
+    priceRange.textContent = `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+  } else {
+    priceRange.textContent = '--';
+  }
+}
+
+function populateTwapData() {
+  const map = {
+    twapNet1h: [],
+    twapNet24h: [],
+    twapBuy24h: [],
+    twapSell24h: []
+  };
+
+  currentBuckets.forEach((bucket) => {
+    const time = Math.floor(new Date(bucket.timestamp).getTime() / 1000);
+    const mode = selectedTwapMode;
+    
+    const valNet1h = bucket.twapModes?.[mode]?.twapNet1h ?? bucket.twapNet1h;
+    const valNet24h = bucket.twapModes?.[mode]?.twapNet24h ?? bucket.twapNet24h;
+    const valBuy24h = bucket.twapModes?.[mode]?.twapBuy24h ?? bucket.twapBuy24h;
+    const valSell24h = bucket.twapModes?.[mode]?.twapSell24h ?? bucket.twapSell24h;
+
+    if (Number.isFinite(valNet1h)) map.twapNet1h.push({ time, value: valNet1h });
+    if (Number.isFinite(valNet24h)) map.twapNet24h.push({ time, value: valNet24h });
+    if (Number.isFinite(valBuy24h)) map.twapBuy24h.push({ time, value: valBuy24h });
+    if (Number.isFinite(valSell24h)) map.twapSell24h.push({ time, value: valSell24h });
+  });
+
+  Object.keys(twapSeriesMap).forEach((key) => {
+    twapSeriesMap[key].setData(map[key]);
+  });
+}
+
+function populatePanelDepthData(panel, metricKey) {
+  const metric = panel.activeMetrics[metricKey];
+  if (!metric) return;
+
+  const { type, depth, series } = metric;
+  const suffix = depth.replace('.', '_');
+  const dataset = {
+    bybit: [],
+    hl: [],
+    combined: []
+  };
+
+  currentBuckets.forEach((bucket) => {
+    const time = Math.floor(new Date(bucket.timestamp).getTime() / 1000);
+    const valBybit = bucket[`bybit_${type}_${suffix}`];
+    const valHl = bucket[`hl_${type}_${suffix}`];
+
+    if (Number.isFinite(valBybit)) dataset.bybit.push({ time, value: valBybit });
+    if (Number.isFinite(valHl)) dataset.hl.push({ time, value: valHl });
+
+    const hasBybit = Number.isFinite(valBybit);
+    const hasHl = Number.isFinite(valHl);
+    if (hasBybit || hasHl) {
+      dataset.combined.push({ time, value: (valBybit || 0) + (valHl || 0) });
+    }
+  });
+
+  series.bybit.setData(dataset.bybit);
+  series.hl.setData(dataset.hl);
+  series.combined.setData(dataset.combined);
+}
+
+function populatePanelDiffData(panel, metricKey) {
+  const metric = panel.activeMetrics[metricKey];
+  if (!metric) return;
+
+  const { depth, series } = metric;
+  const suffix = depth.replace('.', '_');
+  const source = exchangeSourceSelect.value;
+  const diffData = [];
+
+  currentBuckets.forEach((bucket) => {
+    const time = Math.floor(new Date(bucket.timestamp).getTime() / 1000);
+    const bybitBid = bucket[`bybit_bid_${suffix}`];
+    const bybitAsk = bucket[`bybit_ask_${suffix}`];
+    const hlBid = bucket[`hl_bid_${suffix}`];
+    const hlAsk = bucket[`hl_ask_${suffix}`];
+
+    let bidVal = null;
+    let askVal = null;
+
+    if (source === 'bybit') {
+      if (Number.isFinite(bybitBid)) bidVal = bybitBid;
+      if (Number.isFinite(bybitAsk)) askVal = bybitAsk;
+    } else if (source === 'hl') {
+      if (Number.isFinite(hlBid)) bidVal = hlBid;
+      if (Number.isFinite(hlAsk)) askVal = hlAsk;
+    } else {
+      // Combined or All: show combined diff
+      const hasBybitBid = Number.isFinite(bybitBid);
+      const hasHlBid = Number.isFinite(hlBid);
+      if (hasBybitBid || hasHlBid) bidVal = (bybitBid || 0) + (hlBid || 0);
+
+      const hasBybitAsk = Number.isFinite(bybitAsk);
+      const hasHlAsk = Number.isFinite(hlAsk);
+      if (hasBybitAsk || hasHlAsk) askVal = (bybitAsk || 0) + (hlAsk || 0);
+    }
+
+    if (bidVal !== null || askVal !== null) {
+      diffData.push({ time, value: (bidVal || 0) - (askVal || 0) });
+    }
+  });
+
+  series.diff.setData(diffData);
+}
+
+function populateAllChartsData() {
+  populatePriceData();
+  populateTwapData();
+  dynamicPanels.forEach((panel) => {
+    Object.keys(panel.activeMetrics).forEach((metricKey) => {
+      const metric = panel.activeMetrics[metricKey];
+      if (metric.type === 'diff') {
+        populatePanelDiffData(panel, metricKey);
+      } else {
+        populatePanelDepthData(panel, metricKey);
+      }
+    });
+  });
+}
+
+// Refresh from Backend
+async function refreshChart() {
+  try {
+    const response = await fetch(`/api/snapshots?timeframe=${encodeURIComponent(selectedTimeframe)}`);
+    currentBuckets = await response.json();
+    snapshotCount.textContent = String(currentBuckets.length);
+    populateAllChartsData();
+  } catch (err) {
+    console.error('Error refreshing chart snapshot data:', err);
+  }
+}
+
+// Event Listeners
+timeframeButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    selectedTimeframe = button.dataset.timeframe;
+    timeframeButtons.forEach((item) => item.classList.toggle('active', item === button));
+    refreshChart().catch(console.error);
+  });
+});
+
+twapModeButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    selectedTwapMode = button.dataset.twapMode;
+    twapModeButtons.forEach((item) => item.classList.toggle('active', item === button));
+    populateTwapData();
+  });
+});
+
+metricInputs.forEach((input) => {
+  input.addEventListener('change', () => {
+    updateTwapSeriesVisibility();
+  });
+});
+
+// Dropdown Add Subchart handler
+addNewPanelBtn.addEventListener('click', () => {
+  createNewPanel();
+});
+
+// Global control listeners
+exchangeSourceSelect.addEventListener('change', () => {
+  updateAllSubcharts();
+});
+
+// Presets Implementation
+const savePresetModal = document.getElementById('savePresetModal');
+const presetNameInput = document.getElementById('presetNameInput');
+const saveTimeframeCheckbox = document.getElementById('saveTimeframeCheckbox');
+const confirmSavePresetBtn = document.getElementById('confirmSavePresetBtn');
+const cancelSavePresetBtn = document.getElementById('cancelSavePresetBtn');
+const presetSelect = document.getElementById('presetSelect');
+const deletePresetBtn = document.getElementById('deletePresetBtn');
+const savePresetBtn = document.getElementById('savePresetBtn');
+
+function saveCurrentAsPreset(presetName, includeTimeframe) {
+  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+
+  const panelsData = dynamicPanels.map((panel) => {
+    const metrics = Object.keys(panel.activeMetrics).map((metricKey) => {
+      const m = panel.activeMetrics[metricKey];
+      return { type: m.type, depth: m.depth };
+    });
+    return { metrics };
+  });
+
+  presets[presetName] = {
+    name: presetName,
+    exchange: exchangeSourceSelect.value,
+    timeframe: includeTimeframe ? selectedTimeframe : null,
+    panels: panelsData
+  };
+
+  localStorage.setItem('hype_chart_presets', JSON.stringify(presets));
+  populatePresetSelectDropdown();
+}
+
+function loadPreset(presetName) {
+  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  const preset = presets[presetName];
+  if (!preset) return;
+
+  // 1. Clear all existing panels (create a copy to prevent mutation bugs)
+  const panelIds = dynamicPanels.map(p => p.panelId);
+  panelIds.forEach(id => removePanel(id));
+
+  // 2. Set global exchange source
+  if (preset.exchange) {
+    exchangeSourceSelect.value = preset.exchange;
+  }
+
+  // 3. Set timeframe if stored in preset
+  if (preset.timeframe) {
+    selectedTimeframe = preset.timeframe;
+    timeframeButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.timeframe === selectedTimeframe);
+    });
+    refreshChart().catch(console.error);
+  }
+
+  // 4. Rebuild panels
+  preset.panels.forEach((panelData) => {
+    createNewPanel();
+    const newPanel = dynamicPanels[dynamicPanels.length - 1];
+    if (newPanel) {
+      panelData.metrics.forEach((metric) => {
+        addMetricToPanel(newPanel.panelId, metric.type, metric.depth);
+      });
+    }
+  });
+
+  updateAllSubcharts();
+  populateAllChartsData();
+}
+
+function deletePreset(presetName) {
+  if (!presetName) return;
+  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  if (presets[presetName]) {
+    delete presets[presetName];
+    localStorage.setItem('hype_chart_presets', JSON.stringify(presets));
+    populatePresetSelectDropdown();
+  }
+}
+
+function populatePresetSelectDropdown() {
+  if (!presetSelect) return;
+  presetSelect.innerHTML = '<option value="" disabled selected>Load Preset...</option>';
+
+  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  Object.keys(presets).forEach((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    presetSelect.appendChild(opt);
+  });
+}
+
+function showSaveModal() {
+  presetNameInput.value = '';
+  const label = saveTimeframeCheckbox.parentElement;
+  if (label) {
+    label.innerHTML = `<input type="checkbox" id="saveTimeframeCheckbox" checked> Include current timeframe (${selectedTimeframe})`;
+  }
+  savePresetModal.classList.remove('hidden');
+  presetNameInput.focus();
+}
+
+function hideSaveModal() {
+  savePresetModal.classList.add('hidden');
+}
+
+// Preset Event Listeners
+savePresetBtn.addEventListener('click', showSaveModal);
+cancelSavePresetBtn.addEventListener('click', hideSaveModal);
+
+confirmSavePresetBtn.addEventListener('click', () => {
+  const name = presetNameInput.value.trim();
+  if (!name) {
+    alert('Please enter a preset name.');
+    return;
+  }
+  const includeTf = document.getElementById('saveTimeframeCheckbox').checked;
+  saveCurrentAsPreset(name, includeTf);
+  hideSaveModal();
+});
+
+presetSelect.addEventListener('change', (e) => {
+  const val = e.target.value;
+  if (!val) return;
+  loadPreset(val);
+});
+
+deletePresetBtn.addEventListener('click', () => {
+  const val = presetSelect.value;
+  if (!val) {
+    alert('Please select a preset to delete from the dropdown.');
+    return;
+  }
+  if (confirm(`Are you sure you want to delete preset "${val}"?`)) {
+    deletePreset(val);
+    presetSelect.value = '';
+  }
+});
+
+// Startup Execution
+function startup() {
+  initPriceChart();
+  initTwapChart();
+  populatePresetSelectDropdown();
+  
+  refreshChart().catch(console.error);
+  setInterval(() => refreshChart().catch(console.error), 5000);
+}
+
+// Run startup
+startup();

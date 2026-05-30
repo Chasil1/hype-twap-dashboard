@@ -1,0 +1,5 @@
+node_modules/
+data/snapshots.json
+dev-server.*.log
+.playwright-mcp/
+.superpowers/

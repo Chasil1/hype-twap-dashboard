@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HYPE TWAP Chart</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <!-- Load TradingView Lightweight Charts CDN -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  </head>
+  <body class="chart-page">
+    <main class="chart-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Separate window</p>
+          <h1>Price and TWAP</h1>
+        </div>
+        <div class="chart-controls">
+          <div class="timeframes" role="tablist" aria-label="Chart timeframe">
+            <button class="timeframe active" type="button" data-timeframe="1m">1m</button>
+            <button class="timeframe" type="button" data-timeframe="5m">5m</button>
+            <button class="timeframe" type="button" data-timeframe="15m">15m</button>
+            <button class="timeframe" type="button" data-timeframe="1h">1h</button>
+            <button class="timeframe" type="button" data-timeframe="4h">4h</button>
+            <button class="timeframe" type="button" data-timeframe="1d">1d</button>
+          </div>
+          <div class="ticker compact">
+            <span class="label">Buckets</span>
+            <strong id="snapshotCount">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Depth Chart Controls Panel -->
+      <section class="depth-controls-panel">
+        <div class="control-group">
+          <button id="addNewPanelBtn" class="add-panel-btn" type="button">+ Add New Subchart</button>
+        </div>
+        
+        <div class="control-group">
+          <span class="label">Exchange:</span>
+          <select id="exchangeSourceSelect">
+            <option value="combined" selected>Bybit + HL (Combined)</option>
+            <option value="all">Bybit + HL (Separate)</option>
+            <option value="bybit">Bybit Only</option>
+            <option value="hl">Hyperliquid Only</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <span class="label">Presets:</span>
+          <select id="presetSelect" class="preset-select">
+            <option value="" disabled selected>Load Preset...</option>
+          </select>
+          <button id="savePresetBtn" class="action-btn" type="button">Save Current</button>
+          <button id="deletePresetBtn" class="action-btn delete-btn" type="button" title="Delete Selected Preset">Delete</button>
+        </div>
+      </section>
+
+      <section class="charts-layout-container">
+        <!-- Main Price & Depth Stack Panel (Resizable) -->
+        <div class="chart-panel price-panel" id="mainChartPanel">
+          <div class="panel-head">
+            <span class="label">HYPE Price & Stacked Depths</span>
+            <strong id="priceRange">--</strong>
+          </div>
+          
+          <!-- Stack of price chart and dynamic depth subcharts -->
+          <div class="charts-stack" id="chartsStack">
+            <div class="chart-wrapper-container" id="priceChartContainer">
+              <div id="priceChart" class="lightweight-chart-wrapper"></div>
+              <div class="chart-overlay-header">
+                <span class="chart-overlay-title">HYPE Price</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TWAP Chart Panel -->
+        <div class="chart-panel twap-panel">
+          <div class="panel-head">
+            <span class="label">TWAP Averages</span>
+            <div class="twap-mode-toggle" role="tablist" aria-label="TWAP market mode">
+              <button class="twap-mode active" type="button" data-twap-mode="spotPerp">Spot + Perp</button>
+              <button class="twap-mode" type="button" data-twap-mode="spot">Spot</button>
+              <button class="twap-mode" type="button" data-twap-mode="perp">Perp</button>
+            </div>
+            <div class="metric-toggles">
+              <label><input type="checkbox" data-metric="twapNet1h" checked> Net 1H</label>
+              <label><input type="checkbox" data-metric="twapNet24h" checked> Net 24H</label>
+              <label><input type="checkbox" data-metric="twapBuy24h" checked> Buy</label>
+              <label><input type="checkbox" data-metric="twapSell24h" checked> Sell</label>
+            </div>
+          </div>
+          <div id="twapChart" class="lightweight-chart-wrapper" style="height: 240px;"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Save Preset Modal -->
+    <div id="savePresetModal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h2>Save Preset</h2>
+        <div class="modal-body">
+          <div class="input-group">
+            <label for="presetNameInput">Preset Name:</label>
+            <input type="text" id="presetNameInput" placeholder="e.g. My Custom View" autocomplete="off">
+          </div>
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="saveTimeframeCheckbox" checked>
+              Include current timeframe
+            </label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="confirmSavePresetBtn" class="modal-btn confirm-btn" type="button">Save</button>
+          <button id="cancelSavePresetBtn" class="modal-btn cancel-btn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/chart.js" type="module"></script>
+  </body>
+</html>

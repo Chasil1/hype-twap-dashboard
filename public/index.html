@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HYPE TWAP Monitor</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Hyperliquid HYPE</p>
+          <h1>TWAP Monitor</h1>
+        </div>
+        <div class="actions">
+          <button id="copyBridge" class="chart-link" type="button">Copy bridge</button>
+          <button id="collectNow" class="icon-button" title="Collect snapshot now" aria-label="Collect snapshot now">
+            <span>↻</span>
+          </button>
+          <a class="chart-link" href="/chart" target="_blank" rel="noreferrer">Open chart</a>
+        </div>
+      </section>
+
+      <section class="market-strip">
+        <div class="ticker">
+          <span class="label">HYPE price</span>
+          <strong id="price">--</strong>
+        </div>
+        <div class="ticker">
+          <span class="label">TWAP source</span>
+          <strong id="twapSource">--</strong>
+        </div>
+      </section>
+
+      <section class="metrics-grid">
+        <div class="twap-mode-row">
+          <span class="label">TWAP mode</span>
+          <div class="twap-mode-toggle" role="tablist" aria-label="TWAP market mode">
+            <button class="twap-mode active" type="button" data-twap-mode="spotPerp">Spot + Perp</button>
+            <button class="twap-mode" type="button" data-twap-mode="spot">Spot</button>
+            <button class="twap-mode" type="button" data-twap-mode="perp">Perp</button>
+          </div>
+        </div>
+        <article class="metric emphasis">
+          <span class="label">Next 1H net</span>
+          <strong id="twapNet1h">--</strong>
+          <small>buy minus sell</small>
+        </article>
+        <article class="metric emphasis">
+          <span class="label">Next 24H net</span>
+          <strong id="twapNet24h">--</strong>
+          <small>buy minus sell</small>
+        </article>
+        <article class="metric buy">
+          <span class="label">24H buy</span>
+          <strong id="twapBuy24h">--</strong>
+          <small><span id="activeBuyCount">--</span> active buy TWAPs</small>
+        </article>
+        <article class="metric sell">
+          <span class="label">24H sell</span>
+          <strong id="twapSell24h">--</strong>
+          <small><span id="activeSellCount">--</span> active sell TWAPs</small>
+        </article>
+      </section>
+
+      <section class="status-panel">
+        <div>
+          <span class="label">Scraper</span>
+          <strong id="scraperStatus">Starting</strong>
+        </div>
+        <p id="statusDetail">Waiting for first read from hl.eco/twaps.</p>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
