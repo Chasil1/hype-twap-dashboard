@@ -58,14 +58,35 @@ export async function fetchDepths() {
       fetch('https://api.bybit.com/v5/market/orderbook?category=linear&symbol=HYPEUSDT&limit=500')
     ]);
 
-    if (resHL3.status === 'fulfilled' && resHL3.value.ok) {
-      hl3 = await resHL3.value.json();
+    if (resHL3.status === 'fulfilled') {
+      if (resHL3.value.ok) {
+        hl3 = await resHL3.value.json();
+      } else {
+        console.error(`Hyperliquid L2 Book (nSigFigs=3) fetch failed: ${resHL3.value.status} ${resHL3.value.statusText}`);
+      }
+    } else {
+      console.error('Hyperliquid L2 Book (nSigFigs=3) promise rejected:', resHL3.reason);
     }
-    if (resHL2.status === 'fulfilled' && resHL2.value.ok) {
-      hl2 = await resHL2.value.json();
+
+    if (resHL2.status === 'fulfilled') {
+      if (resHL2.value.ok) {
+        hl2 = await resHL2.value.json();
+      } else {
+        console.error(`Hyperliquid L2 Book (nSigFigs=2) fetch failed: ${resHL2.value.status} ${resHL2.value.statusText}`);
+      }
+    } else {
+      console.error('Hyperliquid L2 Book (nSigFigs=2) promise rejected:', resHL2.reason);
     }
-    if (resBybit.status === 'fulfilled' && resBybit.value.ok) {
-      bybit = await resBybit.value.json();
+
+    if (resBybit.status === 'fulfilled') {
+      if (resBybit.value.ok) {
+        bybit = await resBybit.value.json();
+      } else {
+        const bodyText = await resBybit.value.text().catch(() => '');
+        console.error(`Bybit API fetch failed: ${resBybit.value.status} ${resBybit.value.statusText} - ${bodyText.slice(0, 200)}`);
+      }
+    } else {
+      console.error('Bybit API fetch promise rejected:', resBybit.reason);
     }
   } catch (err) {
     console.error('Error fetching order books in fetchDepths:', err);
