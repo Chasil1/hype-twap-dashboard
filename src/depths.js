@@ -55,7 +55,7 @@ export async function fetchDepths() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 2 })
       }),
-      fetch('https://api.bytick.com/v5/market/orderbook?category=linear&symbol=HYPEUSDT&limit=500')
+      fetch('https://api.bybit.nl/v5/market/orderbook?category=linear&symbol=HYPEUSDT&limit=500')
     ]);
 
     if (resHL3.status === 'fulfilled') {
