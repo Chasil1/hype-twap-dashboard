@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const DEFAULT_MAX_SNAPSHOTS = 7 * 24 * 60;
+const DEFAULT_MAX_SNAPSHOTS = 100_000;
 
 export class SnapshotStore {
   constructor(filePath, maxSnapshots = DEFAULT_MAX_SNAPSHOTS) {
@@ -15,21 +15,38 @@ export class SnapshotStore {
   async readAll() {
     if (this.isSupabase) {
       try {
-        const url = `${this.supabaseUrl}/rest/v1/hype_snapshots?select=data&order=timestamp.desc&limit=${this.maxSnapshots}`;
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'apikey': this.supabaseKey,
-            'Authorization': `Bearer ${this.supabaseKey}`
+        let allRows = [];
+        let offset = 0;
+        const limit = 1000;
+        let hasMore = true;
+
+        while (hasMore && allRows.length < this.maxSnapshots) {
+          const chunkLimit = Math.min(limit, this.maxSnapshots - allRows.length);
+          const url = `${this.supabaseUrl}/rest/v1/hype_snapshots?select=data&order=timestamp.desc&limit=${chunkLimit}&offset=${offset}`;
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'apikey': this.supabaseKey,
+              'Authorization': `Bearer ${this.supabaseKey}`
+            }
+          });
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Supabase read failed at offset ${offset}: ${response.status} ${response.statusText} - ${errText}`);
           }
-        });
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Supabase read failed: ${response.status} ${response.statusText} - ${errText}`);
+          const rows = await response.json();
+          if (rows.length === 0) {
+            hasMore = false;
+          } else {
+            allRows = allRows.concat(rows);
+            offset += rows.length;
+            if (rows.length < chunkLimit) {
+              hasMore = false;
+            }
+          }
         }
-        const rows = await response.json();
         // Extracted objects are in descending order from DB. Reverse them to restore ascending order.
-        return rows.map(r => r.data).reverse();
+        return allRows.map(r => r.data).reverse();
       } catch (error) {
         console.error('Error reading from Supabase, returning empty array:', error);
         return [];
