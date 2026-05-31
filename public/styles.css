@@ -172,6 +172,31 @@ h1 {
   background: var(--amber);
 }
 
+.ruler-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  width: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: #0d1114;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ruler-toggle-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.ruler-toggle-btn.active {
+  color: var(--ink);
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -357,18 +382,16 @@ h1 {
 }
 
 .price-panel {
-  resize: vertical;
-  overflow: hidden;
-  height: 480px; /* default starting height */
   min-height: 320px;
+  height: auto;
 }
 
 .charts-stack {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   background: #11161a;
 }
 
@@ -384,8 +407,18 @@ h1 {
 }
 
 #priceChartContainer {
-  flex: 2;
+  flex: none;
+  resize: vertical;
+  overflow: hidden;
+  height: 360px;
   min-height: 180px;
+}
+
+#twapChart {
+  resize: vertical;
+  overflow: hidden;
+  height: 240px;
+  min-height: 120px;
 }
 
 .depth-chart-wrapper-container {
@@ -568,6 +601,10 @@ h1 {
   overflow: hidden;
   background: rgba(9, 11, 14, 0.9);
   margin-top: 14px;
+  flex: none;
+  resize: vertical;
+  height: 240px;
+  min-height: 140px;
 }
 
 .panel-header-controls {
@@ -669,7 +706,8 @@ h1 {
 }
 
 .subchart-wrapper {
-  height: 160px !important;
+  flex: 1;
+  min-height: 80px;
 }
 
 /* Modal Dialog Styling */

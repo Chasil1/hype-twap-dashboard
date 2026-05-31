@@ -7,10 +7,6 @@ const elements = {
   twapSell24h: document.querySelector('#twapSell24h'),
   activeBuyCount: document.querySelector('#activeBuyCount'),
   activeSellCount: document.querySelector('#activeSellCount'),
-  scraperStatus: document.querySelector('#scraperStatus'),
-  statusDetail: document.querySelector('#statusDetail'),
-  collectNow: document.querySelector('#collectNow'),
-  copyBridge: document.querySelector('#copyBridge'),
   twapModeButtons: [...document.querySelectorAll('.twap-mode')]
 };
 
@@ -125,10 +121,7 @@ function animateMoney(element, start, end, duration, formatter = money, shouldPu
   animateValue(element, start, end, duration, (val) => formatMoney(val, formatter), shouldPulse);
 }
 
-function buildBridgeScript() {
-  const endpoint = `${window.location.origin}/api/ingest-hl-eco`;
-  return `javascript:(()=>{const u=${JSON.stringify(endpoint)};const send=()=>fetch(u,{method:'POST',mode:'no-cors',headers:{'content-type':'text/plain'},body:document.body.innerText}).catch(console.error);send();setInterval(send,60000);alert('HYPE TWAP bridge active');})()`;
-}
+
 
 async function refresh() {
   const response = await fetch('/api/state');
@@ -174,35 +167,10 @@ async function refresh() {
     lastValues.twapSell24h = targetSell24h;
   }
 
-  const scraper = status.scraper ?? {};
-  const bridge = status.bridge ?? {};
-  elements.scraperStatus.textContent = scraper.ok || bridge.ok ? 'Online' : 'Needs attention';
-  elements.statusDetail.textContent = [
-    bridge.lastReadAt ? `Bridge: ${formatTime(bridge.lastReadAt)}` : null,
-    !bridge.ok ? 'Open hl.eco/twaps in your browser and run the copied bridge script.' : null,
-    status.priceError ? `Price: ${status.priceError}` : null,
-    status.twapError ? `TWAP: ${status.twapError}` : null,
-    scraper.lastReadAt ? `Last hl.eco read: ${formatTime(scraper.lastReadAt)}` : null
-  ].filter(Boolean).join(' | ') || 'Collector is running.';
+
 }
 
-elements.collectNow.addEventListener('click', async () => {
-  elements.collectNow.disabled = true;
-  try {
-    await fetch('/api/collect-now', { method: 'POST' });
-    await refresh();
-  } finally {
-    elements.collectNow.disabled = false;
-  }
-});
 
-elements.copyBridge.addEventListener('click', async () => {
-  await navigator.clipboard.writeText(buildBridgeScript());
-  elements.copyBridge.textContent = 'Copied';
-  setTimeout(() => {
-    elements.copyBridge.textContent = 'Copy bridge';
-  }, 1600);
-});
 
 for (const button of elements.twapModeButtons) {
   button.addEventListener('click', () => {

@@ -25,6 +25,9 @@
             <button class="timeframe" type="button" data-timeframe="4h">4h</button>
             <button class="timeframe" type="button" data-timeframe="1d">1d</button>
           </div>
+          <button id="rulerToggleBtn" class="ruler-toggle-btn" type="button" title="Toggle Ruler Tool (Measure %)">
+            <span>📏</span>
+          </button>
           <div class="ticker compact">
             <span class="label">Buckets</span>
             <strong id="snapshotCount">0</strong>
@@ -93,7 +96,7 @@
               <label><input type="checkbox" data-metric="twapSell24h" checked> Sell</label>
             </div>
           </div>
-          <div id="twapChart" class="lightweight-chart-wrapper" style="height: 240px;"></div>
+          <div id="twapChart" class="lightweight-chart-wrapper"></div>
         </div>
       </section>
     </main>

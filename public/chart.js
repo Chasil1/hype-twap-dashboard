@@ -73,6 +73,16 @@ const resizeObserver = new ResizeObserver((entries) => {
     const chart = activeCharts.find(c => c._container === container);
     if (chart && entry.contentRect.height > 10) {
       chart.resize(entry.contentRect.width, entry.contentRect.height);
+
+      // Update ruler canvas size if exists
+      const canvas = container.querySelector('.ruler-canvas');
+      if (canvas) {
+        canvas.width = entry.contentRect.width;
+        canvas.height = entry.contentRect.height;
+        if (canvas.drawRuler) {
+          canvas.drawRuler();
+        }
+      }
     }
   }
 });
@@ -398,6 +408,10 @@ function createNewPanel() {
   const currentRange = priceChart.timeScale().getVisibleLogicalRange();
   if (currentRange) {
     chart.timeScale().setVisibleLogicalRange(currentRange);
+  }
+
+  if (isRulerModeActive) {
+    updateRulerOverlays();
   }
 }
 
@@ -873,6 +887,250 @@ deletePresetBtn.addEventListener('click', () => {
     presetSelect.value = '';
   }
 });
+
+// ==========================================
+// CHART RULER TOOL IMPLEMENTATION
+// ==========================================
+
+let isRulerModeActive = false;
+
+function updateRulerOverlays() {
+  activeCharts.forEach((chart) => {
+    const container = chart._container;
+    if (!container) return;
+
+    let canvas = container.querySelector('.ruler-canvas');
+    if (isRulerModeActive) {
+      if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.className = 'ruler-canvas';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.zIndex = '100';
+        canvas.style.cursor = 'crosshair';
+        canvas.style.pointerEvents = 'auto';
+
+        const rect = container.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+
+        container.appendChild(canvas);
+        setupRulerEvents(canvas, chart);
+      } else {
+        canvas.style.display = 'block';
+        canvas.style.pointerEvents = 'auto';
+      }
+    } else {
+      if (canvas) {
+        canvas.style.display = 'none';
+        canvas.style.pointerEvents = 'none';
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.measureState = null;
+      }
+    }
+  });
+}
+
+function setupRulerEvents(canvas, chart) {
+  canvas.drawRuler = () => drawRuler(canvas, chart);
+
+  canvas.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    canvas.measureState = {
+      startX: e.offsetX,
+      startY: e.offsetY,
+      currentX: e.offsetX,
+      currentY: e.offsetY,
+      isDrawing: true,
+      locked: false
+    };
+    canvas.drawRuler();
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    e.preventDefault();
+    canvas.hoverX = e.offsetX;
+    canvas.hoverY = e.offsetY;
+
+    const state = canvas.measureState;
+    if (state && state.isDrawing) {
+      state.currentX = e.offsetX;
+      state.currentY = e.offsetY;
+    }
+    canvas.drawRuler();
+  });
+
+  canvas.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    const state = canvas.measureState;
+    if (state && state.isDrawing) {
+      state.isDrawing = false;
+      state.locked = true;
+      canvas.drawRuler();
+    }
+  });
+
+  canvas.addEventListener('mouseenter', (e) => {
+    canvas.hoverX = e.offsetX;
+    canvas.hoverY = e.offsetY;
+    canvas.drawRuler();
+  });
+
+  canvas.addEventListener('mouseleave', (e) => {
+    canvas.hoverX = undefined;
+    canvas.hoverY = undefined;
+    const state = canvas.measureState;
+    if (state && state.isDrawing) {
+      state.isDrawing = false;
+      state.locked = true;
+    }
+    canvas.drawRuler();
+  });
+}
+
+function drawRuler(canvas, chart) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const state = canvas.measureState;
+  const hoverX = canvas.hoverX;
+  const hoverY = canvas.hoverY;
+
+  // 1. Draw crosshair guidelines
+  if (hoverX !== undefined && hoverY !== undefined) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(129, 144, 139, 0.3)';
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    
+    ctx.beginPath();
+    ctx.moveTo(0, hoverY);
+    ctx.lineTo(canvas.width, hoverY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(hoverX, 0);
+    ctx.lineTo(hoverX, canvas.height);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (!state) return;
+
+  const { startX, startY, currentX, currentY } = state;
+  const series = chart._syncSeries;
+  if (!series) return;
+
+  const startVal = series.coordinateToPrice(startY);
+  const currentVal = series.coordinateToPrice(currentY);
+
+  if (startVal === null || currentVal === null || startVal === undefined || currentVal === undefined) {
+    return;
+  }
+
+  ctx.save();
+
+  const isUp = currentVal >= startVal;
+  const colorBase = isUp ? '53, 208, 131' : '239, 94, 94';
+  const fillColor = `rgba(${colorBase}, 0.12)`;
+  const strokeColor = `rgba(${colorBase}, 0.85)`;
+
+  // Rect fill
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(startX, startY, currentX - startX, currentY - startY);
+
+  // Rect border
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+
+  // Diagonal connection
+  ctx.strokeStyle = strokeColor;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(currentX, currentY);
+  ctx.stroke();
+
+  // Anchors
+  ctx.fillStyle = strokeColor;
+  ctx.beginPath();
+  ctx.arc(startX, startY, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(currentX, currentY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label percentage calculation
+  const deltaVal = currentVal - startVal;
+  const pctChange = startVal !== 0 ? (deltaVal / Math.abs(startVal)) * 100 : 0;
+
+  let labelText = '';
+  const sign = deltaVal >= 0 ? '+' : '';
+
+  if (chart._type === 'price') {
+    labelText = `${sign}${deltaVal.toFixed(4)} (${sign}${pctChange.toFixed(2)}%)`;
+  } else {
+    labelText = `${sign}${formatKandM(deltaVal)} (${sign}${pctChange.toFixed(2)}%)`;
+  }
+
+  // Tooltip position
+  const midX = (startX + currentX) / 2;
+  const midY = (startY + currentY) / 2;
+
+  ctx.font = 'bold 11px Segoe UI, sans-serif';
+  const textMetrics = ctx.measureText(labelText);
+  const paddingX = 8;
+  const paddingY = 5;
+  const rectW = textMetrics.width + paddingX * 2;
+  const rectH = 22;
+
+  const rectX = midX - rectW / 2;
+  const rectY = midY - rectH / 2;
+
+  // Render tooltip rounded box
+  ctx.fillStyle = 'rgba(17, 22, 26, 0.95)';
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 1;
+  
+  ctx.beginPath();
+  const radius = 4;
+  ctx.moveTo(rectX + radius, rectY);
+  ctx.lineTo(rectX + rectW - radius, rectY);
+  ctx.quadraticCurveTo(rectX + rectW, rectY, rectX + rectW, rectY + radius);
+  ctx.lineTo(rectX + rectW, rectY + rectH - radius);
+  ctx.quadraticCurveTo(rectX + rectW, rectY + rectH, rectX + rectW - radius, rectY + rectH);
+  ctx.lineTo(rectX + radius, rectY + rectH);
+  ctx.quadraticCurveTo(rectX, rectY + rectH, rectX, rectY + rectH - radius);
+  ctx.lineTo(rectX, rectY + radius);
+  ctx.quadraticCurveTo(rectX, rectY, rectX + radius, rectY);
+  ctx.closePath();
+  
+  ctx.fill();
+  ctx.stroke();
+
+  // Text
+  ctx.fillStyle = isUp ? '#35d083' : '#ef5e5e';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(labelText, midX, midY + 1);
+
+  ctx.restore();
+}
+
+// Register click listener for the ruler button
+const rulerToggleBtn = document.querySelector('#rulerToggleBtn');
+if (rulerToggleBtn) {
+  rulerToggleBtn.addEventListener('click', () => {
+    isRulerModeActive = !isRulerModeActive;
+    rulerToggleBtn.classList.toggle('active', isRulerModeActive);
+    updateRulerOverlays();
+  });
+}
 
 // Startup Execution
 function startup() {
