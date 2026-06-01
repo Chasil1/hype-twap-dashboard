@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'crypto';
 
 import { Collector } from './src/collector.js';
 import { aggregateSnapshots, TIMEFRAMES } from './src/aggregateSnapshots.js';
@@ -20,6 +21,107 @@ const store = new SnapshotStore(SNAPSHOT_FILE);
 const alertsStore = new AlertsStore(process.env.ALERTS_FILE ?? path.join(__dirname, 'data', 'alerts.json'));
 const configStore = new ConfigStore(process.env.CONFIG_FILE ?? path.join(__dirname, 'data', 'config.json'));
 const alertEngine = new AlertEngine({ alertsStore, configStore });
+
+// Parse cookies helper
+function parseCookies(cookieHeader) {
+  const list = {};
+  if (!cookieHeader) return list;
+  cookieHeader.split(';').forEach(cookie => {
+    const parts = cookie.split('=');
+    list[parts.shift().trim()] = decodeURIComponent(parts.join('='));
+  });
+  return list;
+}
+
+// Session helpers
+function getSessionUser(req, botToken) {
+  if (!botToken) return null;
+  try {
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionVal = cookies['tg_session'];
+    if (!sessionVal) return null;
+
+    const raw = Buffer.from(sessionVal, 'base64').toString('utf8');
+    const { sessionData, signature } = JSON.parse(raw);
+
+    const expectedSignature = crypto
+      .createHmac('sha256', botToken)
+      .update(sessionData)
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      return null;
+    }
+
+    const user = JSON.parse(sessionData);
+    return user;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Verify Telegram Authentication signature
+function verifyTelegramAuth(authData, botToken) {
+  const { hash, ...data } = authData;
+  const dataCheckArr = [];
+  
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined && value !== null) {
+      dataCheckArr.push(`${key}=${value}`);
+    }
+  }
+  
+  dataCheckArr.sort();
+  const dataCheckString = dataCheckArr.join('\n');
+
+  const secretKey = crypto.createHash('sha256').update(botToken).digest();
+  const computedHash = crypto
+    .createHmac('sha256', secretKey)
+    .update(dataCheckString)
+    .digest('hex');
+
+  if (computedHash !== hash) {
+    return false;
+  }
+
+  const age = Math.floor(Date.now() / 1000) - Number(authData.auth_date);
+  if (age > 30 * 86400) { // 30 days
+    return false;
+  }
+
+  return true;
+}
+
+// Authorization middleware
+async function authMiddleware(req, res, next) {
+  try {
+    let token = await configStore.get('telegram_bot_token');
+    if (!token) token = process.env.TELEGRAM_BOT_TOKEN;
+
+    const user = getSessionUser(req, token ? token.trim() : null);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized: Telegram login required.' });
+      return;
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function getBotUsername(botToken) {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+    const data = await res.json();
+    if (data.ok && data.result) {
+      return data.result.username;
+    }
+  } catch (err) {
+    console.error('Error fetching bot username from telegram:', err);
+  }
+  return null;
+}
 
 const twapCache = new TwapCache();
 const scraper = process.env.PLAYWRIGHT_SCRAPER === '1'
@@ -105,6 +207,75 @@ app.post('/api/config/telegram', express.json(), async (req, res) => {
   }
 });
 
+// --- Authentication Endpoints ---
+
+app.get('/api/auth/telegram/config', async (req, res) => {
+  try {
+    let token = await configStore.get('telegram_bot_token');
+    if (!token) token = process.env.TELEGRAM_BOT_TOKEN;
+
+    const botUsername = token ? await getBotUsername(token.trim()) : null;
+    const user = getSessionUser(req, token ? token.trim() : null);
+
+    res.json({
+      botUsername,
+      user
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/telegram', express.json(), async (req, res) => {
+  try {
+    let token = await configStore.get('telegram_bot_token');
+    if (!token) token = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!token) {
+      res.status(400).json({ error: 'Telegram bot token is not configured on the server.' });
+      return;
+    }
+
+    const authData = req.body;
+    if (!authData || !authData.hash) {
+      res.status(400).json({ error: 'Missing authentication parameters.' });
+      return;
+    }
+
+    const isValid = verifyTelegramAuth(authData, token.trim());
+    if (!isValid) {
+      res.status(401).json({ error: 'Telegram signature validation failed.' });
+      return;
+    }
+
+    const sessionData = JSON.stringify({
+      id: authData.id,
+      username: authData.username || '',
+      first_name: authData.first_name || '',
+      photo_url: authData.photo_url || ''
+    });
+
+    const signature = crypto
+      .createHmac('sha256', token.trim())
+      .update(sessionData)
+      .digest('hex');
+
+    const cookieValue = Buffer.from(JSON.stringify({ sessionData, signature })).toString('base64');
+    
+    res.setHeader('Set-Cookie', `tg_session=${cookieValue}; Path=/; HttpOnly; Max-Age=${30 * 86400}; SameSite=Lax`);
+    res.json({ ok: true, user: JSON.parse(sessionData) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  res.setHeader('Set-Cookie', 'tg_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax');
+  res.json({ ok: true });
+});
+
+// --- Alerts API ---
+
 app.get('/api/alerts', async (req, res) => {
   try {
     const alerts = await alertsStore.readAll();
@@ -114,7 +285,7 @@ app.get('/api/alerts', async (req, res) => {
   }
 });
 
-app.post('/api/alerts', express.json(), async (req, res) => {
+app.post('/api/alerts', express.json(), authMiddleware, async (req, res) => {
   try {
     const { name, expression, frequency_minutes, trend_mode } = req.body;
 
@@ -146,7 +317,45 @@ app.post('/api/alerts', express.json(), async (req, res) => {
   }
 });
 
-app.post('/api/alerts/:id/toggle', async (req, res) => {
+app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, expression, frequency_minutes, trend_mode } = req.body;
+
+    if (!name || !expression || frequency_minutes === undefined) {
+      res.status(400).json({ error: 'Missing name, expression or frequency_minutes' });
+      return;
+    }
+
+    const alerts = await alertsStore.readAll();
+    const alert = alerts.find(a => a.id === id);
+    if (!alert) {
+      res.status(404).json({ error: 'Alert not found' });
+      return;
+    }
+
+    const expressionChanged = JSON.stringify(alert.expression) !== JSON.stringify(expression);
+
+    alert.name = name;
+    alert.expression = expression;
+    alert.frequency_minutes = Number(frequency_minutes);
+    alert.trend_mode = trend_mode || 'none';
+    if (expressionChanged) {
+      alert.last_crossover_price = null;
+    }
+
+    const ok = await alertsStore.save(alert);
+    if (ok) {
+      res.json(alert);
+    } else {
+      res.status(500).json({ error: 'Failed to update alert' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/alerts/:id/toggle', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const alerts = await alertsStore.readAll();
@@ -167,7 +376,7 @@ app.post('/api/alerts/:id/toggle', async (req, res) => {
   }
 });
 
-app.delete('/api/alerts/:id', async (req, res) => {
+app.delete('/api/alerts/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const ok = await alertsStore.delete(id);

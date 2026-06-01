@@ -1181,4 +1181,88 @@ input:checked + .slider:before {
   opacity: 0.9;
 }
 
+/* Auth UI Styling */
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(13, 17, 20, 0.6);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.auth-bar span {
+  color: var(--muted);
+}
+
+.auth-bar strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.logout-btn {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.logout-btn:hover {
+  color: var(--red);
+}
+
+.auth-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0d1114;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  gap: 12px;
+}
+
+.auth-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Edit button styling */
+.edit-alert-btn {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s ease;
+}
+
+.edit-alert-btn:hover {
+  color: var(--amber);
+}
+
+/* Disabling controls */
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn:disabled:hover {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
 

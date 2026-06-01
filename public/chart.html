@@ -16,6 +16,7 @@
           <p class="eyebrow">Separate window</p>
           <h1>Price and TWAP</h1>
         </div>
+        <div class="auth-bar" id="authBar"></div>
         <div class="chart-controls">
           <div class="timeframes" role="tablist" aria-label="Chart timeframe">
             <button class="timeframe active" type="button" data-timeframe="1m">1m</button>
@@ -103,7 +104,7 @@
         <div class="chart-panel alerts-panel">
           <div class="alerts-header">
             <h2>Telegram Alert Manager</h2>
-            <button id="toggleSettingsBtn" class="icon-btn-settings" title="Telegram Bot Settings" type="button">⚙️ Bot Settings</button>
+            <button id="toggleSettingsBtn" class="icon-btn-settings hidden" title="Telegram Bot Settings" type="button">⚙️ Bot Settings</button>
           </div>
 
           <!-- Collapsible Telegram Credentials Settings Drawer -->
@@ -126,9 +127,17 @@
           </div>
 
           <!-- Tabs Navigation -->
-          <div class="alerts-tabs" role="tablist">
+          <div class="alerts-tabs hidden" id="alertsTabs" role="tablist">
             <button id="tabActiveAlerts" class="tab-btn active" type="button">Active Alerts (<span id="alertsCount">0</span>)</button>
             <button id="tabCreateAlert" class="tab-btn" type="button">Create Alert</button>
+          </div>
+
+          <!-- Placeholder when not logged in -->
+          <div id="alertsAuthPlaceholder" class="auth-placeholder">
+            <div class="auth-info-row">
+              <span>🔒 Log in with Telegram to configure bot settings and alerts:</span>
+              <div id="telegram-login-container"></div>
+            </div>
           </div>
 
           <!-- Tab Content: Active Alerts List -->
@@ -142,6 +151,7 @@
           <!-- Tab Content: Create Alert Form -->
           <div id="tabContentForm" class="tab-content hidden">
             <form id="createAlertForm" class="alert-form">
+              <input type="hidden" id="editAlertId" value=""/>
               <div class="form-group">
                 <label for="alertNameInput">Alert Name</label>
                 <input type="text" id="alertNameInput" placeholder="e.g. HYPE Bid Crossover" required autocomplete="off"/>

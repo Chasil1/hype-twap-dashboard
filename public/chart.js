@@ -1163,7 +1163,8 @@ const alertElements = {
   rightMetricSelect: document.querySelector('#rightMetricSelect'),
   trendModeSelect: document.querySelector('#trendModeSelect'),
   frequencySelect: document.querySelector('#frequencySelect'),
-  formFeedback: document.querySelector('#formFeedback')
+  formFeedback: document.querySelector('#formFeedback'),
+  editAlertId: document.querySelector('#editAlertId')
 };
 
 const METRIC_LABELS = {
@@ -1268,6 +1269,7 @@ async function saveTelegramConfig() {
     if (!response.ok) throw new Error('Save config failed');
     showAlertFeedback(alertElements.settingsMessage, 'Settings saved successfully.', true);
     await loadTelegramConfig();
+    await checkAuthState(); // Bot username could have changed
   } catch (err) {
     showAlertFeedback(alertElements.settingsMessage, 'Failed to save settings.', false);
   }
@@ -1307,6 +1309,8 @@ async function loadAlerts() {
   }
 }
 
+let isAuthenticated = false;
+
 function renderAlertsList(alerts) {
   const container = alertElements.alertsList;
   container.innerHTML = '';
@@ -1334,33 +1338,50 @@ function renderAlertsList(alerts) {
       trendLabel = ' <span class="trend-badge short-badge" style="color: #ef5e5e; background: rgba(239, 94, 94, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px;">Short Crossover</span>';
     }
 
-    item.innerHTML = `
-      <div class="alert-info">
-        <span class="alert-title">${alert.name}${trendLabel}</span>
-        <span class="alert-rule">${ruleString} (${cooldownString})</span>
-      </div>
-      <div class="alert-actions">
-        <label class="switch">
-          <input type="checkbox" class="toggle-alert-active" data-id="${alert.id}" ${alert.active ? 'checked' : ''}/>
-          <span class="slider"></span>
-        </label>
-        <button class="delete-alert-btn" data-id="${alert.id}" title="Delete Alert" type="button">×</button>
-      </div>
-    `;
+    if (isAuthenticated) {
+      item.innerHTML = `
+        <div class="alert-info">
+          <span class="alert-title">${alert.name}${trendLabel}</span>
+          <span class="alert-rule">${ruleString} (${cooldownString})</span>
+        </div>
+        <div class="alert-actions">
+          <label class="switch">
+            <input type="checkbox" class="toggle-alert-active" data-id="${alert.id}" ${alert.active ? 'checked' : ''}/>
+            <span class="slider"></span>
+          </label>
+          <button class="edit-alert-btn" data-id="${alert.id}" title="Edit Alert" type="button">✏️</button>
+          <button class="delete-alert-btn" data-id="${alert.id}" title="Delete Alert" type="button">×</button>
+        </div>
+      `;
 
-    // Click slider instead of checkbox to prevent Playwright / click bugs with hidden elements
-    item.querySelector('.slider').addEventListener('click', async (e) => {
-      e.preventDefault();
-      const checkbox = item.querySelector('.toggle-alert-active');
-      checkbox.checked = !checkbox.checked;
-      await toggleAlertActive(alert.id);
-    });
+      item.querySelector('.slider').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const checkbox = item.querySelector('.toggle-alert-active');
+        checkbox.checked = !checkbox.checked;
+        await toggleAlertActive(alert.id);
+      });
 
-    item.querySelector('.delete-alert-btn').addEventListener('click', async () => {
-      if (confirm(`Are you sure you want to delete alert "${alert.name}"?`)) {
-        await deleteAlert(alert.id);
-      }
-    });
+      item.querySelector('.edit-alert-btn').addEventListener('click', () => {
+        startEditAlert(alert);
+      });
+
+      item.querySelector('.delete-alert-btn').addEventListener('click', async () => {
+        if (confirm(`Are you sure you want to delete alert "${alert.name}"?`)) {
+          await deleteAlert(alert.id);
+        }
+      });
+    } else {
+      // Read-only view
+      item.innerHTML = `
+        <div class="alert-info">
+          <span class="alert-title">${alert.name}${trendLabel}</span>
+          <span class="alert-rule">${ruleString} (${cooldownString})</span>
+        </div>
+        <div class="alert-actions">
+          <span style="font-size: 11px; color: var(--muted); background: rgba(38,49,55,0.4); padding: 2px 6px; border-radius: 4px;">${alert.active ? 'Active' : 'Inactive'}</span>
+        </div>
+      `;
+    }
 
     container.appendChild(item);
   });
@@ -1397,6 +1418,46 @@ async function deleteAlert(id) {
   }
 }
 
+function startEditAlert(alert) {
+  const submitBtn = alertElements.createAlertForm.querySelector('button[type="submit"]');
+  alertElements.editAlertId.value = alert.id;
+  alertElements.alertNameInput.value = alert.name;
+  alertElements.leftMetricSelect.value = alert.expression.field1;
+  alertElements.operatorSelect.value = alert.expression.operator;
+  alertElements.compareTypeSelect.value = alert.expression.compareType;
+
+  // Toggle value vs metric fields
+  const isValue = alert.expression.compareType === 'value';
+  alertElements.rightValueGroup.classList.toggle('hidden', !isValue);
+  alertElements.rightMetricGroup.classList.toggle('hidden', isValue);
+  
+  if (isValue) {
+    alertElements.rightValueInput.value = alert.expression.value;
+    alertElements.rightValueInput.required = true;
+    alertElements.rightMetricSelect.required = false;
+  } else {
+    alertElements.rightMetricSelect.value = alert.expression.field2;
+    alertElements.rightValueInput.required = false;
+    alertElements.rightMetricSelect.required = true;
+  }
+
+  alertElements.trendModeSelect.value = alert.trend_mode || 'none';
+  alertElements.frequencySelect.value = String(alert.frequency_minutes);
+
+  alertElements.tabCreateAlert.textContent = '✏️ Edit Alert';
+  if (submitBtn) submitBtn.textContent = 'Save Changes';
+
+  // Navigate to Create tab
+  alertElements.tabCreateAlert.click();
+}
+
+function clearEditAlertMode() {
+  const submitBtn = alertElements.createAlertForm.querySelector('button[type="submit"]');
+  alertElements.editAlertId.value = '';
+  alertElements.tabCreateAlert.textContent = 'Create Alert';
+  if (submitBtn) submitBtn.textContent = 'Create Alert';
+}
+
 async function handleCreateAlert(e) {
   e.preventDefault();
 
@@ -1406,6 +1467,7 @@ async function handleCreateAlert(e) {
   const compareType = alertElements.compareTypeSelect.value;
   const trend_mode = alertElements.trendModeSelect.value;
   const frequency_minutes = Number(alertElements.frequencySelect.value);
+  const editId = alertElements.editAlertId.value;
 
   const expression = {
     field1,
@@ -1425,16 +1487,21 @@ async function handleCreateAlert(e) {
   }
 
   try {
-    const response = await fetch('/api/alerts', {
-      method: 'POST',
+    const isEditing = !!editId;
+    const url = isEditing ? `/api/alerts/${editId}` : '/api/alerts';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, expression, frequency_minutes, trend_mode })
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Failed to create alert.');
+    if (!response.ok) throw new Error(data.error || 'Failed to save alert.');
 
-    showAlertFeedback(alertElements.formFeedback, 'Alert created successfully!', true);
+    showAlertFeedback(alertElements.formFeedback, isEditing ? 'Alert updated successfully!' : 'Alert created successfully!', true);
     alertElements.createAlertForm.reset();
+    clearEditAlertMode();
 
     // Switch tabs to alerts list
     alertElements.tabActiveAlerts.click();
@@ -1443,6 +1510,112 @@ async function handleCreateAlert(e) {
     showAlertFeedback(alertElements.formFeedback, err.message, false);
   }
 }
+
+async function logoutTelegram() {
+  try {
+    const res = await fetch('/api/auth/logout', { method: 'POST' });
+    if (res.ok) {
+      await checkAuthState();
+    }
+  } catch (err) {
+    console.error('Logout failed:', err);
+  }
+}
+
+async function checkAuthState() {
+  try {
+    const res = await fetch('/api/auth/telegram/config');
+    const data = await res.json();
+    const authBar = document.getElementById('authBar');
+    const presetSaveBtn = document.getElementById('savePresetBtn');
+    const presetDeleteBtn = document.getElementById('deletePresetBtn');
+    const alertsTabs = document.getElementById('alertsTabs');
+    const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
+    const alertsAuthPlaceholder = document.getElementById('alertsAuthPlaceholder');
+
+    if (data.user) {
+      isAuthenticated = true;
+      if (authBar) {
+        authBar.innerHTML = `<span>Logged in as <strong>${data.user.first_name}</strong></span> <button id="logoutBtn" class="logout-btn" type="button">Logout</button>`;
+        document.getElementById('logoutBtn').addEventListener('click', logoutTelegram);
+      }
+      if (presetSaveBtn) {
+        presetSaveBtn.disabled = false;
+        presetSaveBtn.title = '';
+      }
+      if (presetDeleteBtn) {
+        presetDeleteBtn.disabled = false;
+        presetDeleteBtn.title = '';
+      }
+      if (alertsTabs) alertsTabs.classList.remove('hidden');
+      if (toggleSettingsBtn) toggleSettingsBtn.classList.remove('hidden');
+      if (alertsAuthPlaceholder) alertsAuthPlaceholder.classList.add('hidden');
+    } else {
+      isAuthenticated = false;
+      if (authBar) {
+        authBar.innerHTML = '';
+      }
+      if (presetSaveBtn) {
+        presetSaveBtn.disabled = true;
+        presetSaveBtn.title = '🔒 Log in with Telegram to save presets';
+      }
+      if (presetDeleteBtn) {
+        presetDeleteBtn.disabled = true;
+        presetDeleteBtn.title = '🔒 Log in with Telegram to delete presets';
+      }
+      if (alertsTabs) {
+        alertsTabs.classList.add('hidden');
+        alertElements.tabActiveAlerts.click();
+      }
+      if (toggleSettingsBtn) {
+        toggleSettingsBtn.classList.add('hidden');
+        alertElements.settingsDrawer.classList.add('hidden');
+      }
+      if (alertsAuthPlaceholder) {
+        alertsAuthPlaceholder.classList.remove('hidden');
+      }
+
+      const loginContainer = document.getElementById('telegram-login-container');
+      if (loginContainer) {
+        if (data.botUsername) {
+          loginContainer.innerHTML = '';
+          const script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://telegram.org/js/telegram-widget.js?22';
+          script.setAttribute('data-telegram-login', data.botUsername);
+          script.setAttribute('data-size', 'medium');
+          script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+          script.setAttribute('data-request-access', 'write');
+          loginContainer.appendChild(script);
+        } else {
+          loginContainer.innerHTML = '<span style="color: var(--red); font-size: 11px;">Telegram Bot token not configured on server. Set token in Settings or env.</span>';
+        }
+      }
+    }
+    await loadAlerts();
+  } catch (err) {
+    console.error('Error checking auth state:', err);
+  }
+}
+
+// Telegram global auth callback
+window.onTelegramAuth = async function(user) {
+  try {
+    const res = await fetch('/api/auth/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    });
+    if (res.ok) {
+      await checkAuthState();
+    } else {
+      const err = await res.json();
+      alert(`Login failed: ${err.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    console.error('Telegram authentication error:', err);
+  }
+};
 
 function initAlertConfigurator() {
   // Attach UI Event Listeners
@@ -1458,6 +1631,7 @@ function initAlertConfigurator() {
     alertElements.tabCreateAlert.classList.remove('active');
     alertElements.tabContentList.classList.remove('hidden');
     alertElements.tabContentForm.classList.add('hidden');
+    clearEditAlertMode();
   });
 
   alertElements.tabCreateAlert.addEventListener('click', () => {
@@ -1484,8 +1658,7 @@ function initAlertConfigurator() {
   alertElements.createAlertForm.addEventListener('submit', handleCreateAlert);
 
   populateAlertMetricSelects();
-  loadTelegramConfig().catch(console.error);
-  loadAlerts().catch(console.error);
+  checkAuthState().catch(console.error);
 }
 
 // Startup Execution
