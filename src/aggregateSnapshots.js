@@ -122,6 +122,7 @@ export function aggregateSnapshots(snapshots, timeframe = '1m') {
         high: bucket.high,
         low: bucket.low,
         close: bucket.close,
+        price: bucket.close,
         twapNet1h: average(bucket.twaps.twapNet1h),
         twapNet24h: average(bucket.twaps.twapNet24h),
         twapBuy24h: average(bucket.twaps.twapBuy24h),

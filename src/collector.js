@@ -140,7 +140,7 @@ export class Collector {
     this.state.snapshots = await this.store.append(snapshot);
 
     if (this.alertEngine) {
-      this.alertEngine.checkAlerts(snapshot, previousSnapshot).catch(err => {
+      this.alertEngine.checkAlerts(this.state.snapshots).catch(err => {
         console.error('Error running alerts in minute flush:', err);
       });
     }

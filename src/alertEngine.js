@@ -1,3 +1,5 @@
+import { aggregateSnapshots } from './aggregateSnapshots.js';
+
 export class AlertEngine {
   constructor({ alertsStore, configStore }) {
     this.alertsStore = alertsStore;
@@ -18,19 +20,36 @@ export class AlertEngine {
     };
   }
 
-  async checkAlerts(snapshot, previousSnapshot) {
+  async checkAlerts(snapshotsInput, legacyPrevInput) {
     try {
       const { token, chatId: globalChatId } = await this.getTelegramConfig();
       if (!token) {
         return; // Telegram bot token not configured, silent return
       }
 
+      let snapshots = [];
+      if (Array.isArray(snapshotsInput)) {
+        snapshots = snapshotsInput;
+      } else if (snapshotsInput) {
+        // Legacy compatibility: wrap single snapshot
+        snapshots = legacyPrevInput ? [legacyPrevInput, snapshotsInput] : [snapshotsInput];
+      }
+
+      if (snapshots.length === 0) return;
+
       const alerts = await this.alertsStore.readAll();
       const activeAlerts = alerts.filter(a => a.active);
 
       for (const alert of activeAlerts) {
         try {
-          const isTriggered = this.evaluate(snapshot, alert.expression);
+          const timeframe = alert.timeframe || '1m';
+          const buckets = aggregateSnapshots(snapshots, timeframe);
+          const currentBucket = buckets.at(-1);
+          if (!currentBucket) continue;
+
+          const previousBucket = buckets.at(-2) || null;
+
+          const isTriggered = this.evaluate(currentBucket, alert.expression);
           if (!isTriggered) continue;
 
           const targetChatId = alert.telegram_user_id || globalChatId;
@@ -39,8 +58,8 @@ export class AlertEngine {
           const trendMode = alert.trend_mode || 'none';
 
           if (trendMode === 'long' || trendMode === 'short') {
-            // Check crossover condition: must have been false in the previous snapshot
-            const wasTriggeredPrev = previousSnapshot ? this.evaluate(previousSnapshot, alert.expression) : false;
+            // Check crossover condition: must have been false in the previous bucket
+            const wasTriggeredPrev = previousBucket ? this.evaluate(previousBucket, alert.expression) : false;
 
             if (wasTriggeredPrev) {
               // Not a crossover transition from false to true, so skip
@@ -48,7 +67,7 @@ export class AlertEngine {
             }
 
             // A crossover has occurred! Now verify the price direction
-            const currentPrice = snapshot.price;
+            const currentPrice = currentBucket.price;
             if (currentPrice === null || currentPrice === undefined) {
               continue;
             }
@@ -77,7 +96,7 @@ export class AlertEngine {
             const cooldownMs = (alert.frequency_minutes || 0) * 60 * 1000;
 
             if (now - lastTriggered >= cooldownMs) {
-              await this.sendTelegramNotification(token, targetChatId, alert, snapshot);
+              await this.sendTelegramNotification(token, targetChatId, alert, currentBucket);
               alert.last_triggered_at = new Date(now).toISOString();
             }
 
@@ -91,7 +110,7 @@ export class AlertEngine {
             const cooldownMs = (alert.frequency_minutes || 0) * 60 * 1000;
 
             if (now - lastTriggered >= cooldownMs) {
-              await this.sendTelegramNotification(token, targetChatId, alert, snapshot);
+              await this.sendTelegramNotification(token, targetChatId, alert, currentBucket);
 
               alert.last_triggered_at = new Date(now).toISOString();
               await this.alertsStore.save(alert);
@@ -188,6 +207,7 @@ export class AlertEngine {
     }
 
     return `🚨 <b>ALERT TRIGGERED: ${alert.name}</b>\n\n` +
+           `<b>Timeframe:</b> <code>${alert.timeframe || '1m'}</code>\n` +
            modeText +
            `<b>Condition:</b> ${name1} ${opSymbol} ${expr.compareType === 'value' ? formattedV2 : name2}\n` +
            `<b>Current State:</b>\n` +

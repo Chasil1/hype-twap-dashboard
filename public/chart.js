@@ -1222,6 +1222,7 @@ const alertElements = {
   rightMetricGroup: document.querySelector('#rightMetricGroup'),
   rightMetricSelect: document.querySelector('#rightMetricSelect'),
   trendModeSelect: document.querySelector('#trendModeSelect'),
+  alertTimeframeSelect: document.querySelector('#alertTimeframeSelect'),
   frequencySelect: document.querySelector('#frequencySelect'),
   formFeedback: document.querySelector('#formFeedback'),
   editAlertId: document.querySelector('#editAlertId')
@@ -1390,6 +1391,7 @@ function renderAlertsList(alerts) {
     const rightName = expr.compareType === 'value' ? formatStaticValue(expr.field1, expr.value) : (METRIC_LABELS[expr.field2] || expr.field2);
     const opLabel = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
     const ruleString = `${leftName} ${opLabel} ${rightName}`;
+    const tfString = alert.timeframe || '1m';
     const cooldownString = alert.frequency_minutes > 0 ? `cooldown: ${alert.frequency_minutes}m` : 'no cooldown';
 
     let trendLabel = '';
@@ -1403,7 +1405,7 @@ function renderAlertsList(alerts) {
       item.innerHTML = `
         <div class="alert-info">
           <span class="alert-title">${alert.name}${trendLabel}</span>
-          <span class="alert-rule">${ruleString} (${cooldownString})</span>
+          <span class="alert-rule">${ruleString} (tf: ${tfString}, ${cooldownString})</span>
         </div>
         <div class="alert-actions">
           <label class="switch">
@@ -1436,7 +1438,7 @@ function renderAlertsList(alerts) {
       item.innerHTML = `
         <div class="alert-info">
           <span class="alert-title">${alert.name}${trendLabel}</span>
-          <span class="alert-rule">${ruleString} (${cooldownString})</span>
+          <span class="alert-rule">${ruleString} (tf: ${tfString}, ${cooldownString})</span>
         </div>
         <div class="alert-actions">
           <span style="font-size: 11px; color: var(--muted); background: rgba(38,49,55,0.4); padding: 2px 6px; border-radius: 4px;">${alert.active ? 'Active' : 'Inactive'}</span>
@@ -1503,6 +1505,7 @@ function startEditAlert(alert) {
   }
 
   alertElements.trendModeSelect.value = alert.trend_mode || 'none';
+  alertElements.alertTimeframeSelect.value = alert.timeframe || '1m';
   alertElements.frequencySelect.value = String(alert.frequency_minutes);
 
   alertElements.tabCreateAlert.textContent = '✏️ Edit Alert';
@@ -1527,6 +1530,7 @@ async function handleCreateAlert(e) {
   const operator = alertElements.operatorSelect.value;
   const compareType = alertElements.compareTypeSelect.value;
   const trend_mode = alertElements.trendModeSelect.value;
+  const timeframe = alertElements.alertTimeframeSelect.value;
   const frequency_minutes = Number(alertElements.frequencySelect.value);
   const editId = alertElements.editAlertId.value;
 
@@ -1555,7 +1559,7 @@ async function handleCreateAlert(e) {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, expression, frequency_minutes, trend_mode })
+      body: JSON.stringify({ name, expression, frequency_minutes, trend_mode, timeframe })
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Failed to save alert.');

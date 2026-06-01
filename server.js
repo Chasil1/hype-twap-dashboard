@@ -297,7 +297,7 @@ app.get('/api/alerts', async (req, res) => {
 
 app.post('/api/alerts', express.json(), authMiddleware, async (req, res) => {
   try {
-    const { name, expression, frequency_minutes, trend_mode } = req.body;
+    const { name, expression, frequency_minutes, trend_mode, timeframe } = req.body;
 
     if (!name || !expression || frequency_minutes === undefined) {
       res.status(400).json({ error: 'Missing name, expression or frequency_minutes' });
@@ -310,6 +310,7 @@ app.post('/api/alerts', express.json(), authMiddleware, async (req, res) => {
       expression,
       frequency_minutes: Number(frequency_minutes),
       trend_mode: trend_mode || 'none',
+      timeframe: timeframe || '1m',
       telegram_user_id: String(req.user.id),
       last_crossover_price: null,
       last_triggered_at: null,
@@ -331,7 +332,7 @@ app.post('/api/alerts', express.json(), authMiddleware, async (req, res) => {
 app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, expression, frequency_minutes, trend_mode } = req.body;
+    const { name, expression, frequency_minutes, trend_mode, timeframe } = req.body;
 
     if (!name || !expression || frequency_minutes === undefined) {
       res.status(400).json({ error: 'Missing name, expression or frequency_minutes' });
@@ -351,12 +352,14 @@ app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
     }
 
     const expressionChanged = JSON.stringify(alert.expression) !== JSON.stringify(expression);
+    const timeframeChanged = alert.timeframe !== timeframe;
 
     alert.name = name;
     alert.expression = expression;
     alert.frequency_minutes = Number(frequency_minutes);
     alert.trend_mode = trend_mode || 'none';
-    if (expressionChanged) {
+    alert.timeframe = timeframe || '1m';
+    if (expressionChanged || timeframeChanged) {
       alert.last_crossover_price = null;
     }
 

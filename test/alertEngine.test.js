@@ -62,46 +62,48 @@ test('AlertEngine processes Long crossover modes correctly', async () => {
     notificationCount++;
   };
 
+  const baseTime = Date.now();
+
   // 1. Initial State: Bid <= Ask (Condition false)
   // Snapshot 1: bid = 10, ask = 20, price = 5.0
-  const s1 = { hl_bid_3: 10, hl_ask_3: 20, price: 5.0, timestamp: Date.now() };
+  const s1 = { hl_bid_3: 10, hl_ask_3: 20, price: 5.0, timestamp: baseTime };
   await engine.checkAlerts(s1, null);
   assert.equal(notificationCount, 0, 'No alert since condition is false');
   assert.equal(alerts[0].last_crossover_price, null);
 
   // 2. Bid > Ask (Condition true - First Crossover)
   // Snapshot 2: bid = 30, ask = 20, price = 5.0 (transition false -> true)
-  const s2 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.0, timestamp: Date.now() };
+  const s2 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.0, timestamp: baseTime + 60000 };
   await engine.checkAlerts(s2, s1);
   assert.equal(notificationCount, 1, 'First crossover triggers notification immediately');
   assert.equal(alerts[0].last_crossover_price, 5.0, 'Updates last crossover price to 5.0');
 
   // 3. Bid > Ask (Condition still true, not a crossover)
   // Snapshot 3: bid = 35, ask = 20, price = 5.1 (transition true -> true)
-  const s3 = { hl_bid_3: 35, hl_ask_3: 20, price: 5.1, timestamp: Date.now() };
+  const s3 = { hl_bid_3: 35, hl_ask_3: 20, price: 5.1, timestamp: baseTime + 120000 };
   await engine.checkAlerts(s3, s2);
   assert.equal(notificationCount, 1, 'No alert since it is not a crossover transition');
 
   // 4. Bid <= Ask (Condition false again)
   // Snapshot 4: bid = 15, ask = 20, price = 5.2 (transition true -> false)
-  const s4 = { hl_bid_3: 15, hl_ask_3: 20, price: 5.2, timestamp: Date.now() };
+  const s4 = { hl_bid_3: 15, hl_ask_3: 20, price: 5.2, timestamp: baseTime + 180000 };
   await engine.checkAlerts(s4, s3);
   assert.equal(notificationCount, 1, 'No alert, condition is false');
 
   // 5. Bid > Ask (Condition true - Second Crossover, price 5.3 > 5.0)
   // Snapshot 5: bid = 30, ask = 20, price = 5.3 (transition false -> true)
-  const s5 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.3, timestamp: Date.now() };
+  const s5 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.3, timestamp: baseTime + 240000 };
   await engine.checkAlerts(s5, s4);
   assert.equal(notificationCount, 2, 'Crossover triggers since current price 5.3 > last crossover 5.0');
   assert.equal(alerts[0].last_crossover_price, 5.3, 'Updates last crossover price to 5.3');
 
   // 6. Bid <= Ask (Condition false again)
-  const s6 = { hl_bid_3: 15, hl_ask_3: 20, price: 5.4, timestamp: Date.now() };
+  const s6 = { hl_bid_3: 15, hl_ask_3: 20, price: 5.4, timestamp: baseTime + 300000 };
   await engine.checkAlerts(s6, s5);
 
   // 7. Bid > Ask (Condition true - Third Crossover, price 5.1 <= 5.3)
   // Snapshot 7: bid = 30, ask = 20, price = 5.1 (transition false -> true)
-  const s7 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.1, timestamp: Date.now() };
+  const s7 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.1, timestamp: baseTime + 360000 };
   await engine.checkAlerts(s7, s6);
   assert.equal(notificationCount, 2, 'No alert triggers since current price 5.1 is not higher than last crossover price 5.3');
   assert.equal(alerts[0].last_crossover_price, 5.1, 'Updates last crossover price to 5.1 regardless of skip');
