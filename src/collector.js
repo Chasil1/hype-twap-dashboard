@@ -73,7 +73,8 @@ export class Collector {
     priceFetcher = fetchHypePrice,
     twapFetcher = fetchHypurrscanTwaps,
     now = Date.now,
-    intervalMs = DEFAULT_INTERVAL_MS
+    intervalMs = DEFAULT_INTERVAL_MS,
+    alertEngine = null
   }) {
     this.store = store;
     this.scraper = scraper;
@@ -82,6 +83,7 @@ export class Collector {
     this.twapFetcher = twapFetcher;
     this.now = now;
     this.intervalMs = intervalMs;
+    this.alertEngine = alertEngine;
     this.timer = null;
     this.running = false;
     this.minuteBucket = null;
@@ -135,6 +137,13 @@ export class Collector {
     };
 
     this.state.snapshots = await this.store.append(snapshot);
+
+    if (this.alertEngine) {
+      this.alertEngine.checkAlerts(snapshot).catch(err => {
+        console.error('Error running alerts in minute flush:', err);
+      });
+    }
+
     return snapshot;
   }
 
