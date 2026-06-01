@@ -18,7 +18,7 @@ export class AlertEngine {
     };
   }
 
-  async checkAlerts(snapshot) {
+  async checkAlerts(snapshot, previousSnapshot) {
     try {
       const { token, chatId } = await this.getTelegramConfig();
       if (!token || !chatId) {
@@ -31,7 +31,58 @@ export class AlertEngine {
       for (const alert of activeAlerts) {
         try {
           const isTriggered = this.evaluate(snapshot, alert.expression);
-          if (isTriggered) {
+          if (!isTriggered) continue;
+
+          const trendMode = alert.trend_mode || 'none';
+
+          if (trendMode === 'long' || trendMode === 'short') {
+            // Check crossover condition: must have been false in the previous snapshot
+            const wasTriggeredPrev = previousSnapshot ? this.evaluate(previousSnapshot, alert.expression) : false;
+
+            if (wasTriggeredPrev) {
+              // Not a crossover transition from false to true, so skip
+              continue;
+            }
+
+            // A crossover has occurred! Now verify the price direction
+            const currentPrice = snapshot.price;
+            if (currentPrice === null || currentPrice === undefined) {
+              continue;
+            }
+
+            const lastCrossoverPrice = alert.last_crossover_price;
+
+            if (trendMode === 'long') {
+              if (lastCrossoverPrice !== null && lastCrossoverPrice !== undefined && currentPrice <= lastCrossoverPrice) {
+                // Current crossover price is NOT higher than the last crossover price, update price but skip alert
+                alert.last_crossover_price = currentPrice;
+                await this.alertsStore.save(alert);
+                continue;
+              }
+            } else if (trendMode === 'short') {
+              if (lastCrossoverPrice !== null && lastCrossoverPrice !== undefined && currentPrice >= lastCrossoverPrice) {
+                // Current crossover price is NOT lower than the last crossover price, update price but skip alert
+                alert.last_crossover_price = currentPrice;
+                await this.alertsStore.save(alert);
+                continue;
+              }
+            }
+
+            // Crossover price matches direction criteria (or baseline case). Trigger the alert!
+            const now = Date.now();
+            const lastTriggered = alert.last_triggered_at ? new Date(alert.last_triggered_at).getTime() : 0;
+            const cooldownMs = (alert.frequency_minutes || 0) * 60 * 1000;
+
+            if (now - lastTriggered >= cooldownMs) {
+              await this.sendTelegramNotification(token, chatId, alert, snapshot);
+              alert.last_triggered_at = new Date(now).toISOString();
+            }
+
+            alert.last_crossover_price = currentPrice;
+            await this.alertsStore.save(alert);
+
+          } else {
+            // Standard (Static Threshold Alert)
             const now = Date.now();
             const lastTriggered = alert.last_triggered_at ? new Date(alert.last_triggered_at).getTime() : 0;
             const cooldownMs = (alert.frequency_minutes || 0) * 60 * 1000;
@@ -39,7 +90,6 @@ export class AlertEngine {
             if (now - lastTriggered >= cooldownMs) {
               await this.sendTelegramNotification(token, chatId, alert, snapshot);
 
-              // Update last_triggered_at
               alert.last_triggered_at = new Date(now).toISOString();
               await this.alertsStore.save(alert);
             }
@@ -127,7 +177,15 @@ export class AlertEngine {
 
     const opSymbol = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
 
+    let modeText = '';
+    if (alert.trend_mode === 'long') {
+      modeText = `📈 <b>Long Crossover Mode</b>\n(Triggered because HYPE price <code>$${snapshot.price?.toFixed(4)}</code> > last crossover price <code>$${alert.last_crossover_price?.toFixed(4) || 'none'}</code>)\n\n`;
+    } else if (alert.trend_mode === 'short') {
+      modeText = `📉 <b>Short Crossover Mode</b>\n(Triggered because HYPE price <code>$${snapshot.price?.toFixed(4)}</code> < last crossover price <code>$${alert.last_crossover_price?.toFixed(4) || 'none'}</code>)\n\n`;
+    }
+
     return `🚨 <b>ALERT TRIGGERED: ${alert.name}</b>\n\n` +
+           modeText +
            `<b>Condition:</b> ${name1} ${opSymbol} ${expr.compareType === 'value' ? formattedV2 : name2}\n` +
            `<b>Current State:</b>\n` +
            `• ${name1}: <code>${formattedV1}</code>\n` +

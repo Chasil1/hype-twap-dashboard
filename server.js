@@ -116,7 +116,7 @@ app.get('/api/alerts', async (req, res) => {
 
 app.post('/api/alerts', express.json(), async (req, res) => {
   try {
-    const { name, expression, frequency_minutes } = req.body;
+    const { name, expression, frequency_minutes, trend_mode } = req.body;
 
     if (!name || !expression || frequency_minutes === undefined) {
       res.status(400).json({ error: 'Missing name, expression or frequency_minutes' });
@@ -128,6 +128,8 @@ app.post('/api/alerts', express.json(), async (req, res) => {
       name,
       expression,
       frequency_minutes: Number(frequency_minutes),
+      trend_mode: trend_mode || 'none',
+      last_crossover_price: null,
       last_triggered_at: null,
       active: true,
       created_at: new Date().toISOString()

@@ -883,15 +883,16 @@ h1 {
 }
 
 /* Telegram Alerts Panel Styling */
-.alerts-panel {
+.chart-panel.alerts-panel {
   background: rgba(9, 11, 14, 0.9);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 20px;
-  margin-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  height: auto;
+  min-height: auto;
 }
 
 .alerts-header {

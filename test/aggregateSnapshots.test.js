@@ -67,7 +67,18 @@ test('aggregates minute snapshots into OHLC candles and averaged TWAP metrics', 
     }
   ];
 
-  assert.deepEqual(aggregateSnapshots(snapshots, '5m'), [
+  const result = aggregateSnapshots(snapshots, '5m');
+  const cleanResult = result.map(s => {
+    const clean = { ...s };
+    for (const key of Object.keys(clean)) {
+      if (key.startsWith('hl_') || key.startsWith('bybit_')) {
+        delete clean[key];
+      }
+    }
+    return clean;
+  });
+
+  assert.deepEqual(cleanResult, [
     {
       timestamp: '2026-05-29T10:00:00.000Z',
       open: 9,

@@ -136,10 +136,11 @@ export class Collector {
       }
     };
 
+    const previousSnapshot = this.state.snapshots.at(-1) || null;
     this.state.snapshots = await this.store.append(snapshot);
 
     if (this.alertEngine) {
-      this.alertEngine.checkAlerts(snapshot).catch(err => {
+      this.alertEngine.checkAlerts(snapshot, previousSnapshot).catch(err => {
         console.error('Error running alerts in minute flush:', err);
       });
     }

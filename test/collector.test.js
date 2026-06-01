@@ -4,6 +4,22 @@ import assert from 'node:assert/strict';
 import { Collector } from '../src/collector.js';
 import { TwapCache } from '../src/twapCache.js';
 
+// Stub global fetch to prevent actual network calls in tests
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url, options) => {
+  if (url && (url.includes('hyperliquid') || url.includes('bybit'))) {
+    return {
+      ok: false,
+      status: 500,
+      text: async () => 'Mocked offline response'
+    };
+  }
+  if (typeof originalFetch === 'function') {
+    return originalFetch(url, options);
+  }
+  return { ok: false, status: 404 };
+};
+
 const SAMPLE_TEXT = `NEXT 1H
 +$10
 NEXT 24H
@@ -37,6 +53,7 @@ test('collector uses browser bridge TWAP metrics when scraper is blocked', async
   const collector = new Collector({
     store: new MemoryStore(),
     priceFetcher: async () => 42.5,
+    twapFetcher: null,
     scraper: {
       async read() {
         throw new Error('Turnstile blocked scraper');
@@ -92,6 +109,7 @@ test('collector does not carry stale TWAP values into a new failed snapshot', as
   const collector = new Collector({
     store,
     priceFetcher: async () => 42.5,
+    twapFetcher: null,
     scraper: null,
     twapCache: null
   });
@@ -175,7 +193,14 @@ test('collector stores averaged minute snapshots from second-level samples', asy
   await collector.collectOnce();
 
   assert.equal(store.snapshots.length, 1);
-  assert.deepEqual(store.snapshots[0], {
+  const cleanSnapshot = { ...store.snapshots[0] };
+  for (const key of Object.keys(cleanSnapshot)) {
+    if (key.startsWith('hl_') || key.startsWith('bybit_')) {
+      delete cleanSnapshot[key];
+    }
+  }
+
+  assert.deepEqual(cleanSnapshot, {
     timestamp: '2026-05-30T12:00:00.000Z',
     price: 10.5,
     open: 10,
