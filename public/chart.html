@@ -18,17 +18,6 @@
         </div>
         <div class="auth-bar" id="authBar"></div>
         <div class="chart-controls">
-          <div class="timeframes" role="tablist" aria-label="Chart timeframe">
-            <button class="timeframe active" type="button" data-timeframe="1m">1m</button>
-            <button class="timeframe" type="button" data-timeframe="5m">5m</button>
-            <button class="timeframe" type="button" data-timeframe="15m">15m</button>
-            <button class="timeframe" type="button" data-timeframe="1h">1h</button>
-            <button class="timeframe" type="button" data-timeframe="4h">4h</button>
-            <button class="timeframe" type="button" data-timeframe="1d">1d</button>
-          </div>
-          <button id="rulerToggleBtn" class="ruler-toggle-btn" type="button" title="Toggle Ruler Tool (Measure %)">
-            <span>📏</span>
-          </button>
           <div class="ticker compact">
             <span class="label">Buckets</span>
             <strong id="snapshotCount">0</strong>
@@ -66,16 +55,33 @@
         <!-- Main Price & Depth Stack Panel (Resizable) -->
         <div class="chart-panel price-panel" id="mainChartPanel">
           <div class="panel-head">
-            <span class="label">HYPE Price & Stacked Depths</span>
+            <div class="panel-head-left" style="display: flex; align-items: center; gap: 16px;">
+              <span class="label">HYPE Price & Stacked Depths</span>
+              <div class="timeframes" role="tablist" aria-label="Chart timeframe">
+                <button class="timeframe active" type="button" data-timeframe="1m">1m</button>
+                <button class="timeframe" type="button" data-timeframe="5m">5m</button>
+                <button class="timeframe" type="button" data-timeframe="15m">15m</button>
+                <button class="timeframe" type="button" data-timeframe="1h">1h</button>
+                <button class="timeframe" type="button" data-timeframe="4h">4h</button>
+                <button class="timeframe" type="button" data-timeframe="1d">1d</button>
+              </div>
+            </div>
             <strong id="priceRange">--</strong>
           </div>
           
           <!-- Stack of price chart and dynamic depth subcharts -->
-          <div class="charts-stack" id="chartsStack">
-            <div class="chart-wrapper-container" id="priceChartContainer">
-              <div id="priceChart" class="lightweight-chart-wrapper"></div>
-              <div class="chart-overlay-header">
-                <span class="chart-overlay-title">HYPE Price</span>
+          <div class="charts-stack-container">
+            <div class="chart-left-toolbar">
+              <button id="rulerToggleBtn" class="ruler-toggle-btn" type="button" title="Toggle Ruler Tool (Measure %)">
+                <span>📏</span>
+              </button>
+            </div>
+            <div class="charts-stack" id="chartsStack">
+              <div class="chart-wrapper-container" id="priceChartContainer">
+                <div id="priceChart" class="lightweight-chart-wrapper"></div>
+                <div class="chart-overlay-header">
+                  <span class="chart-overlay-title">HYPE Price</span>
+                </div>
               </div>
             </div>
           </div>
