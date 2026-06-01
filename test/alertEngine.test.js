@@ -106,3 +106,60 @@ test('AlertEngine processes Long crossover modes correctly', async () => {
   assert.equal(notificationCount, 2, 'No alert triggers since current price 5.1 is not higher than last crossover price 5.3');
   assert.equal(alerts[0].last_crossover_price, 5.1, 'Updates last crossover price to 5.1 regardless of skip');
 });
+
+test('AlertEngine routes notifications to user-specific chat ID when present, else global chat ID', async () => {
+  const alerts = [
+    {
+      id: 'alert-user-1',
+      name: 'User 1 alert',
+      expression: {
+        field1: 'price',
+        operator: 'gt',
+        compareType: 'value',
+        value: 10
+      },
+      frequency_minutes: 0,
+      active: true,
+      telegram_user_id: '999888' // Custom user chat ID
+    },
+    {
+      id: 'alert-global',
+      name: 'Global alert',
+      expression: {
+        field1: 'price',
+        operator: 'gt',
+        compareType: 'value',
+        value: 10
+      },
+      frequency_minutes: 0,
+      active: true
+      // No telegram_user_id, should route to global
+    }
+  ];
+
+  const alertsStore = new MockAlertsStore(alerts);
+  const configStore = new MockConfigStore({
+    telegram_bot_token: '123:abc',
+    telegram_chat_id: '456'
+  });
+
+  const engine = new AlertEngine({ alertsStore, configStore });
+
+  const routedNotifications = [];
+  engine.sendTelegramNotification = async (token, chatId, alert, snapshot) => {
+    routedNotifications.push({ chatId, alertName: alert.name });
+  };
+
+  const snapshot = { price: 12, timestamp: Date.now() };
+  await engine.checkAlerts(snapshot, null);
+
+  assert.equal(routedNotifications.length, 2);
+  const userNotif = routedNotifications.find(n => n.alertName === 'User 1 alert');
+  const globalNotif = routedNotifications.find(n => n.alertName === 'Global alert');
+
+  assert.ok(userNotif);
+  assert.equal(userNotif.chatId, '999888', 'User alert is sent directly to user telegram ID');
+
+  assert.ok(globalNotif);
+  assert.equal(globalNotif.chatId, '456', 'Global alert falls back to global chat ID');
+});

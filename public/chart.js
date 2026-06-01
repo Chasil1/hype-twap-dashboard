@@ -758,8 +758,13 @@ const presetSelect = document.getElementById('presetSelect');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
 const savePresetBtn = document.getElementById('savePresetBtn');
 
+function getPresetsKey() {
+  return (currentUser && currentUser.id) ? `hype_chart_presets_${currentUser.id}` : 'hype_chart_presets_public';
+}
+
 function saveCurrentAsPreset(presetName, includeTimeframe) {
-  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  const presetKey = getPresetsKey();
+  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
 
   const panelsData = dynamicPanels.map((panel) => {
     const metrics = Object.keys(panel.activeMetrics).map((metricKey) => {
@@ -776,12 +781,13 @@ function saveCurrentAsPreset(presetName, includeTimeframe) {
     panels: panelsData
   };
 
-  localStorage.setItem('hype_chart_presets', JSON.stringify(presets));
+  localStorage.setItem(presetKey, JSON.stringify(presets));
   populatePresetSelectDropdown();
 }
 
 function loadPreset(presetName) {
-  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  const presetKey = getPresetsKey();
+  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
   const preset = presets[presetName];
   if (!preset) return;
 
@@ -820,10 +826,11 @@ function loadPreset(presetName) {
 
 function deletePreset(presetName) {
   if (!presetName) return;
-  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  const presetKey = getPresetsKey();
+  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
   if (presets[presetName]) {
     delete presets[presetName];
-    localStorage.setItem('hype_chart_presets', JSON.stringify(presets));
+    localStorage.setItem(presetKey, JSON.stringify(presets));
     populatePresetSelectDropdown();
   }
 }
@@ -832,7 +839,8 @@ function populatePresetSelectDropdown() {
   if (!presetSelect) return;
   presetSelect.innerHTML = '<option value="" disabled selected>Load Preset...</option>';
 
-  const presets = JSON.parse(localStorage.getItem('hype_chart_presets') || '{}');
+  const presetKey = getPresetsKey();
+  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
   Object.keys(presets).forEach((name) => {
     const opt = document.createElement('option');
     opt.value = name;
@@ -1310,6 +1318,7 @@ async function loadAlerts() {
 }
 
 let isAuthenticated = false;
+let currentUser = null;
 
 function renderAlertsList(alerts) {
   const container = alertElements.alertsList;
@@ -1535,6 +1544,7 @@ async function checkAuthState() {
 
     if (data.user) {
       isAuthenticated = true;
+      currentUser = data.user;
       if (authBar) {
         authBar.innerHTML = `<span>Logged in as <strong>${data.user.first_name}</strong></span> <button id="logoutBtn" class="logout-btn" type="button">Logout</button>`;
         document.getElementById('logoutBtn').addEventListener('click', logoutTelegram);
@@ -1552,6 +1562,7 @@ async function checkAuthState() {
       if (alertsAuthPlaceholder) alertsAuthPlaceholder.classList.add('hidden');
     } else {
       isAuthenticated = false;
+      currentUser = null;
       if (authBar) {
         authBar.innerHTML = '';
       }
@@ -1592,6 +1603,7 @@ async function checkAuthState() {
         }
       }
     }
+    populatePresetSelectDropdown();
     await loadAlerts();
   } catch (err) {
     console.error('Error checking auth state:', err);

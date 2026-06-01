@@ -20,9 +20,9 @@ export class AlertEngine {
 
   async checkAlerts(snapshot, previousSnapshot) {
     try {
-      const { token, chatId } = await this.getTelegramConfig();
-      if (!token || !chatId) {
-        return; // Telegram bot not fully configured, silent return
+      const { token, chatId: globalChatId } = await this.getTelegramConfig();
+      if (!token) {
+        return; // Telegram bot token not configured, silent return
       }
 
       const alerts = await this.alertsStore.readAll();
@@ -32,6 +32,9 @@ export class AlertEngine {
         try {
           const isTriggered = this.evaluate(snapshot, alert.expression);
           if (!isTriggered) continue;
+
+          const targetChatId = alert.telegram_user_id || globalChatId;
+          if (!targetChatId) continue;
 
           const trendMode = alert.trend_mode || 'none';
 
@@ -74,7 +77,7 @@ export class AlertEngine {
             const cooldownMs = (alert.frequency_minutes || 0) * 60 * 1000;
 
             if (now - lastTriggered >= cooldownMs) {
-              await this.sendTelegramNotification(token, chatId, alert, snapshot);
+              await this.sendTelegramNotification(token, targetChatId, alert, snapshot);
               alert.last_triggered_at = new Date(now).toISOString();
             }
 
@@ -88,7 +91,7 @@ export class AlertEngine {
             const cooldownMs = (alert.frequency_minutes || 0) * 60 * 1000;
 
             if (now - lastTriggered >= cooldownMs) {
-              await this.sendTelegramNotification(token, chatId, alert, snapshot);
+              await this.sendTelegramNotification(token, targetChatId, alert, snapshot);
 
               alert.last_triggered_at = new Date(now).toISOString();
               await this.alertsStore.save(alert);

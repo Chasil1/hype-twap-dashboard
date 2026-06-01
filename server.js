@@ -278,8 +278,18 @@ app.post('/api/auth/logout', async (req, res) => {
 
 app.get('/api/alerts', async (req, res) => {
   try {
+    let token = await configStore.get('telegram_bot_token');
+    if (!token) token = process.env.TELEGRAM_BOT_TOKEN;
+
+    const user = getSessionUser(req, token ? token.trim() : null);
+    if (!user) {
+      res.json([]);
+      return;
+    }
+
     const alerts = await alertsStore.readAll();
-    res.json(alerts);
+    const userAlerts = alerts.filter(a => a.telegram_user_id === String(user.id));
+    res.json(userAlerts);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -300,6 +310,7 @@ app.post('/api/alerts', express.json(), authMiddleware, async (req, res) => {
       expression,
       frequency_minutes: Number(frequency_minutes),
       trend_mode: trend_mode || 'none',
+      telegram_user_id: String(req.user.id),
       last_crossover_price: null,
       last_triggered_at: null,
       active: true,
@@ -334,6 +345,11 @@ app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
       return;
     }
 
+    if (alert.telegram_user_id !== String(req.user.id)) {
+      res.status(403).json({ error: 'Forbidden: You do not own this alert.' });
+      return;
+    }
+
     const expressionChanged = JSON.stringify(alert.expression) !== JSON.stringify(expression);
 
     alert.name = name;
@@ -364,6 +380,12 @@ app.post('/api/alerts/:id/toggle', authMiddleware, async (req, res) => {
       res.status(404).json({ error: 'Alert not found' });
       return;
     }
+
+    if (alert.telegram_user_id !== String(req.user.id)) {
+      res.status(403).json({ error: 'Forbidden: You do not own this alert.' });
+      return;
+    }
+
     alert.active = !alert.active;
     const ok = await alertsStore.save(alert);
     if (ok) {
@@ -379,6 +401,18 @@ app.post('/api/alerts/:id/toggle', authMiddleware, async (req, res) => {
 app.delete('/api/alerts/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    const alerts = await alertsStore.readAll();
+    const alert = alerts.find(a => a.id === id);
+    if (!alert) {
+      res.status(404).json({ error: 'Alert not found' });
+      return;
+    }
+
+    if (alert.telegram_user_id !== String(req.user.id)) {
+      res.status(403).json({ error: 'Forbidden: You do not own this alert.' });
+      return;
+    }
+
     const ok = await alertsStore.delete(id);
     if (ok) {
       res.json({ ok: true });
