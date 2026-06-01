@@ -179,21 +179,30 @@ app.delete('/api/alerts/:id', async (req, res) => {
   }
 });
 
-app.post('/api/alerts/test', async (req, res) => {
+app.post('/api/alerts/test', express.json(), async (req, res) => {
   try {
-    const { token, chatId } = await alertEngine.getTelegramConfig();
-    if (!token || !chatId) {
+    let { token, chatId } = req.body || {};
+    const savedConfig = await alertEngine.getTelegramConfig();
+
+    if (token && token.includes('...')) {
+      token = savedConfig.token;
+    }
+
+    const finalToken = (token || savedConfig.token || '').trim();
+    const finalChatId = (chatId || savedConfig.chatId || '').trim();
+
+    if (!finalToken || !finalChatId) {
       res.status(400).json({ error: 'Telegram bot not configured.' });
       return;
     }
 
     const testMsg = `🔔 <b>HYPE Alert Test Bot</b>\nConnection successful! Your alerts are ready.`;
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const url = `https://api.telegram.org/bot${finalToken}/sendMessage`;
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: testMsg, parse_mode: 'HTML' })
+      body: JSON.stringify({ chat_id: finalChatId, text: testMsg, parse_mode: 'HTML' })
     });
     if (!response.ok) {
       const errText = await response.text();

@@ -322,10 +322,17 @@ async function saveTelegramConfig() {
 }
 
 async function testTelegramConnection() {
+  const token = alertElements.tgTokenInput.value.trim();
+  const chatId = alertElements.tgChatIdInput.value.trim();
+
   alertElements.testBotBtn.disabled = true;
   alertElements.testBotBtn.textContent = 'Testing...';
   try {
-    const response = await fetch('/api/alerts/test', { method: 'POST' });
+    const response = await fetch('/api/alerts/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, chatId })
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Connection failed');
     showFeedback(alertElements.settingsMessage, 'Test alert sent! Check your Telegram.', true);
