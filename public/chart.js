@@ -1089,31 +1089,43 @@ function drawRuler(canvas, chart) {
   const deltaVal = currentVal - startVal;
   const pctChange = startVal !== 0 ? (deltaVal / Math.abs(startVal)) * 100 : 0;
 
-  let labelText = '';
   const sign = deltaVal >= 0 ? '+' : '';
+  let startPriceStr = '';
+  let endPriceStr = '';
+  let deltaStr = '';
 
   if (chart._type === 'price') {
-    labelText = `${sign}${deltaVal.toFixed(4)} (${sign}${pctChange.toFixed(2)}%)`;
+    startPriceStr = `$${startVal.toFixed(4)}`;
+    endPriceStr = `$${currentVal.toFixed(4)}`;
+    deltaStr = `${sign}${deltaVal.toFixed(4)}`;
   } else {
-    labelText = `${sign}${formatKandM(deltaVal)} (${sign}${pctChange.toFixed(2)}%)`;
+    startPriceStr = formatKandM(startVal);
+    endPriceStr = formatKandM(currentVal);
+    deltaStr = `${sign}${formatKandM(deltaVal)}`;
   }
+
+  const line1 = `${startPriceStr} → ${endPriceStr}`;
+  const line2 = `${deltaStr} (${sign}${pctChange.toFixed(2)}%)`;
 
   // Tooltip position
   const midX = (startX + currentX) / 2;
   const midY = (startY + currentY) / 2;
 
   ctx.font = 'bold 11px Segoe UI, sans-serif';
-  const textMetrics = ctx.measureText(labelText);
-  const paddingX = 8;
-  const paddingY = 5;
-  const rectW = textMetrics.width + paddingX * 2;
-  const rectH = 22;
+  const width1 = ctx.measureText(line1).width;
+  const width2 = ctx.measureText(line2).width;
+  const maxW = Math.max(width1, width2);
+
+  const paddingX = 10;
+  const paddingY = 6;
+  const rectW = maxW + paddingX * 2;
+  const rectH = 38;
 
   const rectX = midX - rectW / 2;
   const rectY = midY - rectH / 2;
 
   // Render tooltip rounded box
-  ctx.fillStyle = 'rgba(17, 22, 26, 0.95)';
+  ctx.fillStyle = 'rgba(17, 22, 26, 0.96)';
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 1;
   
@@ -1133,11 +1145,17 @@ function drawRuler(canvas, chart) {
   ctx.fill();
   ctx.stroke();
 
-  // Text
-  ctx.fillStyle = isUp ? '#35d083' : '#ef5e5e';
+  // Text lines
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(labelText, midX, midY + 1);
+  ctx.textBaseline = 'top';
+  
+  // Line 1: Start -> End prices
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.fillText(line1, midX, rectY + paddingY);
+
+  // Line 2: Delta (Percentage)
+  ctx.fillStyle = isUp ? '#35d083' : '#ef5e5e';
+  ctx.fillText(line2, midX, rectY + paddingY + 16);
 
   ctx.restore();
 }
