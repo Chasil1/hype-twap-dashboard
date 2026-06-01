@@ -12,6 +12,12 @@ let currentBuckets = [];
 let selectedTimeframe = '1m';
 let selectedTwapMode = 'spotPerp';
 
+function getLocalTimestamp(timestampStr) {
+  const d = new Date(timestampStr);
+  const localTimeMs = d.getTime() - (d.getTimezoneOffset() * 60 * 1000);
+  return Math.floor(localTimeMs / 1000);
+}
+
 // UI Selectors
 const snapshotCount = document.querySelector('#snapshotCount');
 const priceRange = document.querySelector('#priceRange');
@@ -115,7 +121,7 @@ function handleCrosshairMove(srcChart, param) {
         const targetSeries = targetChart._syncSeries;
         if (targetSeries) {
           const bucket = currentBuckets.find(
-            (b) => Math.floor(new Date(b.timestamp).getTime() / 1000) === time
+            (b) => getLocalTimestamp(b.timestamp) === time
           );
 
           let targetPrice = 0;
@@ -572,7 +578,7 @@ function removePanel(panelId) {
 // Populate Data
 function populatePriceData() {
   const candles = currentBuckets.map((bucket) => ({
-    time: Math.floor(new Date(bucket.timestamp).getTime() / 1000),
+    time: getLocalTimestamp(bucket.timestamp),
     open: bucket.open ?? bucket.price,
     high: bucket.high ?? bucket.price,
     low: bucket.low ?? bucket.price,
@@ -599,7 +605,7 @@ function populateTwapData() {
   };
 
   currentBuckets.forEach((bucket) => {
-    const time = Math.floor(new Date(bucket.timestamp).getTime() / 1000);
+      const time = getLocalTimestamp(bucket.timestamp);
     const mode = selectedTwapMode;
     
     const valNet1h = bucket.twapModes?.[mode]?.twapNet1h ?? bucket.twapNet1h;
@@ -631,7 +637,7 @@ function populatePanelDepthData(panel, metricKey) {
   };
 
   currentBuckets.forEach((bucket) => {
-    const time = Math.floor(new Date(bucket.timestamp).getTime() / 1000);
+      const time = getLocalTimestamp(bucket.timestamp);
     const valBybit = bucket[`bybit_${type}_${suffix}`];
     const valHl = bucket[`hl_${type}_${suffix}`];
 
@@ -660,7 +666,7 @@ function populatePanelDiffData(panel, metricKey) {
   const diffData = [];
 
   currentBuckets.forEach((bucket) => {
-    const time = Math.floor(new Date(bucket.timestamp).getTime() / 1000);
+      const time = getLocalTimestamp(bucket.timestamp);
     const bybitBid = bucket[`bybit_bid_${suffix}`];
     const bybitAsk = bucket[`bybit_ask_${suffix}`];
     const hlBid = bucket[`hl_bid_${suffix}`];
