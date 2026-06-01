@@ -1579,8 +1579,7 @@ async function checkAuthState() {
         alertElements.tabActiveAlerts.click();
       }
       if (toggleSettingsBtn) {
-        toggleSettingsBtn.classList.add('hidden');
-        alertElements.settingsDrawer.classList.add('hidden');
+        toggleSettingsBtn.classList.remove('hidden');
       }
       if (alertsAuthPlaceholder) {
         alertsAuthPlaceholder.classList.remove('hidden');
