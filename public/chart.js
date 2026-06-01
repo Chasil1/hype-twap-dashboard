@@ -1107,24 +1107,52 @@ function drawRuler(canvas, chart) {
   const line1 = `${startPriceStr} → ${endPriceStr}`;
   const line2 = `${deltaStr} (${sign}${pctChange.toFixed(2)}%)`;
 
-  // Tooltip position
-  const midX = (startX + currentX) / 2;
+  // Determine price scale width dynamically
+  let scaleWidth = 65;
+  try {
+    if (chart && typeof chart.priceScale === 'function') {
+      const pScale = chart.priceScale('right');
+      if (pScale && typeof pScale.width === 'function') {
+        scaleWidth = pScale.width();
+      }
+    }
+  } catch (e) {
+    console.error('Error getting price scale width:', e);
+  }
+  if (!scaleWidth || scaleWidth <= 0) scaleWidth = 65;
+
+  const axisX = canvas.width - scaleWidth;
   const midY = (startY + currentY) / 2;
 
+  // Render Start Price Tag on the axis
+  ctx.fillStyle = '#263137'; // dark neutral gray for start price
+  ctx.fillRect(axisX, startY - 9, scaleWidth - 2, 18);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 10px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(startPriceStr, axisX + (scaleWidth - 2) / 2, startY);
+
+  // Render End Price Tag on the axis
+  ctx.fillStyle = strokeColor; // Trend color (green or red)
+  ctx.fillRect(axisX, currentY - 9, scaleWidth - 2, 18);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 10px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(endPriceStr, axisX + (scaleWidth - 2) / 2, currentY);
+
+  // Render Delta / Percentage Tooltip (pinned next to axis)
   ctx.font = 'bold 11px Segoe UI, sans-serif';
-  const width1 = ctx.measureText(line1).width;
-  const width2 = ctx.measureText(line2).width;
-  const maxW = Math.max(width1, width2);
+  const labelWidth = ctx.measureText(line2).width;
+  const paddingX = 8;
+  const paddingY = 5;
+  const rectW = labelWidth + paddingX * 2;
+  const rectH = 22;
 
-  const paddingX = 10;
-  const paddingY = 6;
-  const rectW = maxW + paddingX * 2;
-  const rectH = 38;
-
-  const rectX = midX - rectW / 2;
+  const rectX = axisX - rectW - 6;
   const rectY = midY - rectH / 2;
 
-  // Render tooltip rounded box
   ctx.fillStyle = 'rgba(17, 22, 26, 0.96)';
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 1;
@@ -1145,17 +1173,11 @@ function drawRuler(canvas, chart) {
   ctx.fill();
   ctx.stroke();
 
-  // Text lines
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  
-  // Line 1: Start -> End prices
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-  ctx.fillText(line1, midX, rectY + paddingY);
-
-  // Line 2: Delta (Percentage)
+  // Draw delta and percentage text inside the box
   ctx.fillStyle = isUp ? '#35d083' : '#ef5e5e';
-  ctx.fillText(line2, midX, rectY + paddingY + 16);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(line2, rectX + rectW / 2, midY + 1);
 
   ctx.restore();
 }
