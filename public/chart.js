@@ -1525,6 +1525,7 @@ async function logoutTelegram() {
     const res = await fetch('/api/auth/logout', { method: 'POST' });
     if (res.ok) {
       await checkAuthState();
+      window.location.reload();
     }
   } catch (err) {
     console.error('Logout failed:', err);
@@ -1619,6 +1620,7 @@ window.onTelegramAuth = async function(user) {
     });
     if (res.ok) {
       await checkAuthState();
+      window.location.reload();
     } else {
       const err = await res.json();
       alert(`Login failed: ${err.error || 'Unknown error'}`);

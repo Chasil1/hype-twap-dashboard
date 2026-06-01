@@ -262,7 +262,7 @@ app.post('/api/auth/telegram', express.json(), async (req, res) => {
 
     const cookieValue = Buffer.from(JSON.stringify({ sessionData, signature })).toString('base64');
     
-    res.setHeader('Set-Cookie', `tg_session=${cookieValue}; Path=/; HttpOnly; Max-Age=${30 * 86400}; SameSite=Lax`);
+    res.setHeader('Set-Cookie', `tg_session=${cookieValue}; Path=/; HttpOnly; Max-Age=${30 * 86400}; SameSite=Lax; Secure`);
     res.json({ ok: true, user: JSON.parse(sessionData) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -270,7 +270,7 @@ app.post('/api/auth/telegram', express.json(), async (req, res) => {
 });
 
 app.post('/api/auth/logout', async (req, res) => {
-  res.setHeader('Set-Cookie', 'tg_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax');
+  res.setHeader('Set-Cookie', 'tg_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax; Secure');
   res.json({ ok: true });
 });
 
