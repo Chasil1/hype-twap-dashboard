@@ -447,8 +447,14 @@ function addMetricToPanel(panelId, type, depth) {
       priceLineVisible: false
     });
   } else if (type === 'diff') {
-    series.diff = panel.chart.addSeries(LightweightCharts.LineSeries, {
-      color: color,
+    series.diff = panel.chart.addSeries(LightweightCharts.BaselineSeries, {
+      baseValue: { type: 'price', price: 0 },
+      topLineColor: '#35d083',          // Green line for positive values
+      topFillColor1: 'rgba(53, 208, 131, 0.15)',
+      topFillColor2: 'rgba(53, 208, 131, 0.0)',
+      bottomLineColor: '#ef5e5e',       // Red line for negative values
+      bottomFillColor1: 'rgba(239, 94, 94, 0.0)',
+      bottomFillColor2: 'rgba(239, 94, 94, 0.15)',
       lineWidth: 2,
       title: `Diff ${depth}%`,
       priceLineVisible: false
