@@ -26,7 +26,50 @@ function calculateDepth(bids, asks, mid, depthPct, side) {
   return total;
 }
 
+// Robust Bybit orderbook fetcher with domain rotation and timeouts
+async function fetchBybitOrderbook() {
+  const domains = [
+    'api.bybit.com',
+    'api.bybit.nl',
+    'api.bytick.com'
+  ];
+
+  const errors = [];
+  for (const domain of domains) {
+    const url = `https://${domain}/v5/market/orderbook?category=linear&symbol=HYPEUSDT&limit=500`;
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(3000) // 3 seconds timeout
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.retCode === 0 && json.result && json.result.b?.length > 0 && json.result.a?.length > 0) {
+          return json;
+        } else {
+          errors.push(`${domain} (retCode=${json?.retCode} retMsg=${json?.retMsg})`);
+        }
+      } else {
+        errors.push(`${domain} (HTTP ${res.status} ${res.statusText})`);
+      }
+    } catch (err) {
+      errors.push(`${domain} (Error: ${err.message})`);
+    }
+  }
+  
+  console.error(`Bybit API fetch failed on all domains: ${errors.join('; ')}`);
+  return null;
+}
+
+// 5-second cache to prevent hitting rate limits
+let cacheTime = 0;
+let cacheResult = null;
+
 export async function fetchDepths() {
+  const now = Date.now();
+  if (cacheResult && (now - cacheTime < 5000)) {
+    return cacheResult;
+  }
+
   const result = {};
   
   // Pre-initialize all keys to null
@@ -38,62 +81,35 @@ export async function fetchDepths() {
     result[`bybit_ask_${suffix}`] = null;
   }
 
-  // Fetch from APIs in parallel
   let hl3 = null;
   let hl2 = null;
   let bybit = null;
 
   try {
-    const [resHL3, resHL2, resBybit] = await Promise.allSettled([
+    const [resHL3, resHL2, bybitData] = await Promise.allSettled([
       fetch('https://api.hyperliquid.xyz/info', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 3 })
-      }),
+        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 3 }),
+        signal: AbortSignal.timeout(3000)
+      }).then(res => res.ok ? res.json() : null),
       fetch('https://api.hyperliquid.xyz/info', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 2 })
-      }),
-      fetch('https://api.bybit.nl/v5/market/orderbook?category=linear&symbol=HYPEUSDT&limit=500')
+        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 2 }),
+        signal: AbortSignal.timeout(3000)
+      }).then(res => res.ok ? res.json() : null),
+      fetchBybitOrderbook()
     ]);
 
-    if (resHL3.status === 'fulfilled') {
-      if (resHL3.value.ok) {
-        hl3 = await resHL3.value.json();
-      } else {
-        console.error(`Hyperliquid L2 Book (nSigFigs=3) fetch failed: ${resHL3.value.status} ${resHL3.value.statusText}`);
-      }
-    } else {
-      console.error('Hyperliquid L2 Book (nSigFigs=3) promise rejected:', resHL3.reason);
-    }
-
-    if (resHL2.status === 'fulfilled') {
-      if (resHL2.value.ok) {
-        hl2 = await resHL2.value.json();
-      } else {
-        console.error(`Hyperliquid L2 Book (nSigFigs=2) fetch failed: ${resHL2.value.status} ${resHL2.value.statusText}`);
-      }
-    } else {
-      console.error('Hyperliquid L2 Book (nSigFigs=2) promise rejected:', resHL2.reason);
-    }
-
-    if (resBybit.status === 'fulfilled') {
-      if (resBybit.value.ok) {
-        bybit = await resBybit.value.json();
-      } else {
-        const bodyText = await resBybit.value.text().catch(() => '');
-        console.error(`Bybit API fetch failed: ${resBybit.value.status} ${resBybit.value.statusText} - ${bodyText.slice(0, 200)}`);
-      }
-    } else {
-      console.error('Bybit API fetch promise rejected:', resBybit.reason);
-    }
+    if (resHL3.status === 'fulfilled') hl3 = resHL3.value;
+    if (resHL2.status === 'fulfilled') hl2 = resHL2.value;
+    if (bybitData.status === 'fulfilled') bybit = bybitData.value;
   } catch (err) {
     console.error('Error fetching order books in fetchDepths:', err);
   }
 
   // Compute Hyperliquid depth metrics
-  // Check if we got at least one book to compute
   const validHLBook = hl3 || hl2;
   if (validHLBook && validHLBook.levels && validHLBook.levels[0]?.length > 0 && validHLBook.levels[1]?.length > 0) {
     const hl3Mid = hl3?.levels?.[0]?.[0]?.px && hl3?.levels?.[1]?.[0]?.px
@@ -107,7 +123,6 @@ export async function fetchDepths() {
 
     for (const d of DEPTHS) {
       const suffix = String(d).replace('.', '_');
-      // For narrow depth (1.5, 3), prefer hl3 (nSigFigs: 3). Otherwise prefer hl2 (nSigFigs: 2).
       const hlBook = (d === 1.5 || d === 3) ? (hl3 ?? hl2) : (hl2 ?? hl3);
       const hlMid = (d === 1.5 || d === 3) ? (hl3Mid ?? hlMidFallback) : (hl2Mid ?? hlMidFallback);
 
@@ -129,6 +144,12 @@ export async function fetchDepths() {
       result[`bybit_bid_${suffix}`] = calculateDepth(bybitBids, bybitAsks, bybitMid, d, 'bid');
       result[`bybit_ask_${suffix}`] = calculateDepth(bybitBids, bybitAsks, bybitMid, d, 'ask');
     }
+  }
+
+  // Cache results if we got any valid metrics to prevent blank runs
+  if (validHLBook || bybit) {
+    cacheResult = result;
+    cacheTime = now;
   }
 
   return result;
