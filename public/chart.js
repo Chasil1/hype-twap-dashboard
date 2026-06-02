@@ -1305,7 +1305,7 @@ function createConditionRow(data = null) {
     <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 8px; align-items: end;">
       <div class="form-group" style="margin-bottom: 0;">
         <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Left Metric</label>
-        <select class="metric-select left-metric-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+        <select class="metric-select left-metric-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
           <option value="price">HYPE Price</option>
           <option value="twapNet1h">TWAP Net 1H</option>
           <option value="twapNet24h">TWAP Net 24H</option>
@@ -1318,7 +1318,7 @@ function createConditionRow(data = null) {
 
       <div class="form-group" style="margin-bottom: 0;">
         <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Operator</label>
-        <select class="operator-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+        <select class="operator-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
           <option value="gt">&gt;</option>
           <option value="lt">&lt;</option>
           <option value="gte">&gt;=</option>
@@ -1328,7 +1328,7 @@ function createConditionRow(data = null) {
 
       <div class="form-group" style="margin-bottom: 0;">
         <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Compare With</label>
-        <select class="compare-type-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+        <select class="compare-type-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
           <option value="value">Static Value</option>
           <option value="metric">Another Metric</option>
         </select>
@@ -1337,12 +1337,12 @@ function createConditionRow(data = null) {
 
     <div class="target-value-group form-group" style="margin-bottom: 0;">
       <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Target Value</label>
-      <input type="number" step="any" class="target-value-input" placeholder="e.g. 30000000 (for $30M)" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;"/>
+      <input type="number" step="any" class="target-value-input" placeholder="e.g. 30000000 (for $30M)" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;"/>
     </div>
 
     <div class="target-metric-group form-group hidden" style="margin-bottom: 0;">
       <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Right Metric</label>
-      <select class="metric-select right-metric-select" style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+      <select class="metric-select right-metric-select" style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
         <option value="price">HYPE Price</option>
         <option value="twapNet1h">TWAP Net 1H</option>
         <option value="twapNet24h">TWAP Net 24H</option>
