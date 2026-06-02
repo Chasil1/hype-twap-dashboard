@@ -72,3 +72,56 @@ test('Backend Alert CRUD ownership validation', () => {
   assert.equal(nonExistentRes.status, 404);
   assert.equal(nonExistentRes.error, 'Alert not found');
 });
+
+import { PresetsStore } from '../src/store.js';
+import { rm } from 'node:fs/promises';
+
+test('PresetsStore Local File Mode CRUD Isolation', async () => {
+  const tempPresetsFile = './test_presets_tmp.json';
+  const store = new PresetsStore(tempPresetsFile);
+
+  // Clear any existing tmp file
+  try {
+    await rm(tempPresetsFile, { force: true });
+  } catch {}
+
+  const userA = 'user_123';
+  const userB = 'user_456';
+
+  const presetData1 = { exchange: 'bybit', timeframe: '1m', panels: [] };
+  const presetData2 = { exchange: 'hl', timeframe: '5m', panels: [] };
+
+  // Save preset for User A
+  const saveARes = await store.save(userA, 'MyView', presetData1);
+  assert.equal(saveARes, true);
+
+  // Save preset for User B
+  const saveBRes = await store.save(userB, 'BobView', presetData2);
+  assert.equal(saveBRes, true);
+
+  // Verify User A can read their preset, but not User B's
+  const presetsA = await store.readAll(userA);
+  assert.equal(presetsA.length, 1);
+  assert.equal(presetsA[0].name, 'MyView');
+  assert.deepEqual(presetsA[0].preset_data, presetData1);
+
+  // Verify User B can read their preset
+  const presetsB = await store.readAll(userB);
+  assert.equal(presetsB.length, 1);
+  assert.equal(presetsB[0].name, 'BobView');
+
+  // Delete User A's preset
+  const deleteARes = await store.delete(userA, 'MyView');
+  assert.equal(deleteARes, true);
+
+  // Verify User A has no presets left, but User B's is intact
+  const presetsA2 = await store.readAll(userA);
+  assert.equal(presetsA2.length, 0);
+
+  const presetsB2 = await store.readAll(userB);
+  assert.equal(presetsB2.length, 1);
+  assert.equal(presetsB2[0].name, 'BobView');
+
+  // Clean up
+  await rm(tempPresetsFile, { force: true });
+});

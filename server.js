@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { Collector } from './src/collector.js';
 import { aggregateSnapshots, TIMEFRAMES } from './src/aggregateSnapshots.js';
 import { HlEcoScraper } from './src/hlEcoScraper.js';
-import { SnapshotStore, AlertsStore, ConfigStore } from './src/store.js';
+import { SnapshotStore, AlertsStore, ConfigStore, PresetsStore } from './src/store.js';
 import { TwapCache } from './src/twapCache.js';
 import { AlertEngine } from './src/alertEngine.js';
 
@@ -20,6 +20,7 @@ const app = express();
 const store = new SnapshotStore(SNAPSHOT_FILE);
 const alertsStore = new AlertsStore(process.env.ALERTS_FILE ?? path.join(__dirname, 'data', 'alerts.json'));
 const configStore = new ConfigStore(process.env.CONFIG_FILE ?? path.join(__dirname, 'data', 'config.json'));
+const presetsStore = new PresetsStore(process.env.PRESETS_FILE ?? path.join(__dirname, 'data', 'presets.json'));
 const alertEngine = new AlertEngine({ alertsStore, configStore });
 
 // Parse cookies helper
@@ -272,6 +273,47 @@ app.post('/api/auth/telegram', express.json(), async (req, res) => {
 app.post('/api/auth/logout', async (req, res) => {
   res.setHeader('Set-Cookie', 'tg_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax; Secure');
   res.json({ ok: true });
+});
+
+// --- Presets API ---
+
+app.get('/api/presets', authMiddleware, async (req, res) => {
+  try {
+    const presets = await presetsStore.readAll(String(req.user.id));
+    res.json(presets);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/presets', express.json(), authMiddleware, async (req, res) => {
+  try {
+    const { name, preset_data } = req.body;
+    if (!name || !preset_data) {
+      res.status(400).json({ error: 'Name and preset_data are required' });
+      return;
+    }
+    const success = await presetsStore.save(String(req.user.id), name, preset_data);
+    if (!success) throw new Error('Save preset failed');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/presets/:name', authMiddleware, async (req, res) => {
+  try {
+    const { name } = req.params;
+    if (!name) {
+      res.status(400).json({ error: 'Preset name is required' });
+      return;
+    }
+    const success = await presetsStore.delete(String(req.user.id), name);
+    if (!success) throw new Error('Delete preset failed');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- Alerts API ---

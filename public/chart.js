@@ -770,14 +770,34 @@ const presetSelect = document.getElementById('presetSelect');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
 const savePresetBtn = document.getElementById('savePresetBtn');
 
-function getPresetsKey() {
-  return (currentUser && currentUser.id) ? `hype_chart_presets_${currentUser.id}` : 'hype_chart_presets_public';
+let activePresets = {};
+
+async function initializePresets() {
+  const isUserLoggedIn = !!(currentUser && currentUser.id);
+  if (isUserLoggedIn) {
+    try {
+      const response = await fetch('/api/presets');
+      if (response.ok) {
+        const list = await response.json();
+        activePresets = {};
+        list.forEach(item => {
+          activePresets[item.name] = item.preset_data;
+        });
+      } else {
+        throw new Error('Failed to load presets');
+      }
+    } catch (err) {
+      console.error('Failed to load presets from server, falling back to local:', err);
+      const presetKey = `hype_chart_presets_${currentUser.id}`;
+      activePresets = JSON.parse(localStorage.getItem(presetKey) || '{}');
+    }
+  } else {
+    activePresets = JSON.parse(localStorage.getItem('hype_chart_presets_public') || '{}');
+  }
+  populatePresetSelectDropdown();
 }
 
-function saveCurrentAsPreset(presetName, includeTimeframe) {
-  const presetKey = getPresetsKey();
-  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
-
+async function saveCurrentAsPreset(presetName, includeTimeframe) {
   const panelsData = dynamicPanels.map((panel) => {
     const metrics = Object.keys(panel.activeMetrics).map((metricKey) => {
       const m = panel.activeMetrics[metricKey];
@@ -786,21 +806,36 @@ function saveCurrentAsPreset(presetName, includeTimeframe) {
     return { metrics };
   });
 
-  presets[presetName] = {
+  const presetData = {
     name: presetName,
     exchange: exchangeSourceSelect.value,
     timeframe: includeTimeframe ? selectedTimeframe : null,
     panels: panelsData
   };
 
-  localStorage.setItem(presetKey, JSON.stringify(presets));
+  activePresets[presetName] = presetData;
   populatePresetSelectDropdown();
+
+  const isUserLoggedIn = !!(currentUser && currentUser.id);
+  if (isUserLoggedIn) {
+    try {
+      await fetch('/api/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: presetName, preset_data: presetData })
+      });
+      const presetKey = `hype_chart_presets_${currentUser.id}`;
+      localStorage.setItem(presetKey, JSON.stringify(activePresets));
+    } catch (err) {
+      console.error('Failed to sync saved preset to server:', err);
+    }
+  } else {
+    localStorage.setItem('hype_chart_presets_public', JSON.stringify(activePresets));
+  }
 }
 
 function loadPreset(presetName) {
-  const presetKey = getPresetsKey();
-  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
-  const preset = presets[presetName];
+  const preset = activePresets[presetName];
   if (!preset) return;
 
   // 1. Clear all existing panels (create a copy to prevent mutation bugs)
@@ -836,24 +871,36 @@ function loadPreset(presetName) {
   populateAllChartsData();
 }
 
-function deletePreset(presetName) {
+async function deletePreset(presetName) {
   if (!presetName) return;
-  const presetKey = getPresetsKey();
-  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
-  if (presets[presetName]) {
-    delete presets[presetName];
-    localStorage.setItem(presetKey, JSON.stringify(presets));
+  if (activePresets[presetName]) {
+    delete activePresets[presetName];
     populatePresetSelectDropdown();
+
+    const isUserLoggedIn = !!(currentUser && currentUser.id);
+    if (isUserLoggedIn) {
+      try {
+        await fetch(`/api/presets/${encodeURIComponent(presetName)}`, {
+          method: 'DELETE'
+        });
+        const presetKey = `hype_chart_presets_${currentUser.id}`;
+        localStorage.setItem(presetKey, JSON.stringify(activePresets));
+      } catch (err) {
+        console.error('Failed to sync deleted preset to server:', err);
+      }
+    } else {
+      localStorage.setItem('hype_chart_presets_public', JSON.stringify(activePresets));
+    }
   }
 }
 
 function populatePresetSelectDropdown() {
   if (!presetSelect) return;
-  presetSelect.innerHTML = '<option value="" disabled selected>Load Preset...</option>';
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const t = TRANSLATIONS[lang];
+  presetSelect.innerHTML = `<option value="" disabled selected>${t ? t.loadPreset : 'Load Preset...'}</option>`;
 
-  const presetKey = getPresetsKey();
-  const presets = JSON.parse(localStorage.getItem(presetKey) || '{}');
-  Object.keys(presets).forEach((name) => {
+  Object.keys(activePresets).forEach((name) => {
     const opt = document.createElement('option');
     opt.value = name;
     opt.textContent = name;
@@ -1919,7 +1966,7 @@ async function checkAuthState() {
         }
       }
     }
-    populatePresetSelectDropdown();
+    await initializePresets();
     await loadAlerts();
   } catch (err) {
     console.error('Error checking auth state:', err);
@@ -1986,7 +2033,7 @@ function initAlertConfigurator() {
 function startup() {
   initPriceChart();
   initTwapChart();
-  populatePresetSelectDropdown();
+  initializePresets().catch(console.error);
   initAlertConfigurator();
   
   // Attach language switcher event listeners

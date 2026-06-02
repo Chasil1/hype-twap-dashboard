@@ -316,3 +316,143 @@ export class ConfigStore {
     }
   }
 }
+
+export class PresetsStore {
+  constructor(filePath) {
+    this.filePath = filePath;
+    this.supabaseUrl = process.env.SUPABASE_URL;
+    this.supabaseKey = process.env.SUPABASE_KEY;
+    this.isSupabase = !!(this.supabaseUrl && this.supabaseKey);
+  }
+
+  async readAll(telegramUserId) {
+    if (!telegramUserId) return [];
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_presets?telegram_user_id=eq.${telegramUserId}&select=*&order=created_at.desc`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`
+          }
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Supabase read presets failed: ${response.status} - ${errText}`);
+        }
+        const rows = await response.json();
+        return rows.map(r => ({ name: r.name, preset_data: r.preset_data }));
+      } catch (error) {
+        console.error('Error reading presets from Supabase:', error);
+        return [];
+      }
+    }
+
+    try {
+      const raw = await readFile(this.filePath, 'utf8');
+      const data = JSON.parse(raw);
+      const userPresetsObj = data[telegramUserId] || {};
+      return Object.keys(userPresetsObj).map(name => ({
+        name,
+        preset_data: userPresetsObj[name]
+      }));
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+
+  async save(telegramUserId, name, presetData) {
+    if (!telegramUserId || !name) return false;
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_presets`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({
+            telegram_user_id: telegramUserId,
+            name: name,
+            preset_data: presetData
+          })
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Supabase save preset failed: ${response.status} - ${errText}`);
+        }
+        return true;
+      } catch (error) {
+        console.error('Error saving preset to Supabase:', error);
+        return false;
+      }
+    }
+
+    try {
+      let data = {};
+      try {
+        const raw = await readFile(this.filePath, 'utf8');
+        data = JSON.parse(raw);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      if (!data[telegramUserId]) {
+        data[telegramUserId] = {};
+      }
+      data[telegramUserId][name] = presetData;
+
+      const directory = path.dirname(this.filePath);
+      await mkdir(directory, { recursive: true });
+      await writeFile(this.filePath, JSON.stringify(data, null, 2), 'utf8');
+      return true;
+    } catch (error) {
+      console.error('Error writing preset locally:', error);
+      return false;
+    }
+  }
+
+  async delete(telegramUserId, name) {
+    if (!telegramUserId || !name) return false;
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_presets?telegram_user_id=eq.${telegramUserId}&name=eq.${name}`;
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`
+          }
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Supabase delete preset failed: ${response.status} - ${errText}`);
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting preset from Supabase:', error);
+        return false;
+      }
+    }
+
+    try {
+      const raw = await readFile(this.filePath, 'utf8');
+      const data = JSON.parse(raw);
+      if (data[telegramUserId] && data[telegramUserId][name]) {
+        delete data[telegramUserId][name];
+        const directory = path.dirname(this.filePath);
+        await mkdir(directory, { recursive: true });
+        await writeFile(this.filePath, JSON.stringify(data, null, 2), 'utf8');
+      }
+      return true;
+    } catch (error) {
+      if (error.code === 'ENOENT') return true;
+      console.error('Error deleting preset locally:', error);
+      return false;
+    }
+  }
+}
