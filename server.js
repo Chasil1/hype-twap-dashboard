@@ -288,7 +288,7 @@ app.get('/api/alerts', async (req, res) => {
     }
 
     const alerts = await alertsStore.readAll();
-    const userAlerts = alerts.filter(a => a.telegram_user_id === String(user.id));
+    const userAlerts = alerts.filter(a => a.telegram_user_id === String(user.id) || !a.telegram_user_id);
     res.json(userAlerts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -346,7 +346,7 @@ app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
       return;
     }
 
-    if (alert.telegram_user_id !== String(req.user.id)) {
+    if (alert.telegram_user_id && alert.telegram_user_id !== String(req.user.id)) {
       res.status(403).json({ error: 'Forbidden: You do not own this alert.' });
       return;
     }
@@ -359,6 +359,9 @@ app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
     alert.frequency_minutes = Number(frequency_minutes);
     alert.trend_mode = trend_mode || 'none';
     alert.timeframe = timeframe || '1m';
+    if (!alert.telegram_user_id) {
+      alert.telegram_user_id = String(req.user.id);
+    }
     if (expressionChanged || timeframeChanged) {
       alert.last_crossover_price = null;
     }
@@ -384,11 +387,14 @@ app.post('/api/alerts/:id/toggle', authMiddleware, async (req, res) => {
       return;
     }
 
-    if (alert.telegram_user_id !== String(req.user.id)) {
+    if (alert.telegram_user_id && alert.telegram_user_id !== String(req.user.id)) {
       res.status(403).json({ error: 'Forbidden: You do not own this alert.' });
       return;
     }
 
+    if (!alert.telegram_user_id) {
+      alert.telegram_user_id = String(req.user.id);
+    }
     alert.active = !alert.active;
     const ok = await alertsStore.save(alert);
     if (ok) {
@@ -411,7 +417,7 @@ app.delete('/api/alerts/:id', authMiddleware, async (req, res) => {
       return;
     }
 
-    if (alert.telegram_user_id !== String(req.user.id)) {
+    if (alert.telegram_user_id && alert.telegram_user_id !== String(req.user.id)) {
       res.status(403).json({ error: 'Forbidden: You do not own this alert.' });
       return;
     }

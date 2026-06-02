@@ -1277,16 +1277,21 @@ input:checked + .slider:before {
 }
 
 .chart-left-toolbar {
-  width: 44px;
-  background: #0f1317;
-  border-right: 1px solid var(--line);
+  position: absolute;
+  left: 10px;
+  top: 50px;
+  width: 40px;
+  background: rgba(15, 19, 23, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--line);
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
   gap: 8px;
-  flex-shrink: 0;
-  z-index: 10;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .chart-left-toolbar .ruler-toggle-btn {

@@ -32,6 +32,12 @@ const mockAlertsDb = [
     name: 'Bob Alert',
     telegram_user_id: '67890',
     active: true
+  },
+  {
+    id: 'alert-3',
+    name: 'Legacy Global Alert',
+    telegram_user_id: null,
+    active: true
   }
 ];
 
@@ -39,7 +45,7 @@ const mockAlertsDb = [
 function verifyAlertOwnership(alertId, reqUserId) {
   const alert = mockAlertsDb.find(a => a.id === alertId);
   if (!alert) return { status: 404, error: 'Alert not found' };
-  if (alert.telegram_user_id !== String(reqUserId)) {
+  if (alert.telegram_user_id && alert.telegram_user_id !== String(reqUserId)) {
     return { status: 403, error: 'Forbidden: You do not own this alert.' };
   }
   return { status: 200, ok: true };
@@ -56,7 +62,12 @@ test('Backend Alert CRUD ownership validation', () => {
   assert.equal(accessBobRes.status, 403);
   assert.equal(accessBobRes.error, 'Forbidden: You do not own this alert.');
 
-  // Scenario C: Non-existent alert
+  // Scenario C: Alice attempts to access/modify legacy global alert
+  const accessGlobalRes = verifyAlertOwnership('alert-3', '12345');
+  assert.equal(accessGlobalRes.status, 200);
+  assert.equal(accessGlobalRes.ok, true);
+
+  // Scenario D: Non-existent alert
   const nonExistentRes = verifyAlertOwnership('alert-missing', '12345');
   assert.equal(nonExistentRes.status, 404);
   assert.equal(nonExistentRes.error, 'Alert not found');
