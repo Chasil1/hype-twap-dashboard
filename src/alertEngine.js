@@ -126,7 +126,20 @@ export class AlertEngine {
   }
 
   evaluate(snapshot, expr) {
-    if (!expr || !expr.field1 || !expr.operator) return false;
+    if (!expr) return false;
+
+    if (expr.type === 'compound') {
+      const conditions = expr.conditions || [];
+      if (conditions.length === 0) return false;
+
+      if (expr.logicalOperator === 'or') {
+        return conditions.some(cond => this.evaluate(snapshot, cond));
+      } else {
+        return conditions.every(cond => this.evaluate(snapshot, cond));
+      }
+    }
+
+    if (!expr.field1 || !expr.operator) return false;
 
     const v1 = snapshot[expr.field1];
     if (v1 === null || v1 === undefined) return false;
@@ -182,22 +195,62 @@ export class AlertEngine {
 
   formatAlertMessage(alert, snapshot) {
     const expr = alert.expression;
-    const v1 = snapshot[expr.field1];
-    let v2;
-    if (expr.compareType === 'value') {
-      v2 = expr.value;
-    } else {
-      v2 = snapshot[expr.field2];
-    }
-
     const metricLabels = getMetricLabelsMap();
-    const name1 = metricLabels[expr.field1] || expr.field1;
-    const name2 = expr.compareType === 'value' ? formatMetricValue(expr.field1, v2) : (metricLabels[expr.field2] || expr.field2);
 
-    const formattedV1 = formatMetricValue(expr.field1, v1);
-    const formattedV2 = expr.compareType === 'value' ? name2 : formatMetricValue(expr.field2, v2);
+    let conditionText = '';
+    let stateText = '';
 
-    const opSymbol = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
+    if (expr && expr.type === 'compound') {
+      const logicalOp = (expr.logicalOperator || 'and').toUpperCase();
+      const conditions = expr.conditions || [];
+      
+      conditionText = conditions.map((cond) => {
+        const leftName = metricLabels[cond.field1] || cond.field1;
+        const opSymbol = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[cond.operator] || cond.operator;
+        let rightVal;
+        if (cond.compareType === 'value') {
+          rightVal = formatMetricValue(cond.field1, cond.value);
+        } else {
+          rightVal = metricLabels[cond.field2] || cond.field2;
+        }
+        return `(${leftName} ${opSymbol} ${rightVal})`;
+      }).join(` <b>${logicalOp}</b> `);
+
+      stateText = '<b>Current State:</b>\n';
+      conditions.forEach((cond) => {
+        const leftName = metricLabels[cond.field1] || cond.field1;
+        const val1 = snapshot[cond.field1];
+        const formattedVal1 = formatMetricValue(cond.field1, val1);
+        
+        stateText += `• ${leftName}: <code>${formattedVal1}</code>`;
+        if (cond.compareType === 'metric') {
+          const rightName = metricLabels[cond.field2] || cond.field2;
+          const val2 = snapshot[cond.field2];
+          const formattedVal2 = formatMetricValue(cond.field2, val2);
+          stateText += ` (vs ${rightName}: <code>${formattedVal2}</code>)`;
+        } else {
+          const formattedVal2 = formatMetricValue(cond.field1, cond.value);
+          stateText += ` (target: <code>${formattedVal2}</code>)`;
+        }
+        stateText += '\n';
+      });
+    } else if (expr) {
+      const v1 = snapshot[expr.field1];
+      let v2 = expr.compareType === 'value' ? expr.value : snapshot[expr.field2];
+
+      const name1 = metricLabels[expr.field1] || expr.field1;
+      const name2 = expr.compareType === 'value' ? formatMetricValue(expr.field1, v2) : (metricLabels[expr.field2] || expr.field2);
+
+      const formattedV1 = formatMetricValue(expr.field1, v1);
+      const formattedV2 = expr.compareType === 'value' ? name2 : formatMetricValue(expr.field2, v2);
+
+      const opSymbol = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
+
+      conditionText = `${name1} ${opSymbol} ${expr.compareType === 'value' ? formattedV2 : name2}`;
+      stateText = `<b>Current State:</b>\n` +
+                  `• ${name1}: <code>${formattedV1}</code>\n` +
+                  (expr.compareType === 'metric' ? `• ${name2}: <code>${formattedV2}</code>\n` : '');
+    }
 
     let modeText = '';
     if (alert.trend_mode === 'long') {
@@ -209,10 +262,8 @@ export class AlertEngine {
     return `🚨 <b>ALERT TRIGGERED: ${alert.name}</b>\n\n` +
            `<b>Timeframe:</b> <code>${alert.timeframe || '1m'}</code>\n` +
            modeText +
-           `<b>Condition:</b> ${name1} ${opSymbol} ${expr.compareType === 'value' ? formattedV2 : name2}\n` +
-           `<b>Current State:</b>\n` +
-           `• ${name1}: <code>${formattedV1}</code>\n` +
-           (expr.compareType === 'metric' ? `• ${name2}: <code>${formattedV2}</code>\n` : '') +
+           `<b>Condition:</b> ${conditionText}\n` +
+           stateText +
            `\n` +
            `<b>Price:</b> $${snapshot.price?.toFixed(4) || '--'}\n` +
            `<b>Timestamp:</b> ${new Date(snapshot.timestamp).toLocaleString()}`;

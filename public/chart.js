@@ -1214,13 +1214,10 @@ const alertElements = {
 
   createAlertForm: document.querySelector('#createAlertForm'),
   alertNameInput: document.querySelector('#alertNameInput'),
-  leftMetricSelect: document.querySelector('#leftMetricSelect'),
-  operatorSelect: document.querySelector('#operatorSelect'),
-  compareTypeSelect: document.querySelector('#compareTypeSelect'),
-  rightValueGroup: document.querySelector('#rightValueGroup'),
-  rightValueInput: document.querySelector('#rightValueInput'),
-  rightMetricGroup: document.querySelector('#rightMetricGroup'),
-  rightMetricSelect: document.querySelector('#rightMetricSelect'),
+  addConditionBtn: document.querySelector('#addConditionBtn'),
+  logicalOperatorSelect: document.querySelector('#logicalOperatorSelect'),
+  logicalOperatorGroup: document.querySelector('#logicalOperatorGroup'),
+  conditionsContainer: document.querySelector('#conditionsContainer'),
   trendModeSelect: document.querySelector('#trendModeSelect'),
   alertTimeframeSelect: document.querySelector('#alertTimeframeSelect'),
   frequencySelect: document.querySelector('#frequencySelect'),
@@ -1247,12 +1244,9 @@ depthsList.forEach(d => {
   METRIC_LABELS[`bybit_ask_${suffix}`] = `Bybit Ask ${d}%`;
 });
 
-function populateAlertMetricSelects() {
-  const selects = document.querySelectorAll('.alerts-panel .metric-select');
+function populateAlertMetricSelectsForRow(row) {
+  const selects = row.querySelectorAll('.metric-select');
   selects.forEach(select => {
-    // Avoid double populating if it's already done
-    if (select.children.length > 7) return;
-
     const optGroupHlBid = document.createElement('optgroup');
     optGroupHlBid.label = 'Hyperliquid Bid Depth';
     const optGroupHlAsk = document.createElement('optgroup');
@@ -1291,6 +1285,169 @@ function populateAlertMetricSelects() {
     select.appendChild(optGroupBybitBid);
     select.appendChild(optGroupBybitAsk);
   });
+}
+
+function createConditionRow(data = null) {
+  const row = document.createElement('div');
+  row.className = 'condition-row';
+  row.style.display = 'flex';
+  row.style.flexDirection = 'column';
+  row.style.gap = '8px';
+  row.style.background = 'rgba(15, 19, 23, 0.4)';
+  row.style.border = '1px solid var(--line)';
+  row.style.borderRadius = '6px';
+  row.style.padding = '12px';
+  row.style.position = 'relative';
+
+  row.innerHTML = `
+    <button type="button" class="remove-condition-btn" style="position: absolute; right: 10px; top: 10px; background: transparent; border: 0; color: #ff5252; cursor: pointer; font-size: 14px; padding: 2px;">✕</button>
+    
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 8px; align-items: end;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Left Metric</label>
+        <select class="metric-select left-metric-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+          <option value="price">HYPE Price</option>
+          <option value="twapNet1h">TWAP Net 1H</option>
+          <option value="twapNet24h">TWAP Net 24H</option>
+          <option value="twapBuy24h">TWAP Buy 24H</option>
+          <option value="twapSell24h">TWAP Sell 24H</option>
+          <option value="activeBuyCount">Active Buy Count</option>
+          <option value="activeSellCount">Active Sell Count</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Operator</label>
+        <select class="operator-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+          <option value="gt">&gt;</option>
+          <option value="lt">&lt;</option>
+          <option value="gte">&gt;=</option>
+          <option value="lte">&lt;=</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Compare With</label>
+        <select class="compare-type-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+          <option value="value">Static Value</option>
+          <option value="metric">Another Metric</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="target-value-group form-group" style="margin-bottom: 0;">
+      <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Target Value</label>
+      <input type="number" step="any" class="target-value-input" placeholder="e.g. 30000000 (for $30M)" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;"/>
+    </div>
+
+    <div class="target-metric-group form-group hidden" style="margin-bottom: 0;">
+      <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Right Metric</label>
+      <select class="metric-select right-metric-select" style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--ink); border-radius: 4px; width: 100%;">
+        <option value="price">HYPE Price</option>
+        <option value="twapNet1h">TWAP Net 1H</option>
+        <option value="twapNet24h">TWAP Net 24H</option>
+        <option value="twapBuy24h">TWAP Buy 24H</option>
+        <option value="twapSell24h">TWAP Sell 24H</option>
+        <option value="activeBuyCount">Active Buy Count</option>
+        <option value="activeSellCount">Active Sell Count</option>
+      </select>
+    </div>
+  `;
+
+  populateAlertMetricSelectsForRow(row);
+
+  const compareTypeSelect = row.querySelector('.compare-type-select');
+  const valueGroup = row.querySelector('.target-value-group');
+  const metricGroup = row.querySelector('.target-metric-group');
+  const valueInput = row.querySelector('.target-value-input');
+
+  compareTypeSelect.addEventListener('change', () => {
+    if (compareTypeSelect.value === 'value') {
+      valueGroup.classList.remove('hidden');
+      metricGroup.classList.add('hidden');
+      valueInput.required = true;
+    } else {
+      valueGroup.classList.add('hidden');
+      metricGroup.classList.remove('hidden');
+      valueInput.required = false;
+    }
+  });
+
+  row.querySelector('.remove-condition-btn').addEventListener('click', () => {
+    row.remove();
+    updateLogicalOperatorVisibility();
+  });
+
+  if (data) {
+    row.querySelector('.left-metric-select').value = data.field1;
+    row.querySelector('.operator-select').value = data.operator;
+    compareTypeSelect.value = data.compareType;
+    if (data.compareType === 'value') {
+      valueInput.value = data.value;
+      valueGroup.classList.remove('hidden');
+      metricGroup.classList.add('hidden');
+      valueInput.required = true;
+    } else {
+      row.querySelector('.right-metric-select').value = data.field2;
+      valueGroup.classList.add('hidden');
+      metricGroup.classList.remove('hidden');
+      valueInput.required = false;
+    }
+  }
+
+  return row;
+}
+
+function updateLogicalOperatorVisibility() {
+  const container = alertElements.conditionsContainer;
+  const logicalOpGroup = alertElements.logicalOperatorGroup;
+  if (!container || !logicalOpGroup) return;
+  const rows = container.querySelectorAll('.condition-row');
+  const rowsCount = rows.length;
+  
+  if (rowsCount > 1) {
+    logicalOpGroup.classList.remove('hidden');
+    rows.forEach(row => {
+      let removeBtn = row.querySelector('.remove-condition-btn');
+      if (!removeBtn) {
+        removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-condition-btn';
+        removeBtn.style.position = 'absolute';
+        removeBtn.style.right = '10px';
+        removeBtn.style.top = '10px';
+        removeBtn.style.background = 'transparent';
+        removeBtn.style.border = '0';
+        removeBtn.style.color = '#ff5252';
+        removeBtn.style.cursor = 'pointer';
+        removeBtn.style.fontSize = '14px';
+        removeBtn.style.padding = '2px';
+        removeBtn.innerHTML = '✕';
+        removeBtn.addEventListener('click', () => {
+          row.remove();
+          updateLogicalOperatorVisibility();
+        });
+        row.appendChild(removeBtn);
+      }
+    });
+  } else {
+    logicalOpGroup.classList.add('hidden');
+    rows.forEach(row => {
+      const removeBtn = row.querySelector('.remove-condition-btn');
+      if (removeBtn) removeBtn.remove();
+    });
+  }
+}
+
+function resetAlertFormToDefault() {
+  alertElements.createAlertForm.reset();
+  const container = alertElements.conditionsContainer;
+  if (container) {
+    container.innerHTML = '';
+    const row = createConditionRow();
+    container.appendChild(row);
+  }
+  updateLogicalOperatorVisibility();
 }
 
 function showAlertFeedback(element, text, isSuccess) {
@@ -1387,10 +1544,21 @@ function renderAlertsList(alerts) {
     item.className = 'alert-item';
 
     const expr = alert.expression;
-    const leftName = METRIC_LABELS[expr.field1] || expr.field1;
-    const rightName = expr.compareType === 'value' ? formatStaticValue(expr.field1, expr.value) : (METRIC_LABELS[expr.field2] || expr.field2);
-    const opLabel = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
-    const ruleString = `${leftName} ${opLabel} ${rightName}`;
+    let ruleString = '';
+    if (expr && expr.type === 'compound') {
+      const logicalConnector = ` ${expr.logicalOperator.toUpperCase()} `;
+      ruleString = expr.conditions.map(cond => {
+        const left = METRIC_LABELS[cond.field1] || cond.field1;
+        const op = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[cond.operator] || cond.operator;
+        const right = cond.compareType === 'value' ? formatStaticValue(cond.field1, cond.value) : (METRIC_LABELS[cond.field2] || cond.field2);
+        return `${left} ${op} ${right}`;
+      }).join(logicalConnector);
+    } else if (expr) {
+      const leftName = METRIC_LABELS[expr.field1] || expr.field1;
+      const rightName = expr.compareType === 'value' ? formatStaticValue(expr.field1, expr.value) : (METRIC_LABELS[expr.field2] || expr.field2);
+      const opLabel = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
+      ruleString = `${leftName} ${opLabel} ${rightName}`;
+    }
     const tfString = alert.timeframe || '1m';
     const cooldownString = alert.frequency_minutes > 0 ? `cooldown: ${alert.frequency_minutes}m` : 'no cooldown';
 
@@ -1485,24 +1653,26 @@ function startEditAlert(alert) {
   const submitBtn = alertElements.createAlertForm.querySelector('button[type="submit"]');
   alertElements.editAlertId.value = alert.id;
   alertElements.alertNameInput.value = alert.name;
-  alertElements.leftMetricSelect.value = alert.expression.field1;
-  alertElements.operatorSelect.value = alert.expression.operator;
-  alertElements.compareTypeSelect.value = alert.expression.compareType;
 
-  // Toggle value vs metric fields
-  const isValue = alert.expression.compareType === 'value';
-  alertElements.rightValueGroup.classList.toggle('hidden', !isValue);
-  alertElements.rightMetricGroup.classList.toggle('hidden', isValue);
-  
-  if (isValue) {
-    alertElements.rightValueInput.value = alert.expression.value;
-    alertElements.rightValueInput.required = true;
-    alertElements.rightMetricSelect.required = false;
+  const container = alertElements.conditionsContainer;
+  container.innerHTML = '';
+
+  const expr = alert.expression;
+  if (expr && expr.type === 'compound') {
+    alertElements.logicalOperatorSelect.value = expr.logicalOperator || 'and';
+    expr.conditions.forEach(cond => {
+      const row = createConditionRow(cond);
+      container.appendChild(row);
+    });
+  } else if (expr) {
+    const row = createConditionRow(expr);
+    container.appendChild(row);
   } else {
-    alertElements.rightMetricSelect.value = alert.expression.field2;
-    alertElements.rightValueInput.required = false;
-    alertElements.rightMetricSelect.required = true;
+    const row = createConditionRow();
+    container.appendChild(row);
   }
+
+  updateLogicalOperatorVisibility();
 
   alertElements.trendModeSelect.value = alert.trend_mode || 'none';
   alertElements.alertTimeframeSelect.value = alert.timeframe || '1m';
@@ -1520,35 +1690,83 @@ function clearEditAlertMode() {
   alertElements.editAlertId.value = '';
   alertElements.tabCreateAlert.textContent = 'Create Alert';
   if (submitBtn) submitBtn.textContent = 'Create Alert';
+  resetAlertFormToDefault();
 }
 
 async function handleCreateAlert(e) {
   e.preventDefault();
 
   const name = alertElements.alertNameInput.value.trim();
-  const field1 = alertElements.leftMetricSelect.value;
-  const operator = alertElements.operatorSelect.value;
-  const compareType = alertElements.compareTypeSelect.value;
   const trend_mode = alertElements.trendModeSelect.value;
   const timeframe = alertElements.alertTimeframeSelect.value;
   const frequency_minutes = Number(alertElements.frequencySelect.value);
   const editId = alertElements.editAlertId.value;
 
-  const expression = {
-    field1,
-    operator,
-    compareType
-  };
+  const container = alertElements.conditionsContainer;
+  const rows = container.querySelectorAll('.condition-row');
+  
+  if (rows.length === 0) {
+    showAlertFeedback(alertElements.formFeedback, 'Please add at least one condition.', false);
+    return;
+  }
 
-  if (compareType === 'value') {
-    const val = Number(alertElements.rightValueInput.value);
-    if (isNaN(val)) {
-      showAlertFeedback(alertElements.formFeedback, 'Please enter a valid numeric target value.', false);
-      return;
+  let expression;
+
+  if (rows.length === 1) {
+    const row = rows[0];
+    const field1 = row.querySelector('.left-metric-select').value;
+    const operator = row.querySelector('.operator-select').value;
+    const compareType = row.querySelector('.compare-type-select').value;
+    
+    expression = {
+      field1,
+      operator,
+      compareType
+    };
+
+    if (compareType === 'value') {
+      const val = Number(row.querySelector('.target-value-input').value);
+      if (isNaN(val)) {
+        showAlertFeedback(alertElements.formFeedback, 'Please enter a valid numeric target value.', false);
+        return;
+      }
+      expression.value = val;
+    } else {
+      expression.field2 = row.querySelector('.right-metric-select').value;
     }
-    expression.value = val;
   } else {
-    expression.field2 = alertElements.rightMetricSelect.value;
+    const logicalOperator = alertElements.logicalOperatorSelect.value;
+    const conditions = [];
+
+    for (const row of rows) {
+      const field1 = row.querySelector('.left-metric-select').value;
+      const operator = row.querySelector('.operator-select').value;
+      const compareType = row.querySelector('.compare-type-select').value;
+      
+      const cond = {
+        field1,
+        operator,
+        compareType
+      };
+
+      if (compareType === 'value') {
+        const val = Number(row.querySelector('.target-value-input').value);
+        if (isNaN(val)) {
+          showAlertFeedback(alertElements.formFeedback, 'Please enter a valid numeric target value for all conditions.', false);
+          return;
+        }
+        cond.value = val;
+      } else {
+        cond.field2 = row.querySelector('.right-metric-select').value;
+      }
+      conditions.push(cond);
+    }
+
+    expression = {
+      type: 'compound',
+      logicalOperator,
+      conditions
+    };
   }
 
   try {
@@ -1710,23 +1928,15 @@ function initAlertConfigurator() {
     alertElements.tabContentList.classList.add('hidden');
   });
 
-  alertElements.compareTypeSelect.addEventListener('change', () => {
-    const isValue = alertElements.compareTypeSelect.value === 'value';
-    alertElements.rightValueGroup.classList.toggle('hidden', !isValue);
-    alertElements.rightMetricGroup.classList.toggle('hidden', isValue);
-
-    if (isValue) {
-      alertElements.rightValueInput.required = true;
-      alertElements.rightMetricSelect.required = false;
-    } else {
-      alertElements.rightValueInput.required = false;
-      alertElements.rightMetricSelect.required = true;
-    }
+  alertElements.addConditionBtn.addEventListener('click', () => {
+    const row = createConditionRow();
+    alertElements.conditionsContainer.appendChild(row);
+    updateLogicalOperatorVisibility();
   });
 
   alertElements.createAlertForm.addEventListener('submit', handleCreateAlert);
 
-  populateAlertMetricSelects();
+  resetAlertFormToDefault();
   checkAuthState().catch(console.error);
 }
 

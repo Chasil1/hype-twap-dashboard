@@ -165,3 +165,79 @@ test('AlertEngine routes notifications to user-specific chat ID when present, el
   assert.ok(globalNotif);
   assert.equal(globalNotif.chatId, '456', 'Global alert falls back to global chat ID');
 });
+
+test('AlertEngine processes compound expressions (AND/OR) correctly', async () => {
+  const alerts = [
+    {
+      id: 'alert-compound-and',
+      name: 'Compound AND alert',
+      expression: {
+        type: 'compound',
+        logicalOperator: 'and',
+        conditions: [
+          {
+            field1: 'price',
+            operator: 'gt',
+            compareType: 'value',
+            value: 10
+          },
+          {
+            field1: 'twapNet1h',
+            operator: 'gt',
+            compareType: 'value',
+            value: 100
+          }
+        ]
+      },
+      frequency_minutes: 0,
+      active: true
+    },
+    {
+      id: 'alert-compound-or',
+      name: 'Compound OR alert',
+      expression: {
+        type: 'compound',
+        logicalOperator: 'or',
+        conditions: [
+          {
+            field1: 'price',
+            operator: 'gt',
+            compareType: 'value',
+            value: 20
+          },
+          {
+            field1: 'twapNet1h',
+            operator: 'gt',
+            compareType: 'value',
+            value: 200
+          }
+        ]
+      },
+      frequency_minutes: 0,
+      active: true
+    }
+  ];
+
+  const alertsStore = new MockAlertsStore(alerts);
+  const configStore = new MockConfigStore({
+    telegram_bot_token: '123:abc',
+    telegram_chat_id: '456'
+  });
+
+  const engine = new AlertEngine({ alertsStore, configStore });
+
+  const triggeredAlerts = [];
+  engine.sendTelegramNotification = async (token, chatId, alert, snapshot) => {
+    triggeredAlerts.push(alert.id);
+  };
+
+  const s1 = { price: 12, twapNet1h: 150, timestamp: Date.now() };
+  await engine.checkAlerts(s1, null);
+  assert.deepEqual(triggeredAlerts, ['alert-compound-and']);
+
+  triggeredAlerts.length = 0;
+
+  const s2 = { price: 25, twapNet1h: 50, timestamp: Date.now() };
+  await engine.checkAlerts(s2, null);
+  assert.deepEqual(triggeredAlerts, ['alert-compound-or']);
+});
