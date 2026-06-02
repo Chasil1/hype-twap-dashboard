@@ -325,7 +325,9 @@ app.get('/api/alerts', async (req, res) => {
 
     const user = getSessionUser(req, token ? token.trim() : null);
     if (!user) {
-      res.json([]);
+      const alerts = await alertsStore.readAll();
+      const defaultAlerts = alerts.filter(a => !a.telegram_user_id);
+      res.json(defaultAlerts);
       return;
     }
 

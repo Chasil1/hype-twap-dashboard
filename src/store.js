@@ -119,6 +119,109 @@ export class SnapshotStore {
   }
 }
 
+const DEFAULT_ALERTS = [
+  {
+    id: "preset-hl-depth-imbalance-bids",
+    name: "Hyperliquid Depth Imbalance (Bids > Asks)",
+    expression: {
+      field1: "hl_bid_1_5",
+      operator: "gt",
+      compareType: "metric",
+      field2: "hl_ask_1_5",
+      value: 0
+    },
+    frequency_minutes: 15,
+    trend_mode: "none",
+    timeframe: "1m",
+    active: true,
+    telegram_user_id: null,
+    created_at: "2026-06-01T00:00:00.000Z",
+    last_triggered_at: null,
+    last_trigger_price: null,
+    last_trend_price: null
+  },
+  {
+    id: "preset-hl-depth-imbalance-asks",
+    name: "Hyperliquid Depth Imbalance (Asks > Bids)",
+    expression: {
+      field1: "hl_ask_1_5",
+      operator: "gt",
+      compareType: "metric",
+      field2: "hl_bid_1_5",
+      value: 0
+    },
+    frequency_minutes: 15,
+    trend_mode: "none",
+    timeframe: "1m",
+    active: true,
+    telegram_user_id: null,
+    created_at: "2026-06-01T00:00:00.000Z",
+    last_triggered_at: null,
+    last_trigger_price: null,
+    last_trend_price: null
+  },
+  {
+    id: "preset-hype-twap-net-1h-acc",
+    name: "HYPE TWAP Net 1H Accumulation (>20k)",
+    expression: {
+      field1: "twapNet1h",
+      operator: "gt",
+      compareType: "value",
+      value: 20000,
+      field2: ""
+    },
+    frequency_minutes: 30,
+    trend_mode: "none",
+    timeframe: "1m",
+    active: true,
+    telegram_user_id: null,
+    created_at: "2026-06-01T00:00:00.000Z",
+    last_triggered_at: null,
+    last_trigger_price: null,
+    last_trend_price: null
+  },
+  {
+    id: "preset-hype-twap-net-1h-dist",
+    name: "HYPE TWAP Net 1H Distribution (<-20k)",
+    expression: {
+      field1: "twapNet1h",
+      operator: "lt",
+      compareType: "value",
+      value: -20000,
+      field2: ""
+    },
+    frequency_minutes: 30,
+    trend_mode: "none",
+    timeframe: "1m",
+    active: true,
+    telegram_user_id: null,
+    created_at: "2026-06-01T00:00:00.000Z",
+    last_triggered_at: null,
+    last_trigger_price: null,
+    last_trend_price: null
+  },
+  {
+    id: "preset-hype-buys-vs-sells-crossover",
+    name: "Active Buy/Sell Count Crossover (Buys > Sells)",
+    expression: {
+      field1: "activeBuyCount",
+      operator: "gt",
+      compareType: "metric",
+      field2: "activeSellCount",
+      value: 0
+    },
+    frequency_minutes: 5,
+    trend_mode: "none",
+    timeframe: "1m",
+    active: true,
+    telegram_user_id: null,
+    created_at: "2026-06-01T00:00:00.000Z",
+    last_triggered_at: null,
+    last_trigger_price: null,
+    last_trend_price: null
+  }
+];
+
 export class AlertsStore {
   constructor(filePath) {
     this.filePath = filePath;
@@ -128,6 +231,7 @@ export class AlertsStore {
   }
 
   async readAll() {
+    let list = [];
     if (this.isSupabase) {
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_alerts?select=*&order=created_at.desc`;
@@ -142,20 +246,28 @@ export class AlertsStore {
           const errText = await response.text();
           throw new Error(`Supabase read alerts failed: ${response.status} - ${errText}`);
         }
-        return await response.json();
+        list = await response.json();
       } catch (error) {
         console.error('Error reading alerts from Supabase, returning empty array:', error);
-        return [];
+        list = [];
+      }
+    } else {
+      try {
+        const raw = await readFile(this.filePath, 'utf8');
+        list = JSON.parse(raw);
+      } catch (error) {
+        if (error.code === 'ENOENT') list = [];
+        else throw error;
       }
     }
 
-    try {
-      const raw = await readFile(this.filePath, 'utf8');
-      return JSON.parse(raw);
-    } catch (error) {
-      if (error.code === 'ENOENT') return [];
-      throw error;
-    }
+    const merged = [...list];
+    DEFAULT_ALERTS.forEach(def => {
+      if (!merged.some(a => a.id === def.id)) {
+        merged.push(def);
+      }
+    });
+    return merged;
   }
 
   async save(alert) {
