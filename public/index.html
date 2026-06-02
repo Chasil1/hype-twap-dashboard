@@ -11,28 +11,32 @@
     <main class="shell">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Hyperliquid HYPE</p>
-          <h1>TWAP Monitor</h1>
+          <p class="eyebrow" id="txtEyebrow">Hyperliquid HYPE</p>
+          <h1 id="txtTitle">TWAP Monitor</h1>
         </div>
-        <div class="actions">
-          <a class="chart-link" href="/chart" target="_blank" rel="noreferrer">Open chart</a>
+        <div class="actions" style="display: flex; align-items: center; gap: 12px;">
+          <div class="lang-switch">
+            <button id="langBtnEn" class="lang-btn" type="button">EN</button>
+            <button id="langBtnRu" class="lang-btn" type="button">RU</button>
+          </div>
+          <a class="chart-link" href="/chart" target="_blank" rel="noreferrer" id="lnkOpenChart">Open chart</a>
         </div>
       </section>
 
       <section class="market-strip">
         <div class="ticker">
-          <span class="label">HYPE price</span>
+          <span class="label" id="lblHypePrice">HYPE price</span>
           <strong id="price">--</strong>
         </div>
         <div class="ticker">
-          <span class="label">TWAP source</span>
+          <span class="label" id="lblTwapSource">TWAP source</span>
           <strong id="twapSource">--</strong>
         </div>
       </section>
 
       <section class="metrics-grid">
         <div class="twap-mode-row">
-          <span class="label">TWAP mode</span>
+          <span class="label" id="lblTwapMode">TWAP mode</span>
           <div class="twap-mode-toggle" role="tablist" aria-label="TWAP market mode">
             <button class="twap-mode active" type="button" data-twap-mode="spotPerp">Spot + Perp</button>
             <button class="twap-mode" type="button" data-twap-mode="spot">Spot</button>
@@ -40,24 +44,24 @@
           </div>
         </div>
         <article class="metric emphasis">
-          <span class="label">Next 1H net</span>
+          <span class="label" id="lblNet1h">Next 1H net</span>
           <strong id="twapNet1h">--</strong>
-          <small>buy minus sell</small>
+          <small id="lblBuyMinusSell1">buy minus sell</small>
         </article>
         <article class="metric emphasis">
-          <span class="label">Next 24H net</span>
+          <span class="label" id="lblNet24h">Next 24H net</span>
           <strong id="twapNet24h">--</strong>
-          <small>buy minus sell</small>
+          <small id="lblBuyMinusSell2">buy minus sell</small>
         </article>
         <article class="metric buy">
-          <span class="label">24H buy</span>
+          <span class="label" id="lblBuy24h">24H buy</span>
           <strong id="twapBuy24h">--</strong>
-          <small><span id="activeBuyCount">--</span> active buy TWAPs</small>
+          <small><span id="activeBuyCount">--</span> <span id="lblActiveBuys">active buy TWAPs</span></small>
         </article>
         <article class="metric sell">
-          <span class="label">24H sell</span>
+          <span class="label" id="lblSell24h">24H sell</span>
           <strong id="twapSell24h">--</strong>
-          <small><span id="activeSellCount">--</span> active sell TWAPs</small>
+          <small><span id="activeSellCount">--</span> <span id="lblActiveSells">active sell TWAPs</span></small>
         </article>
       </section>
 

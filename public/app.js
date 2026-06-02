@@ -181,5 +181,103 @@ for (const button of elements.twapModeButtons) {
   });
 }
 
+// Translations and Language Switch Logic
+const TRANSLATIONS = {
+  en: {
+    eyebrow: "Hyperliquid HYPE",
+    title: "TWAP Monitor",
+    openChart: "Open chart",
+    hypePrice: "HYPE price",
+    twapSource: "TWAP source",
+    twapMode: "TWAP mode",
+    spotPerp: "Spot + Perp",
+    spot: "Spot",
+    perp: "Perp",
+    next1hNet: "Next 1H net",
+    buyMinusSell: "buy minus sell",
+    next24hNet: "Next 24H net",
+    buy24h: "24H buy",
+    activeBuyTwaps: "active buy TWAPs",
+    sell24h: "24H sell",
+    activeSellTwaps: "active sell TWAPs"
+  },
+  ru: {
+    eyebrow: "Hyperliquid HYPE",
+    title: "TWAP Монитор",
+    openChart: "Открыть график",
+    hypePrice: "Цена HYPE",
+    twapSource: "Источник TWAP",
+    twapMode: "Режим TWAP",
+    spotPerp: "Спот + Перп",
+    spot: "Спот",
+    perp: "Перп",
+    next1hNet: "Чистый 1Ч",
+    buyMinusSell: "покупки минус продажи",
+    next24hNet: "Чистый 24Ч",
+    buy24h: "Покупки 24Ч",
+    activeBuyTwaps: "активных TWAP покупок",
+    sell24h: "Продажи 24Ч",
+    activeSellTwaps: "активных TWAP продаж"
+  }
+};
+
+function applyLanguage(lang) {
+  localStorage.setItem('hype_twap_lang', lang);
+  
+  const enBtn = document.getElementById('langBtnEn');
+  const ruBtn = document.getElementById('langBtnRu');
+  if (enBtn) enBtn.classList.toggle('active', lang === 'en');
+  if (ruBtn) ruBtn.classList.toggle('active', lang === 'ru');
+
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  const txtEyebrow = document.getElementById('txtEyebrow');
+  if (txtEyebrow) txtEyebrow.textContent = t.eyebrow;
+  const txtTitle = document.getElementById('txtTitle');
+  if (txtTitle) txtTitle.textContent = t.title;
+  const lnkOpenChart = document.getElementById('lnkOpenChart');
+  if (lnkOpenChart) lnkOpenChart.textContent = t.openChart;
+
+  const lblHypePrice = document.getElementById('lblHypePrice');
+  if (lblHypePrice) lblHypePrice.textContent = t.hypePrice;
+  const lblTwapSource = document.getElementById('lblTwapSource');
+  if (lblTwapSource) lblTwapSource.textContent = t.twapSource;
+  const lblTwapMode = document.getElementById('lblTwapMode');
+  if (lblTwapMode) lblTwapMode.textContent = t.twapMode;
+
+  const spotPerpBtn = document.querySelector('[data-twap-mode="spotPerp"]');
+  if (spotPerpBtn) spotPerpBtn.textContent = t.spotPerp;
+  const spotBtn = document.querySelector('[data-twap-mode="spot"]');
+  if (spotBtn) spotBtn.textContent = t.spot;
+  const perpBtn = document.querySelector('[data-twap-mode="perp"]');
+  if (perpBtn) perpBtn.textContent = t.perp;
+
+  const lblNet1h = document.getElementById('lblNet1h');
+  if (lblNet1h) lblNet1h.textContent = t.next1hNet;
+  const lblNet24h = document.getElementById('lblNet24h');
+  if (lblNet24h) lblNet24h.textContent = t.next24hNet;
+  const lblBuy24h = document.getElementById('lblBuy24h');
+  if (lblBuy24h) lblBuy24h.textContent = t.buy24h;
+  const lblSell24h = document.getElementById('lblSell24h');
+  if (lblSell24h) lblSell24h.textContent = t.sell24h;
+
+  const lblBuyMinusSell1 = document.getElementById('lblBuyMinusSell1');
+  if (lblBuyMinusSell1) lblBuyMinusSell1.textContent = t.buyMinusSell;
+  const lblBuyMinusSell2 = document.getElementById('lblBuyMinusSell2');
+  if (lblBuyMinusSell2) lblBuyMinusSell2.textContent = t.buyMinusSell;
+
+  const lblActiveBuys = document.getElementById('lblActiveBuys');
+  if (lblActiveBuys) lblActiveBuys.textContent = t.activeBuyTwaps;
+  const lblActiveSells = document.getElementById('lblActiveSells');
+  if (lblActiveSells) lblActiveSells.textContent = t.activeSellTwaps;
+}
+
+const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+document.getElementById('langBtnEn').addEventListener('click', () => applyLanguage('en'));
+document.getElementById('langBtnRu').addEventListener('click', () => applyLanguage('ru'));
+
+applyLanguage(currentLang);
+
 refresh().catch(console.error);
 setInterval(() => refresh().catch(console.error), 1000);
+

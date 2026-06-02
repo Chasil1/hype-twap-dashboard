@@ -1226,68 +1226,105 @@ const alertElements = {
 };
 
 const METRIC_LABELS = {
-  price: 'HYPE Price',
-  twapNet1h: 'TWAP Net 1H',
-  twapNet24h: 'TWAP Net 24H',
-  twapBuy24h: 'TWAP Buy 24H',
-  twapSell24h: 'TWAP Sell 24H',
-  activeBuyCount: 'Active Buy Count',
-  activeSellCount: 'Active Sell Count'
+  en: {
+    price: 'HYPE Price',
+    twapNet1h: 'TWAP Net 1H',
+    twapNet24h: 'TWAP Net 24H',
+    twapBuy24h: 'TWAP Buy 24H',
+    twapSell24h: 'TWAP Sell 24H',
+    activeBuyCount: 'Active Buy Count',
+    activeSellCount: 'Active Sell Count'
+  },
+  ru: {
+    price: 'Цена HYPE',
+    twapNet1h: 'TWAP Чистый 1Ч',
+    twapNet24h: 'TWAP Чистый 24Ч',
+    twapBuy24h: 'TWAP Покупки 24Ч',
+    twapSell24h: 'TWAP Продажи 24Ч',
+    activeBuyCount: 'Кол-во активных покупок',
+    activeSellCount: 'Кол-во активных продаж'
+  }
 };
 
 const depthsList = [1.5, 3, 5, 8, 15, 30, 60];
 depthsList.forEach(d => {
   const suffix = String(d).replace('.', '_');
-  METRIC_LABELS[`hl_bid_${suffix}`] = `HL Bid ${d}%`;
-  METRIC_LABELS[`hl_ask_${suffix}`] = `HL Ask ${d}%`;
-  METRIC_LABELS[`bybit_bid_${suffix}`] = `Bybit Bid ${d}%`;
-  METRIC_LABELS[`bybit_ask_${suffix}`] = `Bybit Ask ${d}%`;
+  METRIC_LABELS.en[`hl_bid_${suffix}`] = `HL Bid ${d}%`;
+  METRIC_LABELS.en[`hl_ask_${suffix}`] = `HL Ask ${d}%`;
+  METRIC_LABELS.en[`bybit_bid_${suffix}`] = `Bybit Bid ${d}%`;
+  METRIC_LABELS.en[`bybit_ask_${suffix}`] = `Bybit Ask ${d}%`;
+
+  METRIC_LABELS.ru[`hl_bid_${suffix}`] = `HL Бид ${d}%`;
+  METRIC_LABELS.ru[`hl_ask_${suffix}`] = `HL Аск ${d}%`;
+  METRIC_LABELS.ru[`bybit_bid_${suffix}`] = `Bybit Бид ${d}%`;
+  METRIC_LABELS.ru[`bybit_ask_${suffix}`] = `Bybit Аск ${d}%`;
 });
 
-function populateAlertMetricSelectsForRow(row) {
-  const selects = row.querySelectorAll('.metric-select');
-  selects.forEach(select => {
-    const optGroupHlBid = document.createElement('optgroup');
-    optGroupHlBid.label = 'Hyperliquid Bid Depth';
-    const optGroupHlAsk = document.createElement('optgroup');
-    optGroupHlAsk.label = 'Hyperliquid Ask Depth';
-    const optGroupBybitBid = document.createElement('optgroup');
-    optGroupBybitBid.label = 'Bybit Bid Depth';
-    const optGroupBybitAsk = document.createElement('optgroup');
-    optGroupBybitAsk.label = 'Bybit Ask Depth';
-
-    depthsList.forEach(d => {
-      const suffix = String(d).replace('.', '_');
-
-      const optHlBid = document.createElement('option');
-      optHlBid.value = `hl_bid_${suffix}`;
-      optHlBid.textContent = `HL Bid ${d}%`;
-      optGroupHlBid.appendChild(optHlBid);
-
-      const optHlAsk = document.createElement('option');
-      optHlAsk.value = `hl_ask_${suffix}`;
-      optHlAsk.textContent = `HL Ask ${d}%`;
-      optGroupHlAsk.appendChild(optHlAsk);
-
-      const optBybitBid = document.createElement('option');
-      optBybitBid.value = `bybit_bid_${suffix}`;
-      optBybitBid.textContent = `Bybit Bid ${d}%`;
-      optGroupBybitBid.appendChild(optBybitBid);
-
-      const optBybitAsk = document.createElement('option');
-      optBybitAsk.value = `bybit_ask_${suffix}`;
-      optBybitAsk.textContent = `Bybit Ask ${d}%`;
-      optGroupBybitAsk.appendChild(optBybitAsk);
-    });
-
-    select.appendChild(optGroupHlBid);
-    select.appendChild(optGroupHlAsk);
-    select.appendChild(optGroupBybitBid);
-    select.appendChild(optGroupBybitAsk);
+function populateMetricSelect(select, lang) {
+  select.innerHTML = '';
+  
+  // Basic metrics
+  const basicMetrics = [
+    { value: 'price', label: METRIC_LABELS[lang].price },
+    { value: 'twapNet1h', label: METRIC_LABELS[lang].twapNet1h },
+    { value: 'twapNet24h', label: METRIC_LABELS[lang].twapNet24h },
+    { value: 'twapBuy24h', label: METRIC_LABELS[lang].twapBuy24h },
+    { value: 'twapSell24h', label: METRIC_LABELS[lang].twapSell24h },
+    { value: 'activeBuyCount', label: METRIC_LABELS[lang].activeBuyCount },
+    { value: 'activeSellCount', label: METRIC_LABELS[lang].activeSellCount }
+  ];
+  
+  basicMetrics.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.value;
+    opt.textContent = m.label;
+    select.appendChild(opt);
   });
+
+  // Optgroups for depths
+  const optGroupHlBid = document.createElement('optgroup');
+  optGroupHlBid.label = lang === 'en' ? 'Hyperliquid Bid Depth' : 'Hyperliquid Бид Глубина';
+  const optGroupHlAsk = document.createElement('optgroup');
+  optGroupHlAsk.label = lang === 'en' ? 'Hyperliquid Ask Depth' : 'Hyperliquid Аск Глубина';
+  const optGroupBybitBid = document.createElement('optgroup');
+  optGroupBybitBid.label = lang === 'en' ? 'Bybit Bid Depth' : 'Bybit Бид Глубина';
+  const optGroupBybitAsk = document.createElement('optgroup');
+  optGroupBybitAsk.label = lang === 'en' ? 'Bybit Ask Depth' : 'Bybit Аск Глубина';
+
+  depthsList.forEach(d => {
+    const suffix = String(d).replace('.', '_');
+
+    const optHlBid = document.createElement('option');
+    optHlBid.value = `hl_bid_${suffix}`;
+    optHlBid.textContent = lang === 'en' ? `HL Bid ${d}%` : `HL Бид ${d}%`;
+    optGroupHlBid.appendChild(optHlBid);
+
+    const optHlAsk = document.createElement('option');
+    optHlAsk.value = `hl_ask_${suffix}`;
+    optHlAsk.textContent = lang === 'en' ? `HL Ask ${d}%` : `HL Аск ${d}%`;
+    optGroupHlAsk.appendChild(optHlAsk);
+
+    const optBybitBid = document.createElement('option');
+    optBybitBid.value = `bybit_bid_${suffix}`;
+    optBybitBid.textContent = lang === 'en' ? `Bybit Bid ${d}%` : `Bybit Бид ${d}%`;
+    optGroupBybitBid.appendChild(optBybitBid);
+
+    const optBybitAsk = document.createElement('option');
+    optBybitAsk.value = `bybit_ask_${suffix}`;
+    optBybitAsk.textContent = lang === 'en' ? `Bybit Ask ${d}%` : `Bybit Аск ${d}%`;
+    optGroupBybitAsk.appendChild(optBybitAsk);
+  });
+
+  select.appendChild(optGroupHlBid);
+  select.appendChild(optGroupHlAsk);
+  select.appendChild(optGroupBybitBid);
+  select.appendChild(optGroupBybitAsk);
 }
 
 function createConditionRow(data = null) {
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const t = TRANSLATIONS[lang];
+
   const row = document.createElement('div');
   row.className = 'condition-row';
   row.style.display = 'flex';
@@ -1304,20 +1341,13 @@ function createConditionRow(data = null) {
     
     <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 8px; align-items: end;">
       <div class="form-group" style="margin-bottom: 0;">
-        <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Left Metric</label>
+        <label class="lbl-left-metric" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.leftMetric}</label>
         <select class="metric-select left-metric-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
-          <option value="price">HYPE Price</option>
-          <option value="twapNet1h">TWAP Net 1H</option>
-          <option value="twapNet24h">TWAP Net 24H</option>
-          <option value="twapBuy24h">TWAP Buy 24H</option>
-          <option value="twapSell24h">TWAP Sell 24H</option>
-          <option value="activeBuyCount">Active Buy Count</option>
-          <option value="activeSellCount">Active Sell Count</option>
         </select>
       </div>
 
       <div class="form-group" style="margin-bottom: 0;">
-        <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Operator</label>
+        <label class="lbl-operator" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.operator}</label>
         <select class="operator-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
           <option value="gt">&gt;</option>
           <option value="lt">&lt;</option>
@@ -1327,34 +1357,30 @@ function createConditionRow(data = null) {
       </div>
 
       <div class="form-group" style="margin-bottom: 0;">
-        <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Compare With</label>
+        <label class="lbl-compare-with" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.compareWith}</label>
         <select class="compare-type-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
-          <option value="value">Static Value</option>
-          <option value="metric">Another Metric</option>
+          <option value="value">${t.staticValue}</option>
+          <option value="metric">${t.anotherMetric}</option>
         </select>
       </div>
     </div>
 
     <div class="target-value-group form-group" style="margin-bottom: 0;">
-      <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Target Value</label>
-      <input type="number" step="any" class="target-value-input" placeholder="e.g. 30000000 (for $30M)" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;"/>
+      <label class="lbl-target-value" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.targetValue}</label>
+      <input type="number" step="any" class="target-value-input" placeholder="${lang === 'en' ? 'e.g. 30000000 (for $30M)' : 'напр. 30000000 (для $30M)'}" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;"/>
     </div>
 
     <div class="target-metric-group form-group hidden" style="margin-bottom: 0;">
-      <label style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">Right Metric</label>
+      <label class="lbl-right-metric" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.rightMetric}</label>
       <select class="metric-select right-metric-select" style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
-        <option value="price">HYPE Price</option>
-        <option value="twapNet1h">TWAP Net 1H</option>
-        <option value="twapNet24h">TWAP Net 24H</option>
-        <option value="twapBuy24h">TWAP Buy 24H</option>
-        <option value="twapSell24h">TWAP Sell 24H</option>
-        <option value="activeBuyCount">Active Buy Count</option>
-        <option value="activeSellCount">Active Sell Count</option>
       </select>
     </div>
   `;
 
-  populateAlertMetricSelectsForRow(row);
+  const leftSelect = row.querySelector('.left-metric-select');
+  const rightSelect = row.querySelector('.right-metric-select');
+  populateMetricSelect(leftSelect, lang);
+  populateMetricSelect(rightSelect, lang);
 
   const compareTypeSelect = row.querySelector('.compare-type-select');
   const valueGroup = row.querySelector('.target-value-group');
@@ -1379,7 +1405,7 @@ function createConditionRow(data = null) {
   });
 
   if (data) {
-    row.querySelector('.left-metric-select').value = data.field1;
+    leftSelect.value = data.field1;
     row.querySelector('.operator-select').value = data.operator;
     compareTypeSelect.value = data.compareType;
     if (data.compareType === 'value') {
@@ -1388,7 +1414,7 @@ function createConditionRow(data = null) {
       metricGroup.classList.add('hidden');
       valueInput.required = true;
     } else {
-      row.querySelector('.right-metric-select').value = data.field2;
+      rightSelect.value = data.field2;
       valueGroup.classList.add('hidden');
       metricGroup.classList.remove('hidden');
       valueInput.required = false;
@@ -1477,6 +1503,7 @@ async function loadTelegramConfig() {
 async function saveTelegramConfig() {
   const token = alertElements.tgTokenInput.value.trim();
   const chatId = alertElements.tgChatIdInput.value.trim();
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
 
   try {
     const response = await fetch('/api/config/telegram', {
@@ -1485,20 +1512,21 @@ async function saveTelegramConfig() {
       body: JSON.stringify({ token, chatId })
     });
     if (!response.ok) throw new Error('Save config failed');
-    showAlertFeedback(alertElements.settingsMessage, 'Settings saved successfully.', true);
+    showAlertFeedback(alertElements.settingsMessage, lang === 'en' ? 'Settings saved successfully.' : 'Настройки сохранены.', true);
     await loadTelegramConfig();
     await checkAuthState(); // Bot username could have changed
   } catch (err) {
-    showAlertFeedback(alertElements.settingsMessage, 'Failed to save settings.', false);
+    showAlertFeedback(alertElements.settingsMessage, lang === 'en' ? 'Failed to save settings.' : 'Ошибка при сохранении настроек.', false);
   }
 }
 
 async function testTelegramConnection() {
   const token = alertElements.tgTokenInput.value.trim();
   const chatId = alertElements.tgChatIdInput.value.trim();
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
 
   alertElements.testBotBtn.disabled = true;
-  alertElements.testBotBtn.textContent = 'Testing...';
+  alertElements.testBotBtn.textContent = lang === 'en' ? 'Testing...' : 'Проверка...';
   try {
     const response = await fetch('/api/alerts/test', {
       method: 'POST',
@@ -1507,12 +1535,12 @@ async function testTelegramConnection() {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Connection failed');
-    showAlertFeedback(alertElements.settingsMessage, 'Test alert sent! Check your Telegram.', true);
+    showAlertFeedback(alertElements.settingsMessage, lang === 'en' ? 'Test alert sent! Check your Telegram.' : 'Тестовый алерт отправлен! Проверьте Telegram.', true);
   } catch (err) {
-    showAlertFeedback(alertElements.settingsMessage, `Test failed: ${err.message}`, false);
+    showAlertFeedback(alertElements.settingsMessage, lang === 'en' ? `Test failed: ${err.message}` : `Ошибка: ${err.message}`, false);
   } finally {
     alertElements.testBotBtn.disabled = false;
-    alertElements.testBotBtn.textContent = 'Test Connection';
+    alertElements.testBotBtn.textContent = lang === 'en' ? 'Test Connection' : 'Проверить соединение';
   }
 }
 
@@ -1520,6 +1548,7 @@ async function loadAlerts() {
   try {
     const response = await fetch('/api/alerts');
     const alerts = await response.json();
+    cachedAlerts = alerts;
     alertElements.alertsCount.textContent = String(alerts.length);
     renderAlertsList(alerts);
   } catch (err) {
@@ -1533,9 +1562,11 @@ let currentUser = null;
 function renderAlertsList(alerts) {
   const container = alertElements.alertsList;
   container.innerHTML = '';
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const labels = METRIC_LABELS[lang];
 
   if (alerts.length === 0) {
-    container.innerHTML = '<p class="placeholder-text">No alerts configured yet.</p>';
+    container.innerHTML = `<p class="placeholder-text">${lang === 'en' ? 'No alerts configured yet.' : 'Алерты не настроены.'}</p>`;
     return;
   }
 
@@ -1548,25 +1579,27 @@ function renderAlertsList(alerts) {
     if (expr && expr.type === 'compound') {
       const logicalConnector = ` ${expr.logicalOperator.toUpperCase()} `;
       ruleString = expr.conditions.map(cond => {
-        const left = METRIC_LABELS[cond.field1] || cond.field1;
+        const left = labels[cond.field1] || cond.field1;
         const op = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[cond.operator] || cond.operator;
-        const right = cond.compareType === 'value' ? formatStaticValue(cond.field1, cond.value) : (METRIC_LABELS[cond.field2] || cond.field2);
+        const right = cond.compareType === 'value' ? formatStaticValue(cond.field1, cond.value) : (labels[cond.field2] || cond.field2);
         return `${left} ${op} ${right}`;
       }).join(logicalConnector);
     } else if (expr) {
-      const leftName = METRIC_LABELS[expr.field1] || expr.field1;
-      const rightName = expr.compareType === 'value' ? formatStaticValue(expr.field1, expr.value) : (METRIC_LABELS[expr.field2] || expr.field2);
+      const leftName = labels[expr.field1] || expr.field1;
+      const rightName = expr.compareType === 'value' ? formatStaticValue(expr.field1, expr.value) : (labels[expr.field2] || expr.field2);
       const opLabel = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
       ruleString = `${leftName} ${opLabel} ${rightName}`;
     }
     const tfString = alert.timeframe || '1m';
-    const cooldownString = alert.frequency_minutes > 0 ? `cooldown: ${alert.frequency_minutes}m` : 'no cooldown';
+    const cooldownString = alert.frequency_minutes > 0 
+      ? (lang === 'en' ? `cooldown: ${alert.frequency_minutes}m` : `кулдаун: ${alert.frequency_minutes}м`) 
+      : (lang === 'en' ? 'no cooldown' : 'без кулдауна');
 
     let trendLabel = '';
     if (alert.trend_mode === 'long') {
-      trendLabel = ' <span class="trend-badge long-badge" style="color: #35d083; background: rgba(53, 208, 131, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px;">Long Crossover</span>';
+      trendLabel = ` <span class="trend-badge long-badge" style="color: #35d083; background: rgba(53, 208, 131, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px;">${lang === 'en' ? 'Long Crossover' : 'Long пересечение'}</span>`;
     } else if (alert.trend_mode === 'short') {
-      trendLabel = ' <span class="trend-badge short-badge" style="color: #ef5e5e; background: rgba(239, 94, 94, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px;">Short Crossover</span>';
+      trendLabel = ` <span class="trend-badge short-badge" style="color: #ef5e5e; background: rgba(239, 94, 94, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px;">${lang === 'en' ? 'Short Crossover' : 'Short пересечение'}</span>`;
     }
 
     if (isAuthenticated) {
@@ -1597,19 +1630,25 @@ function renderAlertsList(alerts) {
       });
 
       item.querySelector('.delete-alert-btn').addEventListener('click', async () => {
-        if (confirm(`Are you sure you want to delete alert "${alert.name}"?`)) {
+        const confirmMsg = lang === 'en' 
+          ? `Are you sure you want to delete alert "${alert.name}"?` 
+          : `Вы уверены, что хотите удалить алерт "${alert.name}"?`;
+        if (confirm(confirmMsg)) {
           await deleteAlert(alert.id);
         }
       });
     } else {
       // Read-only view
+      const activeLabel = alert.active 
+        ? (lang === 'en' ? 'Active' : 'Активен') 
+        : (lang === 'en' ? 'Inactive' : 'Неактивен');
       item.innerHTML = `
         <div class="alert-info">
           <span class="alert-title">${alert.name}${trendLabel}</span>
           <span class="alert-rule">${ruleString} (tf: ${tfString}, ${cooldownString})</span>
         </div>
         <div class="alert-actions">
-          <span style="font-size: 11px; color: var(--muted); background: rgba(38,49,55,0.4); padding: 2px 6px; border-radius: 4px;">${alert.active ? 'Active' : 'Inactive'}</span>
+          <span style="font-size: 11px; color: var(--muted); background: rgba(38,49,55,0.4); padding: 2px 6px; border-radius: 4px;">${activeLabel}</span>
         </div>
       `;
     }
@@ -1678,8 +1717,9 @@ function startEditAlert(alert) {
   alertElements.alertTimeframeSelect.value = alert.timeframe || '1m';
   alertElements.frequencySelect.value = String(alert.frequency_minutes);
 
-  alertElements.tabCreateAlert.textContent = '✏️ Edit Alert';
-  if (submitBtn) submitBtn.textContent = 'Save Changes';
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  alertElements.tabCreateAlert.textContent = lang === 'en' ? '✏️ Edit Alert' : '✏️ Редактировать алерт';
+  if (submitBtn) submitBtn.textContent = lang === 'en' ? 'Save Changes' : 'Сохранить изменения';
 
   // Navigate to Create tab
   alertElements.tabCreateAlert.click();
@@ -1688,8 +1728,9 @@ function startEditAlert(alert) {
 function clearEditAlertMode() {
   const submitBtn = alertElements.createAlertForm.querySelector('button[type="submit"]');
   alertElements.editAlertId.value = '';
-  alertElements.tabCreateAlert.textContent = 'Create Alert';
-  if (submitBtn) submitBtn.textContent = 'Create Alert';
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  alertElements.tabCreateAlert.textContent = lang === 'en' ? 'Create Alert' : 'Создать алерт';
+  if (submitBtn) submitBtn.textContent = lang === 'en' ? 'Create Alert' : 'Создать алерт';
   resetAlertFormToDefault();
 }
 
@@ -1701,12 +1742,13 @@ async function handleCreateAlert(e) {
   const timeframe = alertElements.alertTimeframeSelect.value;
   const frequency_minutes = Number(alertElements.frequencySelect.value);
   const editId = alertElements.editAlertId.value;
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
 
   const container = alertElements.conditionsContainer;
   const rows = container.querySelectorAll('.condition-row');
   
   if (rows.length === 0) {
-    showAlertFeedback(alertElements.formFeedback, 'Please add at least one condition.', false);
+    showAlertFeedback(alertElements.formFeedback, lang === 'en' ? 'Please add at least one condition.' : 'Пожалуйста, добавьте хотя бы одно условие.', false);
     return;
   }
 
@@ -1727,7 +1769,7 @@ async function handleCreateAlert(e) {
     if (compareType === 'value') {
       const val = Number(row.querySelector('.target-value-input').value);
       if (isNaN(val)) {
-        showAlertFeedback(alertElements.formFeedback, 'Please enter a valid numeric target value.', false);
+        showAlertFeedback(alertElements.formFeedback, lang === 'en' ? 'Please enter a valid numeric target value.' : 'Пожалуйста, введите корректное числовое значение.', false);
         return;
       }
       expression.value = val;
@@ -1752,7 +1794,7 @@ async function handleCreateAlert(e) {
       if (compareType === 'value') {
         const val = Number(row.querySelector('.target-value-input').value);
         if (isNaN(val)) {
-          showAlertFeedback(alertElements.formFeedback, 'Please enter a valid numeric target value for all conditions.', false);
+          showAlertFeedback(alertElements.formFeedback, lang === 'en' ? 'Please enter a valid numeric target value for all conditions.' : 'Пожалуйста, введите корректное числовое значение для всех условий.', false);
           return;
         }
         cond.value = val;
@@ -1782,7 +1824,7 @@ async function handleCreateAlert(e) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Failed to save alert.');
 
-    showAlertFeedback(alertElements.formFeedback, isEditing ? 'Alert updated successfully!' : 'Alert created successfully!', true);
+    showAlertFeedback(alertElements.formFeedback, isEditing ? (lang === 'en' ? 'Alert updated successfully!' : 'Алерт успешно обновлен!') : (lang === 'en' ? 'Alert created successfully!' : 'Алерт успешно создан!'), true);
     alertElements.createAlertForm.reset();
     clearEditAlertMode();
 
@@ -1947,8 +1989,463 @@ function startup() {
   populatePresetSelectDropdown();
   initAlertConfigurator();
   
+  // Attach language switcher event listeners
+  const enBtn = document.getElementById('langBtnEn');
+  const ruBtn = document.getElementById('langBtnRu');
+  if (enBtn) enBtn.addEventListener('click', () => applyLanguage('en'));
+  if (ruBtn) ruBtn.addEventListener('click', () => applyLanguage('ru'));
+
+  // Load language preference
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  applyLanguage(currentLang);
+
   refreshChart().catch(console.error);
   setInterval(() => refreshChart().catch(console.error), 5000);
+}
+
+// Translations and Language Switch Logic for Chart & Alerts page
+const TRANSLATIONS = {
+  en: {
+    separateWindow: "Separate window",
+    priceAndTwap: "Price and TWAP",
+    buckets: "Buckets",
+    addNewSubchart: "+ Add New Subchart",
+    exchangeLabel: "Exchange:",
+    presetsLabel: "Presets:",
+    loadPreset: "Load Preset...",
+    saveCurrent: "Save Current",
+    delete: "Delete",
+    priceStackedDepths: "HYPE Price & Stacked Depths",
+    twapAverages: "TWAP Averages",
+    spotPerp: "Spot + Perp",
+    spot: "Spot",
+    perp: "Perp",
+    net1h: "Net 1H",
+    net24h: "Net 24H",
+    buy: "Buy",
+    sell: "Sell",
+    alertManager: "Telegram Alert Manager",
+    botSettings: "⚙️ Bot Settings",
+    botToken: "Telegram Bot Token",
+    chatId: "Telegram Chat ID",
+    saveSettings: "Save Settings",
+    testConnection: "Test Connection",
+    activeAlerts: "Active Alerts",
+    createAlert: "Create Alert",
+    noAlerts: "No alerts configured yet.",
+    alertName: "Alert Name",
+    alertConditions: "Alert Conditions",
+    logicalGrouping: "Logical Grouping",
+    andLabel: "AND (All conditions must be met)",
+    orLabel: "OR (Any single condition can be met)",
+    evaluationTimeframe: "Evaluation Timeframe",
+    alertCrossoverMode: "Alert Crossover Mode",
+    alertFrequency: "Alert Frequency (Cooldown)",
+    createAlertBtn: "Create Alert",
+    saveAlertBtn: "Save Alert",
+    leftMetric: "Left Metric",
+    operator: "Operator",
+    compareWith: "Compare With",
+    staticValue: "Static Value",
+    anotherMetric: "Another Metric",
+    targetValue: "Target Value",
+    rightMetric: "Right Metric",
+    addCondition: "➕ Add Condition",
+    savePresetModalTitle: "Save Preset",
+    presetNameLabel: "Preset Name:",
+    includeTimeframe: "Include current timeframe",
+    saveBtn: "Save",
+    cancelBtn: "Cancel",
+    
+    authPlaceholder: "🔒 Log in with Telegram to configure bot settings and alerts:",
+    dontSeeButton: "Don't see the button?",
+    makeSure: "Make sure:",
+    botTokenSaved: "The bot token is saved in ⚙️ Bot Settings.",
+    domainMatches: "Your current domain matches the domain configured for the bot via @BotFather (using the /setdomain command).",
+    
+    connected: "Connected successfully!",
+    settingsSaved: "Settings saved successfully!",
+    testSuccess: "Test alert sent to Telegram!",
+    testFailed: "Failed to send test alert. Check token and Chat ID.",
+    errorOccurred: "An error occurred.",
+    alertDeleted: "Alert deleted successfully.",
+    alertCreated: "Alert created successfully.",
+    alertUpdated: "Alert updated successfully."
+  },
+  ru: {
+    separateWindow: "Отдельное окно",
+    priceAndTwap: "Цена и TWAP",
+    buckets: "Бакеты",
+    addNewSubchart: "+ Добавить подокно",
+    exchangeLabel: "Биржа:",
+    presetsLabel: "Пресеты:",
+    loadPreset: "Загрузить пресет...",
+    saveCurrent: "Сохранить",
+    delete: "Удалить",
+    priceStackedDepths: "Цена HYPE и глубина стакана",
+    twapAverages: "Средние значения TWAPs",
+    spotPerp: "Спот + Перп",
+    spot: "Спот",
+    perp: "Перп",
+    net1h: "Чистый 1Ч",
+    net24h: "Чистый 24Ч",
+    buy: "Покупка",
+    sell: "Продажа",
+    alertManager: "Менеджер Telegram уведомлений",
+    botSettings: "⚙️ Настройки бота",
+    botToken: "Токен Telegram бота",
+    chatId: "Telegram Chat ID",
+    saveSettings: "Сохранить настройки",
+    testConnection: "Проверить соединение",
+    activeAlerts: "Активные алерты",
+    createAlert: "Создать алерт",
+    noAlerts: "Алерты не настроены.",
+    alertName: "Название алерта",
+    alertConditions: "Условия алерта",
+    logicalGrouping: "Логическая группировка",
+    andLabel: "И (Все условия должны выполняться)",
+    orLabel: "ИЛИ (Любое из условий должно выполняться)",
+    evaluationTimeframe: "Таймфрейм проверки",
+    alertCrossoverMode: "Режим пересечения алерта",
+    alertFrequency: "Частота алерта (кулдаун)",
+    createAlertBtn: "Создать алерт",
+    saveAlertBtn: "Сохранить изменения",
+    leftMetric: "Левая метрика",
+    operator: "Оператор",
+    compareWith: "Сравнить с",
+    staticValue: "Статическое значение",
+    anotherMetric: "Другая метрика",
+    targetValue: "Целевое значение",
+    rightMetric: "Правая метрика",
+    addCondition: "➕ Добавить условие",
+    savePresetModalTitle: "Сохранить пресет",
+    presetNameLabel: "Название пресета:",
+    includeTimeframe: "Включить текущий таймфрейм",
+    saveBtn: "Сохранить",
+    cancelBtn: "Отмена",
+    
+    authPlaceholder: "🔒 Войдите через Telegram для настройки бота и алертов:",
+    dontSeeButton: "Не видите кнопку?",
+    makeSure: "Убедитесь, что:",
+    botTokenSaved: "Токен бота сохранен в ⚙️ Настройках бота.",
+    domainMatches: "Текущий домен совпадает с доменом бота в @BotFather (команда /setdomain).",
+
+    connected: "Соединение успешно установлено!",
+    settingsSaved: "Настройки успешно сохранены!",
+    testSuccess: "Тестовое уведомление отправлено в Telegram!",
+    testFailed: "Не удалось отправить тестовое уведомление. Проверьте токен и Chat ID.",
+    errorOccurred: "Произошла ошибка.",
+    alertDeleted: "Алерт успешно удален.",
+    alertCreated: "Алерт успешно создан.",
+    alertUpdated: "Алерт успешно обновлен."
+  }
+};
+
+const TIMEFRAME_LABELS = {
+  en: {
+    "1m": "1m (1 Minute)",
+    "5m": "5m (5 Minutes)",
+    "15m": "15m (15 Minutes)",
+    "1h": "1h (1 Hour)",
+    "4h": "4h (4 Hours)",
+    "1d": "1d (1 Day)"
+  },
+  ru: {
+    "1m": "1м (1 минута)",
+    "5m": "5м (5 минут)",
+    "15m": "15м (15 минут)",
+    "1h": "1ч (1 час)",
+    "4h": "4ч (4 часа)",
+    "1d": "1д (1 день)"
+  }
+};
+
+const TREND_MODE_LABELS = {
+  en: {
+    "none": "Standard (Static Threshold Alert)",
+    "long": "Long Crossover (Triggers only if crossover price is HIGHER than last crossover)",
+    "short": "Short Crossover (Triggers only if crossover price is LOWER than last crossover)"
+  },
+  ru: {
+    "none": "Стандартный (алерт по статическому порогу)",
+    "long": "Long пересечение (срабатывает, если цена пересечения выше предыдущей)",
+    "short": "Short пересечение (срабатывает, если цена пересечения ниже предыдущей)"
+  }
+};
+
+const FREQUENCY_LABELS = {
+  en: {
+    "0": "Every Minute (No Cooldown)",
+    "5": "Every 5 Minutes",
+    "15": "Every 15 Minutes",
+    "30": "Every 30 Minutes",
+    "60": "Every 1 Hour",
+    "240": "Every 4 Hours",
+    "1440": "Once a Day (24 Hours)"
+  },
+  ru: {
+    "0": "Каждую минуту (без кулдауна)",
+    "5": "Каждые 5 минут",
+    "15": "Каждые 15 минут",
+    "30": "Каждые 30 минут",
+    "60": "Каждый час",
+    "240": "Каждые 4 часа",
+    "1440": "Раз в день (24 часа)"
+  }
+};
+
+let cachedAlerts = [];
+
+function translateExistingConditionRows(lang) {
+  const container = alertElements.conditionsContainer;
+  if (!container) return;
+  const rows = container.querySelectorAll('.condition-row');
+  rows.forEach(row => {
+    const t = TRANSLATIONS[lang];
+    const lblLeftMetric = row.querySelector('.lbl-left-metric');
+    if (lblLeftMetric) lblLeftMetric.textContent = t.leftMetric;
+    const lblOperator = row.querySelector('.lbl-operator');
+    if (lblOperator) lblOperator.textContent = t.operator;
+    const lblCompareWith = row.querySelector('.lbl-compare-with');
+    if (lblCompareWith) lblCompareWith.textContent = t.compareWith;
+    const lblTargetValue = row.querySelector('.lbl-target-value');
+    if (lblTargetValue) lblTargetValue.textContent = t.targetValue;
+    const lblRightMetric = row.querySelector('.lbl-right-metric');
+    if (lblRightMetric) lblRightMetric.textContent = t.rightMetric;
+
+    const compareSelect = row.querySelector('.compare-type-select');
+    if (compareSelect) {
+      compareSelect.options[0].textContent = t.staticValue;
+      compareSelect.options[1].textContent = t.anotherMetric;
+    }
+
+    const targetInput = row.querySelector('.target-value-input');
+    if (targetInput) {
+      targetInput.placeholder = lang === 'en' ? 'e.g. 30000000 (for $30M)' : 'напр. 30000000 (для $30M)';
+    }
+
+    const leftSelect = row.querySelector('.left-metric-select');
+    const leftVal = leftSelect ? leftSelect.value : null;
+    const rightSelect = row.querySelector('.right-metric-select');
+    const rightVal = rightSelect ? rightSelect.value : null;
+
+    if (leftSelect) {
+      populateMetricSelect(leftSelect, lang);
+      if (leftVal) leftSelect.value = leftVal;
+    }
+    if (rightSelect) {
+      populateMetricSelect(rightSelect, lang);
+      if (rightVal) rightSelect.value = rightVal;
+    }
+  });
+}
+
+function updateAuthPlaceholderTranslations(lang) {
+  const container = document.getElementById('alertsAuthPlaceholder');
+  if (!container) return;
+  const t = TRANSLATIONS[lang];
+  
+  const span = container.querySelector('.auth-info-row span');
+  if (span) span.textContent = t.authPlaceholder;
+  
+  const descDiv = container.querySelector('div[style*="font-size: 11px"]');
+  if (descDiv) {
+    descDiv.innerHTML = `
+      <strong>ℹ️ ${t.dontSeeButton}</strong> ${t.makeSure}
+      <ul style="text-align: left; margin: 4px 0 0 16px; padding: 0;">
+        <li>${t.botTokenSaved}</li>
+        <li>${t.domainMatches}</li>
+      </ul>
+    `;
+  }
+}
+
+function applyLanguage(lang) {
+  localStorage.setItem('hype_twap_lang', lang);
+  
+  const enBtn = document.getElementById('langBtnEn');
+  const ruBtn = document.getElementById('langBtnRu');
+  if (enBtn) enBtn.classList.toggle('active', lang === 'en');
+  if (ruBtn) ruBtn.classList.toggle('active', lang === 'ru');
+
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  // Header and controls
+  const lblSeparateWindow = document.getElementById('lblSeparateWindow');
+  if (lblSeparateWindow) lblSeparateWindow.textContent = t.separateWindow;
+  const lblPriceAndTwap = document.getElementById('lblPriceAndTwap');
+  if (lblPriceAndTwap) lblPriceAndTwap.textContent = t.priceAndTwap;
+  const lblBuckets = document.getElementById('lblBuckets');
+  if (lblBuckets) lblBuckets.textContent = t.buckets;
+  const addNewPanelBtn = document.getElementById('addNewPanelBtn');
+  if (addNewPanelBtn) addNewPanelBtn.textContent = t.addNewSubchart;
+
+  // Exchange and Presets
+  const exchangeLabel = document.querySelector('.depth-controls-panel .control-group:nth-child(2) .label');
+  if (exchangeLabel) exchangeLabel.textContent = t.exchangeLabel;
+  
+  const exchangeSelect = document.getElementById('exchangeSourceSelect');
+  if (exchangeSelect) {
+    exchangeSelect.options[0].textContent = lang === 'en' ? 'Bybit + HL (Combined)' : 'Bybit + HL (Совмещенно)';
+    exchangeSelect.options[1].textContent = lang === 'en' ? 'Bybit + HL (Separate)' : 'Bybit + HL (Раздельно)';
+    exchangeSelect.options[2].textContent = lang === 'en' ? 'Bybit Only' : 'Только Bybit';
+    exchangeSelect.options[3].textContent = lang === 'en' ? 'Hyperliquid Only' : 'Только Hyperliquid';
+  }
+
+  const presetsLabel = document.querySelector('.depth-controls-panel .control-group:nth-child(3) .label');
+  if (presetsLabel) presetsLabel.textContent = t.presetsLabel;
+
+  const presetSelect = document.getElementById('presetSelect');
+  if (presetSelect && presetSelect.options[0]) {
+    presetSelect.options[0].textContent = t.loadPreset;
+  }
+  const savePresetBtn = document.getElementById('savePresetBtn');
+  if (savePresetBtn) savePresetBtn.textContent = t.saveCurrent;
+  const deletePresetBtn = document.getElementById('deletePresetBtn');
+  if (deletePresetBtn) deletePresetBtn.textContent = t.delete;
+
+  // Chart headings
+  const mainChartTitle = document.querySelector('#mainChartPanel .panel-head .label');
+  if (mainChartTitle) mainChartTitle.textContent = t.priceStackedDepths;
+
+  const twapChartTitle = document.querySelector('.twap-panel .panel-head .label');
+  if (twapChartTitle) twapChartTitle.textContent = t.twapAverages;
+
+  // TWAP Modes buttons
+  const twapModes = document.querySelectorAll('.twap-mode-toggle button');
+  if (twapModes.length >= 3) {
+    twapModes[0].textContent = t.spotPerp;
+    twapModes[1].textContent = t.spot;
+    twapModes[2].textContent = t.perp;
+  }
+
+  // TWAP chart toggles
+  const toggles = document.querySelectorAll('.metric-toggles label');
+  const metricLabels = [t.net1h, t.net24h, t.buy, t.sell];
+  toggles.forEach((label, idx) => {
+    const input = label.querySelector('input');
+    label.innerHTML = '';
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(' ' + metricLabels[idx]));
+  });
+
+  // Alert Manager Header
+  const alertManagerHeader = document.querySelector('.alerts-header h2');
+  if (alertManagerHeader) alertManagerHeader.textContent = t.alertManager;
+
+  const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
+  if (toggleSettingsBtn) toggleSettingsBtn.textContent = '⚙️ ' + (lang === 'en' ? 'Bot Settings' : 'Настройки бота');
+
+  const botTokenLabel = document.querySelector('label[for="tgTokenInput"]');
+  if (botTokenLabel) botTokenLabel.textContent = t.botToken;
+
+  const chatIdLabel = document.querySelector('label[for="tgChatIdInput"]');
+  if (chatIdLabel) chatIdLabel.textContent = t.chatId;
+
+  const saveConfigBtn = document.getElementById('saveConfigBtn');
+  if (saveConfigBtn) saveConfigBtn.textContent = t.saveSettings;
+  const testBotBtn = document.getElementById('testBotBtn');
+  if (testBotBtn) testBotBtn.textContent = t.testConnection;
+
+  // Tabs
+  const activeAlertsTab = document.getElementById('tabActiveAlerts');
+  if (activeAlertsTab) {
+    const countSpan = document.getElementById('alertsCount');
+    const count = countSpan ? countSpan.textContent : '0';
+    activeAlertsTab.innerHTML = `${lang === 'en' ? 'Active Alerts' : 'Активные алерты'} (<span id="alertsCount">${count}</span>)`;
+  }
+  const createAlertTab = document.getElementById('tabCreateAlert');
+  if (createAlertTab) {
+    const isEdit = document.getElementById('editAlertId').value !== '';
+    createAlertTab.textContent = isEdit ? (lang === 'en' ? '✏️ Edit Alert' : '✏️ Редактировать алерт') : t.createAlert;
+  }
+
+  // Create alert form static labels
+  const formLabels = document.querySelectorAll('#createAlertForm .form-group > label');
+  if (formLabels.length >= 2) {
+    formLabels[0].textContent = t.alertName;
+    formLabels[1].textContent = t.alertConditions;
+  }
+  const logicalOpLabel = document.querySelector('label[for="logicalOperatorSelect"]');
+  if (logicalOpLabel) logicalOpLabel.textContent = t.logicalGrouping;
+
+  const logicalOpSelect = document.getElementById('logicalOperatorSelect');
+  if (logicalOpSelect) {
+    logicalOpSelect.options[0].textContent = t.andLabel;
+    logicalOpSelect.options[1].textContent = t.orLabel;
+  }
+
+  const addConditionBtn = document.getElementById('addConditionBtn');
+  if (addConditionBtn) addConditionBtn.textContent = t.addCondition;
+
+  const evaluationTimeframeLabel = document.querySelector('label[for="alertTimeframeSelect"]');
+  if (evaluationTimeframeLabel) evaluationTimeframeLabel.textContent = t.evaluationTimeframe;
+
+  const trendModeSelectLabel = document.querySelector('label[for="trendModeSelect"]');
+  if (trendModeSelectLabel) trendModeSelectLabel.textContent = t.alertCrossoverMode;
+
+  const frequencySelectLabel = document.querySelector('label[for="frequencySelect"]');
+  if (frequencySelectLabel) frequencySelectLabel.textContent = t.alertFrequency;
+
+  // Form submit button
+  const formSubmitBtn = document.querySelector('#createAlertForm button[type="submit"]');
+  if (formSubmitBtn) {
+    const isEdit = document.getElementById('editAlertId').value !== '';
+    formSubmitBtn.textContent = isEdit ? t.saveAlertBtn : t.createAlertBtn;
+  }
+
+  // Timeframe and other options
+  const tfSelect = document.getElementById('alertTimeframeSelect');
+  if (tfSelect) {
+    [...tfSelect.options].forEach(opt => {
+      opt.textContent = TIMEFRAME_LABELS[lang][opt.value];
+    });
+  }
+
+  const trendSelect = document.getElementById('trendModeSelect');
+  if (trendSelect) {
+    [...trendSelect.options].forEach(opt => {
+      opt.textContent = TREND_MODE_LABELS[lang][opt.value];
+    });
+  }
+
+  const freqSelect = document.getElementById('frequencySelect');
+  if (freqSelect) {
+    [...freqSelect.options].forEach(opt => {
+      opt.textContent = FREQUENCY_LABELS[lang][opt.value];
+    });
+  }
+
+  // Update existing conditions inside builder
+  translateExistingConditionRows(lang);
+
+  // Update Auth placeholder info
+  updateAuthPlaceholderTranslations(lang);
+
+  // Save Preset Modal
+  const presetModalTitle = document.querySelector('#savePresetModal h2');
+  if (presetModalTitle) presetModalTitle.textContent = t.savePresetModalTitle;
+
+  const presetNameLabel = document.querySelector('label[for="presetNameInput"]');
+  if (presetNameLabel) presetNameLabel.textContent = t.presetNameLabel;
+
+  const saveTimeframeCheckboxLabel = document.querySelector('#savePresetModal .checkbox-group label');
+  if (saveTimeframeCheckboxLabel) {
+    const checkbox = document.getElementById('saveTimeframeCheckbox');
+    saveTimeframeCheckboxLabel.innerHTML = '';
+    saveTimeframeCheckboxLabel.appendChild(checkbox);
+    saveTimeframeCheckboxLabel.appendChild(document.createTextNode(' ' + t.includeTimeframe));
+  }
+
+  const confirmSavePresetBtn = document.getElementById('confirmSavePresetBtn');
+  if (confirmSavePresetBtn) confirmSavePresetBtn.textContent = t.saveBtn;
+  const cancelSavePresetBtn = document.getElementById('cancelSavePresetBtn');
+  if (cancelSavePresetBtn) cancelSavePresetBtn.textContent = t.cancelBtn;
+
+  // Re-render cached list of alerts in correct language
+  if (cachedAlerts.length > 0) {
+    renderAlertsList(cachedAlerts);
+  }
 }
 
 // Run startup

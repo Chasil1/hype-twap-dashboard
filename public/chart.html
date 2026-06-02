@@ -13,13 +13,17 @@
     <main class="chart-shell">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Separate window</p>
-          <h1>Price and TWAP</h1>
+          <p class="eyebrow" id="lblSeparateWindow">Separate window</p>
+          <h1 id="lblPriceAndTwap">Price and TWAP</h1>
         </div>
         <div class="auth-bar" id="authBar"></div>
-        <div class="chart-controls">
+        <div class="chart-controls" style="display: flex; align-items: center; gap: 12px;">
+          <div class="lang-switch">
+            <button id="langBtnEn" class="lang-btn" type="button">EN</button>
+            <button id="langBtnRu" class="lang-btn" type="button">RU</button>
+          </div>
           <div class="ticker compact">
-            <span class="label">Buckets</span>
+            <span class="label" id="lblBuckets">Buckets</span>
             <strong id="snapshotCount">0</strong>
           </div>
         </div>
