@@ -2137,6 +2137,8 @@ const TRANSLATIONS = {
     backtestSlMode: "Stop Loss Mode",
     backtestSlPercent: "Stop Loss (%)",
     backtestCloseAlert: "Exit Signal Alert",
+    backtestTpClose: "Take Profit Exit Signal",
+    backtestSlClose: "Stop Loss Exit Signal",
     sameAsSignal: "Same as Signal Alert",
     tradingResults: "Trading Results",
     backtestAlert: "Signal Alert",
@@ -2235,6 +2237,8 @@ const TRANSLATIONS = {
     backtestSlMode: "Режим Стоп Лосса",
     backtestSlPercent: "Стоп Лосс (%)",
     backtestCloseAlert: "Сигнал для закрытия",
+    backtestTpClose: "Сигнал для закрития по Тейк Профиту",
+    backtestSlClose: "Сигнал для закрития по Стоп Лоссу",
     sameAsSignal: "По умолчанию (текущий)",
     tradingResults: "Результаты торговли",
     backtestAlert: "Сигнальное оповещение",
@@ -2644,13 +2648,13 @@ function applyLanguage(lang) {
   const lblBacktestSlPercent = document.getElementById('lblBacktestSlPercent');
   if (lblBacktestSlPercent) lblBacktestSlPercent.textContent = t.backtestSlPercent;
   
-  const lblBacktestCloseAlert = document.getElementById('lblBacktestCloseAlert');
-  if (lblBacktestCloseAlert) lblBacktestCloseAlert.textContent = t.backtestCloseAlert;
+  const lblBacktestTpClose = document.getElementById('lblBacktestTpClose');
+  if (lblBacktestTpClose) lblBacktestTpClose.textContent = t.backtestTpClose;
   
-  const selectCloseAlert = document.getElementById('backtestCloseAlertSelect');
-  if (selectCloseAlert && selectCloseAlert.options[0]) {
-    selectCloseAlert.options[0].textContent = t.sameAsSignal;
-  }
+  const lblBacktestSlClose = document.getElementById('lblBacktestSlClose');
+  if (lblBacktestSlClose) lblBacktestSlClose.textContent = t.backtestSlClose;
+
+  populateBacktestCloseAlertSelect();
   
   const btnRunBacktest = document.getElementById('btnRunBacktest');
   if (btnRunBacktest) btnRunBacktest.textContent = t.runSimulation;
@@ -2711,9 +2715,111 @@ function applyLanguage(lang) {
   }
 }
 
-// ==========================================
-// BACKTESTER AND SIMULATION FRONTEND ENGINE
-// ==========================================
+function createExitsConditionRow(containerId) {
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const t = TRANSLATIONS[lang];
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  const row = document.createElement('div');
+  row.className = 'exit-condition-row';
+  row.style.display = 'flex';
+  row.style.flexDirection = 'column';
+  row.style.gap = '8px';
+  row.style.background = 'rgba(15, 19, 23, 0.4)';
+  row.style.border = '1px solid var(--line)';
+  row.style.borderRadius = '6px';
+  row.style.padding = '12px';
+  row.style.position = 'relative';
+  row.style.marginTop = '8px';
+
+  row.innerHTML = `
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 8px; align-items: end;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="lbl-left-metric" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.leftMetric}</label>
+        <select class="metric-select left-metric-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="lbl-operator" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.operator}</label>
+        <select class="operator-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
+          <option value="gt">&gt;</option>
+          <option value="lt">&lt;</option>
+          <option value="gte">&gt;=</option>
+          <option value="lte">&lt;=</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="lbl-compare-with" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.compareWith}</label>
+        <select class="compare-type-select" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
+          <option value="value">${t.staticValue}</option>
+          <option value="metric">${t.anotherMetric}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="target-value-group form-group" style="margin-bottom: 0;">
+      <label class="lbl-target-value" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.targetValue}</label>
+      <input type="number" step="any" class="target-value-input" placeholder="${lang === 'en' ? 'e.g. 30000000' : 'напр. 30000000'}" required style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;"/>
+    </div>
+
+    <div class="target-metric-group form-group hidden" style="margin-bottom: 0;">
+      <label class="lbl-right-metric" style="font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;">${t.rightMetric}</label>
+      <select class="metric-select right-metric-select" style="font-size: 12px; padding: 6px; background: #0f1317; border: 1px solid var(--line); color: var(--text); border-radius: 4px; width: 100%;">
+      </select>
+    </div>
+  `;
+
+  const leftSelect = row.querySelector('.left-metric-select');
+  const rightSelect = row.querySelector('.right-metric-select');
+  populateMetricSelect(leftSelect, lang);
+  populateMetricSelect(rightSelect, lang);
+
+  const compareTypeSelect = row.querySelector('.compare-type-select');
+  const valueGroup = row.querySelector('.target-value-group');
+  const metricGroup = row.querySelector('.target-metric-group');
+  const valueInput = row.querySelector('.target-value-input');
+
+  compareTypeSelect.addEventListener('change', () => {
+    if (compareTypeSelect.value === 'value') {
+      valueGroup.classList.remove('hidden');
+      metricGroup.classList.add('hidden');
+      valueInput.required = true;
+    } else {
+      valueGroup.classList.add('hidden');
+      metricGroup.classList.remove('hidden');
+      valueInput.required = false;
+    }
+  });
+
+  container.appendChild(row);
+}
+
+function getCustomExitCondition(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container || container.classList.contains('hidden')) return null;
+  const row = container.querySelector('.exit-condition-row');
+  if (!row) return null;
+  
+  const field1 = row.querySelector('.left-metric-select').value;
+  const operator = row.querySelector('.operator-select').value;
+  const compareType = row.querySelector('.compare-type-select').value;
+  const valueInput = row.querySelector('.target-value-input');
+  const value = valueInput ? parseFloat(valueInput.value) : 0;
+  const field2 = row.querySelector('.right-metric-select').value;
+  
+  return {
+    field1,
+    operator,
+    compareType,
+    value,
+    field2
+  };
+}
 
 function initBacktestConfigurator() {
   const tabBacktest = document.getElementById('tabBacktest');
@@ -2724,7 +2830,8 @@ function initBacktestConfigurator() {
   const gridSettingsBlock = document.getElementById('gridSettingsBlock');
   const backtestOrderCount = document.getElementById('backtestOrderCount');
   const gridLegsContainer = document.getElementById('gridLegsContainer');
-  const backtestCloseAlertGroup = document.getElementById('backtestCloseAlertGroup');
+  const backtestTpCloseGroup = document.getElementById('backtestTpCloseGroup');
+  const backtestSlCloseGroup = document.getElementById('backtestSlCloseGroup');
 
   // Set default date range: 30 days ago to today
   const backtestStartDate = document.getElementById('backtestStartDate');
@@ -2750,11 +2857,18 @@ function initBacktestConfigurator() {
   const slPercentSettingsGroup = document.getElementById('slPercentSettingsGroup');
 
   const updateCloseAlertVisibility = () => {
-    if (backtestCloseAlertGroup && backtestTpMode && backtestSlMode) {
-      if (backtestTpMode.value === 'metric' || backtestSlMode.value === 'metric') {
-        backtestCloseAlertGroup.classList.remove('hidden');
+    if (backtestTpCloseGroup && backtestTpMode) {
+      if (backtestTpMode.value === 'metric') {
+        backtestTpCloseGroup.classList.remove('hidden');
       } else {
-        backtestCloseAlertGroup.classList.add('hidden');
+        backtestTpCloseGroup.classList.add('hidden');
+      }
+    }
+    if (backtestSlCloseGroup && backtestSlMode) {
+      if (backtestSlMode.value === 'metric') {
+        backtestSlCloseGroup.classList.remove('hidden');
+      } else {
+        backtestSlCloseGroup.classList.add('hidden');
       }
     }
   };
@@ -2779,6 +2893,36 @@ function initBacktestConfigurator() {
         slPercentSettingsGroup.classList.add('hidden');
       }
       updateCloseAlertVisibility();
+    });
+  }
+
+  const backtestTpCloseSelect = document.getElementById('backtestTpCloseSelect');
+  const backtestTpCloseCustomContainer = document.getElementById('backtestTpCloseCustomContainer');
+  if (backtestTpCloseSelect && backtestTpCloseCustomContainer) {
+    backtestTpCloseSelect.addEventListener('change', () => {
+      if (backtestTpCloseSelect.value === 'custom') {
+        backtestTpCloseCustomContainer.classList.remove('hidden');
+        if (backtestTpCloseCustomContainer.children.length === 0) {
+          createExitsConditionRow('backtestTpCloseCustomContainer');
+        }
+      } else {
+        backtestTpCloseCustomContainer.classList.add('hidden');
+      }
+    });
+  }
+
+  const backtestSlCloseSelect = document.getElementById('backtestSlCloseSelect');
+  const backtestSlCloseCustomContainer = document.getElementById('backtestSlCloseCustomContainer');
+  if (backtestSlCloseSelect && backtestSlCloseCustomContainer) {
+    backtestSlCloseSelect.addEventListener('change', () => {
+      if (backtestSlCloseSelect.value === 'custom') {
+        backtestSlCloseCustomContainer.classList.remove('hidden');
+        if (backtestSlCloseCustomContainer.children.length === 0) {
+          createExitsConditionRow('backtestSlCloseCustomContainer');
+        }
+      } else {
+        backtestSlCloseCustomContainer.classList.add('hidden');
+      }
     });
   }
 
@@ -2865,28 +3009,40 @@ function populateBacktestAlertSelect() {
 }
 
 function populateBacktestCloseAlertSelect() {
-  const select = document.getElementById('backtestCloseAlertSelect');
-  if (!select) return;
-  
-  const currentVal = select.value;
-  select.innerHTML = '';
-  
-  const defaultOpt = document.createElement('option');
-  defaultOpt.value = 'same';
+  const tpSelect = document.getElementById('backtestTpCloseSelect');
+  const slSelect = document.getElementById('backtestSlCloseSelect');
   const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
-  defaultOpt.textContent = currentLang === 'en' ? 'Same as Signal Alert' : 'По умолчанию (текущий)';
-  defaultOpt.selected = !currentVal || currentVal === 'same';
-  select.appendChild(defaultOpt);
   
-  cachedAlerts.forEach(alert => {
-    const opt = document.createElement('option');
-    opt.value = alert.id;
-    opt.textContent = `${alert.name} (${alert.timeframe || '1m'})`;
-    if (alert.id === currentVal) {
-      opt.selected = true;
-    }
-    select.appendChild(opt);
-  });
+  const populate = (select) => {
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '';
+    
+    const sameOpt = document.createElement('option');
+    sameOpt.value = 'same';
+    sameOpt.textContent = currentLang === 'en' ? 'Same as Signal Alert' : 'По умолчанию (текущий)';
+    sameOpt.selected = !currentVal || currentVal === 'same';
+    select.appendChild(sameOpt);
+    
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = currentLang === 'en' ? 'Custom Condition...' : 'Своё условие...';
+    customOpt.selected = currentVal === 'custom';
+    select.appendChild(customOpt);
+    
+    cachedAlerts.forEach(alert => {
+      const opt = document.createElement('option');
+      opt.value = alert.id;
+      opt.textContent = `${alert.name} (${alert.timeframe || '1m'})`;
+      if (alert.id === currentVal) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  };
+
+  populate(tpSelect);
+  populate(slSelect);
 }
 
 async function runLocalBacktest(e) {
@@ -2952,17 +3108,31 @@ async function runLocalBacktest(e) {
       return;
     }
     
-    const closeAlertId = document.getElementById('backtestCloseAlertSelect')?.value || 'same';
-    let closeSignals = [];
-    if (closeAlertId && closeAlertId !== 'same') {
-      const closeAlert = cachedAlerts.find(a => a.id === closeAlertId);
-      if (closeAlert) {
-        closeSignals = generateBacktestSignals(snapshots1m, closeAlert, 'auto');
+    const tpCloseAlertId = document.getElementById('backtestTpCloseSelect')?.value || 'same';
+    const slCloseAlertId = document.getElementById('backtestSlCloseSelect')?.value || 'same';
+    
+    let tpCloseSignals = [];
+    if (tpCloseAlertId && tpCloseAlertId !== 'same' && tpCloseAlertId !== 'custom') {
+      const tpCloseAlert = cachedAlerts.find(a => a.id === tpCloseAlertId);
+      if (tpCloseAlert) {
+        tpCloseSignals = generateBacktestSignals(snapshots1m, tpCloseAlert, 'auto');
       } else {
-        closeSignals = signals;
+        tpCloseSignals = signals;
       }
     } else {
-      closeSignals = signals;
+      tpCloseSignals = signals;
+    }
+
+    let slCloseSignals = [];
+    if (slCloseAlertId && slCloseAlertId !== 'same' && slCloseAlertId !== 'custom') {
+      const slCloseAlert = cachedAlerts.find(a => a.id === slCloseAlertId);
+      if (slCloseAlert) {
+        slCloseSignals = generateBacktestSignals(snapshots1m, slCloseAlert, 'auto');
+      } else {
+        slCloseSignals = signals;
+      }
+    } else {
+      slCloseSignals = signals;
     }
     
     if (mode === 'trading') {
@@ -2989,11 +3159,11 @@ async function runLocalBacktest(e) {
         }
       });
 
-      const results = runTradingSimulation(snapshots1m, signals, legs, closeSignals);
+      const results = runTradingSimulation(snapshots1m, signals, legs, tpCloseSignals, slCloseSignals);
       renderTradingResults(results);
     } else {
       feedback.textContent = currentLang === 'en' ? 'Analyzing price deviation metrics...' : 'Анализ отклонения цен...';
-      const results = runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount);
+      const results = runMetricsAnalysis(snapshots1m, signals, tpCloseSignals, slCloseSignals, tradeAmount);
       renderMetricsResults(results);
     }
     
@@ -3194,7 +3364,7 @@ function evaluateExpression(snapshot, expr) {
   }
 }
 
-function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
+function runTradingSimulation(snapshots1m, signals, legs, tpCloseSignals, slCloseSignals) {
   const tpMode = document.getElementById('backtestTpMode')?.value || 'percent';
   const tpPercent = parseFloat(document.getElementById('backtestTpPercent')?.value) || 1.5;
   const tpAnchor = document.getElementById('backtestTpAnchor')?.value || 'avg';
@@ -3202,11 +3372,15 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
   const slMode = document.getElementById('backtestSlMode')?.value || 'none';
   const slPercent = parseFloat(document.getElementById('backtestSlPercent')?.value) || 2.0;
   
+  const tpCustomExpr = getCustomExitCondition('backtestTpCloseCustomContainer');
+  const slCustomExpr = getCustomExitCondition('backtestSlCloseCustomContainer');
+
   let lastClosedIndex = -1;
   const trades = [];
   const markers = [];
 
-  const safeCloseSignals = closeSignals || [];
+  const safeTpCloseSignals = tpCloseSignals || [];
+  const safeSlCloseSignals = slCloseSignals || [];
 
   for (let sIdx = 0; sIdx < signals.length; sIdx++) {
     const signal = signals[sIdx];
@@ -3216,7 +3390,9 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
     
     const triggerPrice = signal.price;
     const isShort = (signal.type === 'short');
-    const nextCloseSignal = safeCloseSignals.find(cs => cs.index > signal.index);
+    
+    const nextTpCloseSignal = !tpCustomExpr ? safeTpCloseSignals.find(cs => cs.index > signal.index) : null;
+    const nextSlCloseSignal = !slCustomExpr ? safeSlCloseSignals.find(cs => cs.index > signal.index) : null;
     
     const limitOrders = legs.map((leg, index) => {
       const offsetPct = Math.abs(leg.offset);
@@ -3244,6 +3420,44 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
       // Check cancels/fills if no orders filled yet
       const order1Price = limitOrders[0].limitPrice;
       
+      // Evaluate Exit Signals
+      let exitSignalTriggered = false;
+      let exitSignalPrice = null;
+      let exitSignalIndex = null;
+      let exitSignalReason = "";
+      
+      if (tpMode === 'metric') {
+        if (tpCustomExpr) {
+          if (evaluateExpression(s, tpCustomExpr)) {
+            exitSignalTriggered = true;
+            exitSignalPrice = s.price;
+            exitSignalIndex = k;
+            exitSignalReason = "TP Metric Exit";
+          }
+        } else if (nextTpCloseSignal && k >= nextTpCloseSignal.index) {
+          exitSignalTriggered = true;
+          exitSignalPrice = nextTpCloseSignal.price;
+          exitSignalIndex = nextTpCloseSignal.index;
+          exitSignalReason = "TP Metric Exit";
+        }
+      }
+      
+      if (!exitSignalTriggered && slMode === 'metric') {
+        if (slCustomExpr) {
+          if (evaluateExpression(s, slCustomExpr)) {
+            exitSignalTriggered = true;
+            exitSignalPrice = s.price;
+            exitSignalIndex = k;
+            exitSignalReason = "SL Metric Exit";
+          }
+        } else if (nextSlCloseSignal && k >= nextSlCloseSignal.index) {
+          exitSignalTriggered = true;
+          exitSignalPrice = nextSlCloseSignal.price;
+          exitSignalIndex = nextSlCloseSignal.index;
+          exitSignalReason = "SL Metric Exit";
+        }
+      }
+      
       if (filledPositions.length === 0) {
         if (tpMode === 'percent') {
           const cancelPrice = isShort 
@@ -3263,8 +3477,8 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
           }
         }
         
-        if ((tpMode === 'metric' || slMode === 'metric') && nextCloseSignal && k >= nextCloseSignal.index) {
-          lastClosedIndex = nextCloseSignal.index - 1;
+        if (exitSignalTriggered) {
+          lastClosedIndex = exitSignalIndex - 1;
           active = false;
           break;
         }
@@ -3401,9 +3615,9 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
         }
         
         // 3. Check Metric Crossover Exit (TP or SL)
-        if ((tpMode === 'metric' || slMode === 'metric') && nextCloseSignal && k >= nextCloseSignal.index) {
-          exitTime = nextCloseSignal.timestamp;
-          exitPrice = nextCloseSignal.price;
+        if (exitSignalTriggered) {
+          exitTime = s.timestamp;
+          exitPrice = exitSignalPrice;
           
           const profit = isShort 
             ? totalQty * (avgPrice - exitPrice)
@@ -3416,14 +3630,14 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
           
           const isWin = profit > 0;
           markers.push({
-            time: getLocalTimestamp(nextCloseSignal.timestamp),
+            time: getLocalTimestamp(s.timestamp),
             position: isWin ? (isShort ? 'belowBar' : 'aboveBar') : (isShort ? 'aboveBar' : 'belowBar'),
             color: isWin ? '#35d083' : '#ef5e5e',
             shape: isWin ? (isShort ? 'arrowUp' : 'arrowDown') : (isShort ? 'arrowDown' : 'arrowUp'),
-            text: `Metric Exit $${exitPrice.toFixed(4)}`
+            text: `${exitSignalReason} $${exitPrice.toFixed(4)}`
           });
           
-          lastClosedIndex = nextCloseSignal.index;
+          lastClosedIndex = exitSignalIndex;
           active = false;
           break;
         }
@@ -3475,7 +3689,7 @@ function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
   };
 }
 
-function runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount) {
+function runMetricsAnalysis(snapshots1m, signals, tpCloseSignals, slCloseSignals, tradeAmount) {
   const drawdowns = [];
   const upsides = [];
   const markers = [];
@@ -3486,7 +3700,11 @@ function runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount) {
   const slMode = document.getElementById('backtestSlMode')?.value || 'none';
   const slPercent = parseFloat(document.getElementById('backtestSlPercent')?.value) || 2.0;
 
-  const safeCloseSignals = closeSignals || [];
+  const tpCustomExpr = getCustomExitCondition('backtestTpCloseCustomContainer');
+  const slCustomExpr = getCustomExitCondition('backtestSlCloseCustomContainer');
+
+  const safeTpCloseSignals = tpCloseSignals || [];
+  const safeSlCloseSignals = slCloseSignals || [];
 
   for (const signal of signals) {
     const triggerPrice = signal.price;
@@ -3531,7 +3749,9 @@ function runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount) {
     // Trade Simulation for Metrics Analysis (only if tradeAmount > 0)
     if (tradeAmount && tradeAmount > 0) {
       const qty = tradeAmount / triggerPrice;
-      const nextCloseSignal = safeCloseSignals.find(cs => cs.index > signal.index);
+      
+      const nextTpCloseSignal = !tpCustomExpr ? safeTpCloseSignals.find(cs => cs.index > signal.index) : null;
+      const nextSlCloseSignal = !slCustomExpr ? safeSlCloseSignals.find(cs => cs.index > signal.index) : null;
       
       let exitPrice = null;
       let tradeMaxDrawdown = 0;
@@ -3589,9 +3809,37 @@ function runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount) {
           }
         }
 
+        // Evaluate Exit Signals for metrics analysis
+        let exitSignalTriggered = false;
+        let exitSignalPrice = null;
+        
+        if (tpMode === 'metric') {
+          if (tpCustomExpr) {
+            if (evaluateExpression(s, tpCustomExpr)) {
+              exitSignalTriggered = true;
+              exitSignalPrice = s.price;
+            }
+          } else if (nextTpCloseSignal && k >= nextTpCloseSignal.index) {
+            exitSignalTriggered = true;
+            exitSignalPrice = nextTpCloseSignal.price;
+          }
+        }
+        
+        if (!exitSignalTriggered && slMode === 'metric') {
+          if (slCustomExpr) {
+            if (evaluateExpression(s, slCustomExpr)) {
+              exitSignalTriggered = true;
+              exitSignalPrice = s.price;
+            }
+          } else if (nextSlCloseSignal && k >= nextSlCloseSignal.index) {
+            exitSignalTriggered = true;
+            exitSignalPrice = nextSlCloseSignal.price;
+          }
+        }
+
         // Check Close Metric Crossover Exit
-        if (!tradeClosed && (tpMode === 'metric' || slMode === 'metric') && nextCloseSignal && k >= nextCloseSignal.index) {
-          exitPrice = nextCloseSignal.price;
+        if (!tradeClosed && exitSignalTriggered) {
+          exitPrice = exitSignalPrice;
           tradeClosed = true;
         }
 

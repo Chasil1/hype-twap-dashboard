@@ -352,6 +352,16 @@
                   </div>
                 </div>
 
+                <!-- Take Profit Exit Signal (shown if TP is metric) -->
+                <div id="backtestTpCloseGroup" class="form-group hidden" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="backtestTpCloseSelect" id="lblBacktestTpClose">Take Profit Exit Signal</label>
+                  <select id="backtestTpCloseSelect" required style="margin-bottom: 8px;">
+                    <option value="same" selected>Same as Signal Alert</option>
+                    <option value="custom">Custom Condition...</option>
+                  </select>
+                  <div id="backtestTpCloseCustomContainer" class="hidden"></div>
+                </div>
+
                 <!-- Stop Loss Options -->
                 <div class="form-group" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
                   <label for="backtestSlMode" id="lblBacktestSlMode">Stop Loss Mode</label>
@@ -367,12 +377,14 @@
                   <input type="number" id="backtestSlPercent" step="0.01" value="2.0"/>
                 </div>
 
-                <!-- Exit Signal Alert selection (shown if TP/SL is metric) -->
-                <div id="backtestCloseAlertGroup" class="form-group hidden" style="border-top: 1px dashed var(--line); padding-top: 12px;">
-                  <label for="backtestCloseAlertSelect" id="lblBacktestCloseAlert">Exit Signal Alert</label>
-                  <select id="backtestCloseAlertSelect">
+                <!-- Stop Loss Exit Signal (shown if SL is metric) -->
+                <div id="backtestSlCloseGroup" class="form-group hidden" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="backtestSlCloseSelect" id="lblBacktestSlClose">Stop Loss Exit Signal</label>
+                  <select id="backtestSlCloseSelect" required style="margin-bottom: 8px;">
                     <option value="same" selected>Same as Signal Alert</option>
+                    <option value="custom">Custom Condition...</option>
                   </select>
+                  <div id="backtestSlCloseCustomContainer" class="hidden"></div>
                 </div>
               </div>
 
