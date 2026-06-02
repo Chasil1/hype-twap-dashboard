@@ -1254,8 +1254,10 @@ const alertElements = {
 
   tabActiveAlerts: document.querySelector('#tabActiveAlerts'),
   tabCreateAlert: document.querySelector('#tabCreateAlert'),
+  tabBacktest: document.querySelector('#tabBacktest'),
   tabContentList: document.querySelector('#tabContentList'),
   tabContentForm: document.querySelector('#tabContentForm'),
+  tabContentBacktest: document.querySelector('#tabContentBacktest'),
   alertsCount: document.querySelector('#alertsCount'),
   alertsList: document.querySelector('#alertsList'),
 
@@ -2005,16 +2007,20 @@ function initAlertConfigurator() {
   alertElements.tabActiveAlerts.addEventListener('click', () => {
     alertElements.tabActiveAlerts.classList.add('active');
     alertElements.tabCreateAlert.classList.remove('active');
+    if (alertElements.tabBacktest) alertElements.tabBacktest.classList.remove('active');
     alertElements.tabContentList.classList.remove('hidden');
     alertElements.tabContentForm.classList.add('hidden');
+    if (alertElements.tabContentBacktest) alertElements.tabContentBacktest.classList.add('hidden');
     clearEditAlertMode();
   });
 
   alertElements.tabCreateAlert.addEventListener('click', () => {
     alertElements.tabCreateAlert.classList.add('active');
     alertElements.tabActiveAlerts.classList.remove('active');
+    if (alertElements.tabBacktest) alertElements.tabBacktest.classList.remove('active');
     alertElements.tabContentForm.classList.remove('hidden');
     alertElements.tabContentList.classList.add('hidden');
+    if (alertElements.tabContentBacktest) alertElements.tabContentBacktest.classList.add('hidden');
   });
 
   alertElements.addConditionBtn.addEventListener('click', () => {
@@ -2027,6 +2033,9 @@ function initAlertConfigurator() {
 
   resetAlertFormToDefault();
   checkAuthState().catch(console.error);
+  
+  // Initialize Backtester & Simulation panel
+  initBacktestConfigurator();
 }
 
 // Startup Execution
@@ -2117,7 +2126,28 @@ const TRANSLATIONS = {
     errorOccurred: "An error occurred.",
     alertDeleted: "Alert deleted successfully.",
     alertCreated: "Alert created successfully.",
-    alertUpdated: "Alert updated successfully."
+    alertUpdated: "Alert updated successfully.",
+    backtestTab: "Backtest & Sim",
+    backtestPeriod: "Trading Period (1-365 days)",
+    backtestAlert: "Signal Alert",
+    backtestMode: "Mode",
+    tradingSim: "Trading Simulation",
+    metricsAnalysis: "Metrics Analysis",
+    numberLimitOrders: "Number of Limit Orders",
+    takeProfitPercent: "Take Profit (%)",
+    tpAnchorPrice: "TP Anchor Price",
+    runSimulation: "Run Simulation",
+    tradingSimResults: "Trading Simulation Results",
+    totalTrades: "Total Trades",
+    winRate: "Win Rate",
+    totalNetProfit: "Total Net Profit",
+    maxDrawdown: "Max Drawdown",
+    metricsAnalysisResults: "Metrics Analysis Results (24h Window)",
+    downsideDrawdownDeviation: "Downside Drawdown Deviation",
+    upsideProfitRun: "Upside Profit Run",
+    maximum: "Maximum",
+    average: "Average",
+    median: "Median"
   },
   ru: {
     separateWindow: "Отдельное окно",
@@ -2184,7 +2214,28 @@ const TRANSLATIONS = {
     errorOccurred: "Произошла ошибка.",
     alertDeleted: "Алерт успешно удален.",
     alertCreated: "Алерт успешно создан.",
-    alertUpdated: "Алерт успешно обновлен."
+    alertUpdated: "Алерт успешно обновлен.",
+    backtestTab: "Бэктест и Тест",
+    backtestPeriod: "Период торговли (1-365 дней)",
+    backtestAlert: "Сигнальное оповещение",
+    backtestMode: "Режим",
+    tradingSim: "Симуляция торговли",
+    metricsAnalysis: "Тест метрики",
+    numberLimitOrders: "Количество лимитных ордеров",
+    takeProfitPercent: "Тейк профит (%)",
+    tpAnchorPrice: "База для Тейк Профита",
+    runSimulation: "Запустить тест",
+    tradingSimResults: "Результаты симуляции торговли",
+    totalTrades: "Всего сделок",
+    winRate: "Процент побед",
+    totalNetProfit: "Чистая прибыль",
+    maxDrawdown: "Макс. просадка",
+    metricsAnalysisResults: "Результаты теста метрики (24ч окно)",
+    downsideDrawdownDeviation: "Снижение цены вниз после сигнала",
+    upsideProfitRun: "Рост цены вверх после сигнала",
+    maximum: "Максимум",
+    average: "Среднее",
+    median: "Медиана"
   }
 };
 
@@ -2489,10 +2540,690 @@ function applyLanguage(lang) {
   const cancelSavePresetBtn = document.getElementById('cancelSavePresetBtn');
   if (cancelSavePresetBtn) cancelSavePresetBtn.textContent = t.cancelBtn;
 
+  // Backtest translations
+  const tabBacktest = document.getElementById('tabBacktest');
+  if (tabBacktest) tabBacktest.textContent = t.backtestTab;
+  
+  const lblBacktestPeriod = document.getElementById('lblBacktestPeriod');
+  if (lblBacktestPeriod) lblBacktestPeriod.textContent = t.backtestPeriod;
+  
+  const lblBacktestAlert = document.getElementById('lblBacktestAlert');
+  if (lblBacktestAlert) lblBacktestAlert.textContent = t.backtestAlert;
+  
+  const lblBacktestMode = document.getElementById('lblBacktestMode');
+  if (lblBacktestMode) lblBacktestMode.textContent = t.backtestMode;
+  
+  const backtestModeSelect = document.getElementById('backtestModeSelect');
+  if (backtestModeSelect) {
+    backtestModeSelect.options[0].textContent = t.tradingSim;
+    backtestModeSelect.options[1].textContent = t.metricsAnalysis;
+  }
+  
+  const lblBacktestOrderCount = document.getElementById('lblBacktestOrderCount');
+  if (lblBacktestOrderCount) lblBacktestOrderCount.textContent = t.numberLimitOrders;
+  
+  // Leg titles
+  const legRows = document.querySelectorAll('.grid-leg-row');
+  legRows.forEach(row => {
+    const legNum = row.dataset.leg;
+    const offsetLbl = row.querySelector(`.lblLegOffset${legNum}`);
+    if (offsetLbl) offsetLbl.textContent = lang === 'en' ? `Order ${legNum} Offset (%)` : `Ордер ${legNum} Отклонение (%)`;
+    const amountLbl = row.querySelector(`.lblLegAmount${legNum}`);
+    if (amountLbl) amountLbl.textContent = lang === 'en' ? `Order ${legNum} Amount (USD)` : `Ордер ${legNum} Сумма (USD)`;
+  });
+  
+  const lblBacktestTpPercent = document.getElementById('lblBacktestTpPercent');
+  if (lblBacktestTpPercent) lblBacktestTpPercent.textContent = t.takeProfitPercent;
+  
+  const lblBacktestTpAnchor = document.getElementById('lblBacktestTpAnchor');
+  if (lblBacktestTpAnchor) lblBacktestTpAnchor.textContent = t.tpAnchorPrice;
+  
+  const backtestTpAnchor = document.getElementById('backtestTpAnchor');
+  if (backtestTpAnchor) {
+    backtestTpAnchor.options[0].textContent = lang === 'en' ? 'Average Entry Price' : 'Средняя цена входа';
+    backtestTpAnchor.options[1].textContent = lang === 'en' ? 'Order 1 Price' : 'Цена 1-го ордера';
+    backtestTpAnchor.options[2].textContent = lang === 'en' ? 'Order 2 Price' : 'Цена 2-го ордера';
+    backtestTpAnchor.options[3].textContent = lang === 'en' ? 'Order 3 Price' : 'Цена 3-го ордера';
+  }
+  
+  const btnRunBacktest = document.getElementById('btnRunBacktest');
+  if (btnRunBacktest) btnRunBacktest.textContent = t.runSimulation;
+  
+  const titleTradingResults = document.getElementById('titleTradingResults');
+  if (titleTradingResults) titleTradingResults.textContent = t.tradingSimResults;
+  
+  const lblStatTotalTrades = document.getElementById('lblStatTotalTrades');
+  if (lblStatTotalTrades) lblStatTotalTrades.textContent = t.totalTrades;
+  
+  const lblStatWinRate = document.getElementById('lblStatWinRate');
+  if (lblStatWinRate) lblStatWinRate.textContent = t.winRate;
+  
+  const lblStatNetProfit = document.getElementById('lblStatNetProfit');
+  if (lblStatNetProfit) lblStatNetProfit.textContent = t.totalNetProfit;
+  
+  const lblStatMaxDrawdown = document.getElementById('lblStatMaxDrawdown');
+  if (lblStatMaxDrawdown) lblStatMaxDrawdown.textContent = t.maxDrawdown;
+  
+  const titleMetricsResults = document.getElementById('titleMetricsResults');
+  if (titleMetricsResults) titleMetricsResults.textContent = t.metricsAnalysisResults;
+  
+  const titleDrawdownSection = document.getElementById('titleDrawdownSection');
+  if (titleDrawdownSection) titleDrawdownSection.textContent = t.downsideDrawdownDeviation;
+  
+  const titleUpsideSection = document.getElementById('titleUpsideSection');
+  if (titleUpsideSection) titleUpsideSection.textContent = t.upsideProfitRun;
+  
+  const drawMaxLbl = document.getElementById('lblDrawdownMax');
+  if (drawMaxLbl) drawMaxLbl.textContent = t.maximum;
+  const drawAvgLbl = document.getElementById('lblDrawdownAvg');
+  if (drawAvgLbl) drawAvgLbl.textContent = t.average;
+  const drawMedLbl = document.getElementById('lblDrawdownMed');
+  if (drawMedLbl) drawMedLbl.textContent = t.median;
+  
+  const upMaxLbl = document.getElementById('lblUpsideMax');
+  if (upMaxLbl) upMaxLbl.textContent = t.maximum;
+  const upAvgLbl = document.getElementById('lblUpsideAvg');
+  if (upAvgLbl) upAvgLbl.textContent = t.average;
+  const upMedLbl = document.getElementById('lblUpsideMed');
+  if (upMedLbl) upMedLbl.textContent = t.median;
+
   // Re-render cached list of alerts in correct language
   if (cachedAlerts.length > 0) {
     renderAlertsList(cachedAlerts);
   }
+}
+
+// ==========================================
+// BACKTESTER AND SIMULATION FRONTEND ENGINE
+// ==========================================
+
+function initBacktestConfigurator() {
+  const tabBacktest = document.getElementById('tabBacktest');
+  const tabContentBacktest = document.getElementById('tabContentBacktest');
+  const backtestForm = document.getElementById('backtestForm');
+  const backtestAlertSelect = document.getElementById('backtestAlertSelect');
+  const backtestModeSelect = document.getElementById('backtestModeSelect');
+  const tradingSimSettingsBlock = document.getElementById('tradingSimSettingsBlock');
+  const backtestOrderCount = document.getElementById('backtestOrderCount');
+  const gridLegsContainer = document.getElementById('gridLegsContainer');
+
+  // Tab switching
+  if (tabBacktest) {
+    tabBacktest.addEventListener('click', () => {
+      tabBacktest.classList.add('active');
+      alertElements.tabActiveAlerts.classList.remove('active');
+      alertElements.tabCreateAlert.classList.remove('active');
+
+      tabContentBacktest.classList.remove('hidden');
+      alertElements.tabContentList.classList.add('hidden');
+      alertElements.tabContentForm.classList.add('hidden');
+
+      populateBacktestAlertSelect();
+    });
+  }
+
+  // Hide/show simulation settings depending on mode
+  if (backtestModeSelect) {
+    backtestModeSelect.addEventListener('change', () => {
+      const mode = backtestModeSelect.value;
+      if (mode === 'trading') {
+        tradingSimSettingsBlock.classList.remove('hidden');
+      } else {
+        tradingSimSettingsBlock.classList.add('hidden');
+      }
+    });
+  }
+
+  // Hide/show order legs based on order count
+  if (backtestOrderCount) {
+    backtestOrderCount.addEventListener('change', () => {
+      const count = parseInt(backtestOrderCount.value) || 3;
+      const legRows = gridLegsContainer.querySelectorAll('.grid-leg-row');
+      legRows.forEach(row => {
+        const legNum = parseInt(row.dataset.leg);
+        if (legNum <= count) {
+          row.style.display = 'grid';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    });
+    // Trigger initial change
+    backtestOrderCount.dispatchEvent(new Event('change'));
+  }
+
+  // Handle Form Submission
+  if (backtestForm) {
+    backtestForm.addEventListener('submit', runLocalBacktest);
+  }
+}
+
+function populateBacktestAlertSelect() {
+  const backtestAlertSelect = document.getElementById('backtestAlertSelect');
+  if (!backtestAlertSelect) return;
+  
+  const currentVal = backtestAlertSelect.value;
+  backtestAlertSelect.innerHTML = '';
+  
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.disabled = true;
+  defaultOpt.selected = !currentVal;
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  defaultOpt.textContent = currentLang === 'en' ? 'Select Alert...' : 'Выберите алерт...';
+  backtestAlertSelect.appendChild(defaultOpt);
+  
+  cachedAlerts.forEach(alert => {
+    const opt = document.createElement('option');
+    opt.value = alert.id;
+    opt.textContent = `${alert.name} (${alert.timeframe || '1m'})`;
+    if (alert.id === currentVal) {
+      opt.selected = true;
+    }
+    backtestAlertSelect.appendChild(opt);
+  });
+}
+
+async function runLocalBacktest(e) {
+  e.preventDefault();
+  const feedback = document.getElementById('backtestFeedback');
+  const runBtn = document.getElementById('btnRunBacktest');
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  
+  feedback.className = 'feedback-msg';
+  feedback.textContent = currentLang === 'en' ? 'Running simulation...' : 'Запуск теста...';
+  runBtn.disabled = true;
+
+  try {
+    const periodDays = parseInt(document.getElementById('backtestPeriodInput').value) || 30;
+    const alertId = document.getElementById('backtestAlertSelect').value;
+    const mode = document.getElementById('backtestModeSelect').value;
+    
+    if (!alertId) {
+      throw new Error(currentLang === 'en' ? 'Please select a trigger alert.' : 'Пожалуйста, выберите сигнальное оповещение.');
+    }
+    
+    const alert = cachedAlerts.find(a => a.id === alertId);
+    if (!alert) {
+      throw new Error(currentLang === 'en' ? 'Selected alert not found.' : 'Выбранный алерт не найден.');
+    }
+    
+    feedback.textContent = currentLang === 'en' ? 'Fetching historical 1m data...' : 'Загрузка исторических 1м данных...';
+    const response = await fetch('/api/snapshots?timeframe=1m');
+    if (!response.ok) {
+      throw new Error(`Failed to load historical data: ${response.statusText}`);
+    }
+    const allSnapshots1m = await response.json();
+    
+    const cutoffTime = Date.now() - (periodDays * 24 * 60 * 60 * 1000);
+    const snapshots1m = allSnapshots1m.filter(s => new Date(s.timestamp).getTime() >= cutoffTime);
+    
+    if (snapshots1m.length === 0) {
+      throw new Error(currentLang === 'en' ? 'No historical data found for the selected period.' : 'Нет исторических данных за выбранный период.');
+    }
+    
+    feedback.textContent = currentLang === 'en' ? 'Identifying signals...' : 'Поиск сигналов...';
+    const signals = generateBacktestSignals(snapshots1m, alert);
+    
+    if (signals.length === 0) {
+      feedback.className = 'feedback-msg error';
+      feedback.textContent = currentLang === 'en' ? 'No signals found in this period.' : 'Сигналы за этот период не найдены.';
+      document.getElementById('backtestTradingResults').classList.add('hidden');
+      document.getElementById('backtestMetricsResults').classList.add('hidden');
+      priceSeries.setMarkers([]);
+      runBtn.disabled = false;
+      return;
+    }
+    
+    if (mode === 'trading') {
+      feedback.textContent = currentLang === 'en' ? 'Simulating trades...' : 'Симуляция сделок...';
+      
+      const count = parseInt(document.getElementById('backtestOrderCount').value) || 3;
+      const legs = [];
+      const rows = document.querySelectorAll('.grid-leg-row');
+      rows.forEach(row => {
+        const legNum = parseInt(row.dataset.leg);
+        if (legNum <= count) {
+          const offsetInput = row.querySelector('.leg-offset');
+          const amountInput = row.querySelector('.leg-amount');
+          legs.push({
+            offset: parseFloat(offsetInput.value) || 0,
+            amount: parseFloat(amountInput.value) || 0
+          });
+        }
+      });
+
+      const results = runTradingSimulation(snapshots1m, signals, legs);
+      renderTradingResults(results);
+    } else {
+      feedback.textContent = currentLang === 'en' ? 'Analyzing price deviation metrics...' : 'Анализ отклонения цен...';
+      const results = runMetricsAnalysis(snapshots1m, signals);
+      renderMetricsResults(results);
+    }
+    
+    feedback.className = 'feedback-msg success';
+    feedback.textContent = currentLang === 'en' ? 'Success!' : 'Успешно!';
+  } catch (err) {
+    feedback.className = 'feedback-msg error';
+    feedback.textContent = err.message;
+    console.error('Backtest error:', err);
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+function generateBacktestSignals(snapshots1m, alert) {
+  const TIMEFRAMES = {
+    '1m': 60_000,
+    '5m': 5 * 60_000,
+    '15m': 15 * 60_000,
+    '1h': 60 * 60_000,
+    '4h': 4 * 60 * 60_000,
+    '1d': 24 * 60 * 60_000
+  };
+  
+  const timeframe = alert.timeframe || '1m';
+  const timeframeMs = TIMEFRAMES[timeframe] || TIMEFRAMES['1m'];
+  
+  let completedBuckets = [];
+  let activeBucket = null;
+  let lastTriggerPrice = null;
+  let lastTriggerTime = 0;
+  const signals = [];
+  
+  for (let i = 0; i < snapshots1m.length; i++) {
+    const s = snapshots1m[i];
+    const startMs = Math.floor(new Date(s.timestamp).getTime() / timeframeMs) * timeframeMs;
+    
+    if (activeBucket && activeBucket.startMs !== startMs) {
+      completedBuckets.push(finalizeActiveBucket(activeBucket));
+      activeBucket = null;
+    }
+    
+    if (!activeBucket) {
+      activeBucket = {
+        startMs,
+        timestamp: s.timestamp,
+        open: Number.isFinite(s.open) ? s.open : s.price,
+        high: Number.isFinite(s.high) ? s.high : s.price,
+        low: Number.isFinite(s.low) ? s.low : s.price,
+        close: Number.isFinite(s.close) ? s.close : s.price,
+        sums: {},
+        counts: {},
+        twapModes: {
+          spotPerp: { sums: {}, counts: {} },
+          spot: { sums: {}, counts: {} },
+          perp: { sums: {}, counts: {} }
+        }
+      };
+    } else {
+      const highVal = Number.isFinite(s.high) ? s.high : s.price;
+      const lowVal = Number.isFinite(s.low) ? s.low : s.price;
+      if (highVal > activeBucket.high) activeBucket.high = highVal;
+      if (lowVal < activeBucket.low) activeBucket.low = lowVal;
+      activeBucket.close = Number.isFinite(s.close) ? s.close : s.price;
+    }
+    
+    for (const key of Object.keys(s)) {
+      if (key === 'timestamp' || key === 'open' || key === 'high' || key === 'low' || key === 'close' || key === 'price' || key === 'twapModes' || key === 'status') {
+        continue;
+      }
+      if (Number.isFinite(s[key])) {
+        activeBucket.sums[key] = (activeBucket.sums[key] || 0) + s[key];
+        activeBucket.counts[key] = (activeBucket.counts[key] || 0) + 1;
+      }
+    }
+    
+    const modes = ['spotPerp', 'spot', 'perp'];
+    for (const mode of modes) {
+      const modeData = s.twapModes?.[mode];
+      if (modeData) {
+        for (const key of Object.keys(modeData)) {
+          if (Number.isFinite(modeData[key])) {
+            activeBucket.twapModes[mode].sums[key] = (activeBucket.twapModes[mode].sums[key] || 0) + modeData[key];
+            activeBucket.twapModes[mode].counts[key] = (activeBucket.twapModes[mode].counts[key] || 0) + 1;
+          }
+        }
+      }
+    }
+    
+    const currentBucketAgg = finalizeActiveBucket(activeBucket);
+    const previousBucketAgg = completedBuckets.length > 0 ? completedBuckets[completedBuckets.length - 1] : null;
+    
+    const isTriggered = evaluateExpression(currentBucketAgg, alert.expression);
+    if (isTriggered) {
+      const currentPrice = currentBucketAgg.price;
+      const trendMode = alert.trend_mode || 'none';
+      let shouldTrigger = false;
+      
+      if (trendMode === 'long' || trendMode === 'short') {
+        const wasTriggeredPrev = previousBucketAgg ? evaluateExpression(previousBucketAgg, alert.expression) : false;
+        if (!wasTriggeredPrev) {
+          if (trendMode === 'long') {
+            if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
+              shouldTrigger = true;
+            }
+            lastTriggerPrice = currentPrice;
+          } else if (trendMode === 'short') {
+            if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
+              shouldTrigger = true;
+            }
+            lastTriggerPrice = currentPrice;
+          }
+        }
+      } else {
+        shouldTrigger = true;
+      }
+      
+      if (shouldTrigger) {
+        const sTime = new Date(s.timestamp).getTime();
+        const cooldownMs = (alert.frequency_minutes || 0) * 60_000;
+        if (sTime - lastTriggerTime >= cooldownMs) {
+          signals.push({
+            timestamp: s.timestamp,
+            price: s.price,
+            type: alert.trend_mode === 'short' ? 'short' : 'long',
+            index: i
+          });
+          lastTriggerTime = sTime;
+        }
+      }
+    }
+  }
+  
+  return signals;
+}
+
+function runTradingSimulation(snapshots1m, signals, legs) {
+  const tpPercent = parseFloat(document.getElementById('backtestTpPercent').value) || 1.5;
+  const tpAnchor = document.getElementById('backtestTpAnchor').value;
+  
+  let lastClosedIndex = -1;
+  const trades = [];
+  const markers = [];
+
+  for (const signal of signals) {
+    if (signal.index <= lastClosedIndex) {
+      continue;
+    }
+    
+    const triggerPrice = signal.price;
+    const isShort = (signal.type === 'short');
+    
+    const limitOrders = legs.map((leg, index) => {
+      const offsetPct = Math.abs(leg.offset);
+      const limitPrice = isShort 
+        ? triggerPrice * (1 + offsetPct / 100) 
+        : triggerPrice * (1 - offsetPct / 100);
+      return {
+        id: index + 1,
+        limitPrice,
+        amount: leg.amount,
+        filled: false
+      };
+    });
+
+    let filledPositions = [];
+    let active = true;
+    let exitTime = null;
+    let exitPrice = null;
+    let tradeMaxDrawdown = 0;
+    
+    let k = signal.index;
+    for (; k < snapshots1m.length; k++) {
+      const s = snapshots1m[k];
+      
+      // Check cancels/fills if no orders filled yet
+      const order1Price = limitOrders[0].limitPrice;
+      const cancelPrice = isShort 
+        ? order1Price * (1 - tpPercent / 100) 
+        : order1Price * (1 + tpPercent / 100);
+      
+      if (filledPositions.length === 0) {
+        let tpTargetReached = false;
+        if (isShort) {
+          if (s.low <= cancelPrice) tpTargetReached = true;
+        } else {
+          if (s.high >= cancelPrice) tpTargetReached = true;
+        }
+        if (tpTargetReached) {
+          lastClosedIndex = k;
+          active = false;
+          break;
+        }
+      }
+
+      // Check fills
+      limitOrders.forEach(ord => {
+        if (!ord.filled) {
+          let canFill = false;
+          if (isShort) {
+            if (s.high >= ord.limitPrice) canFill = true;
+          } else {
+            if (s.low <= ord.limitPrice) canFill = true;
+          }
+          if (canFill) {
+            ord.filled = true;
+            filledPositions.push({
+              price: ord.limitPrice,
+              amount: ord.amount,
+              qty: ord.amount / ord.limitPrice
+            });
+            
+            markers.push({
+              time: getLocalTimestamp(s.timestamp),
+              position: isShort ? 'aboveBar' : 'belowBar',
+              color: isShort ? '#ef5e5e' : '#35d083',
+              shape: isShort ? 'arrowDown' : 'arrowUp',
+              text: `${isShort ? 'Short' : 'Buy'} L${ord.id} $${ord.limitPrice.toFixed(4)}`
+            });
+          }
+        }
+      });
+      
+      if (filledPositions.length > 0) {
+        const totalQty = filledPositions.reduce((sum, p) => sum + p.qty, 0);
+        const totalCost = filledPositions.reduce((sum, p) => sum + p.amount, 0);
+        const avgPrice = totalCost / totalQty;
+        
+        let tpAnchorPrice = avgPrice;
+        if (tpAnchor === 'order1' && limitOrders[0].filled) tpAnchorPrice = limitOrders[0].limitPrice;
+        else if (tpAnchor === 'order2' && limitOrders[1] && limitOrders[1].filled) tpAnchorPrice = limitOrders[1].limitPrice;
+        else if (tpAnchor === 'order3' && limitOrders[2] && limitOrders[2].filled) tpAnchorPrice = limitOrders[2].limitPrice;
+        
+        const tpPrice = isShort 
+          ? tpAnchorPrice * (1 - tpPercent / 100)
+          : tpAnchorPrice * (1 + tpPercent / 100);
+          
+        const currentLow = Number.isFinite(s.low) ? s.low : s.price;
+        const currentHigh = Number.isFinite(s.high) ? s.high : s.price;
+        let currentDrawdown = 0;
+        if (isShort) {
+          currentDrawdown = ((currentHigh - avgPrice) / avgPrice) * 100;
+        } else {
+          currentDrawdown = ((avgPrice - currentLow) / avgPrice) * 100;
+        }
+        if (currentDrawdown > tradeMaxDrawdown) {
+          tradeMaxDrawdown = currentDrawdown;
+        }
+        
+        let tpHit = false;
+        if (isShort) {
+          if (s.low <= tpPrice) tpHit = true;
+        } else {
+          if (s.high >= tpPrice) tpHit = true;
+        }
+        
+        if (tpHit) {
+          exitTime = s.timestamp;
+          exitPrice = tpPrice;
+          
+          const profit = isShort 
+            ? totalQty * (avgPrice - tpPrice)
+            : totalQty * (tpPrice - avgPrice);
+            
+          trades.push({
+            profit,
+            maxDrawdown: tradeMaxDrawdown
+          });
+          
+          markers.push({
+            time: getLocalTimestamp(s.timestamp),
+            position: isShort ? 'belowBar' : 'aboveBar',
+            color: isShort ? '#35d083' : '#ef5e5e',
+            shape: isShort ? 'arrowUp' : 'arrowDown',
+            text: `TP $${tpPrice.toFixed(4)}`
+          });
+          
+          lastClosedIndex = k;
+          active = false;
+          break;
+        }
+      }
+    }
+    
+    if (active && filledPositions.length > 0) {
+      const lastSnap = snapshots1m[snapshots1m.length - 1];
+      const totalQty = filledPositions.reduce((sum, p) => sum + p.qty, 0);
+      const totalCost = filledPositions.reduce((sum, p) => sum + p.amount, 0);
+      const avgPrice = totalCost / totalQty;
+      
+      exitPrice = lastSnap.price;
+      exitTime = lastSnap.timestamp;
+      
+      const profit = isShort 
+        ? totalQty * (avgPrice - exitPrice)
+        : totalQty * (exitPrice - avgPrice);
+        
+      trades.push({
+        profit,
+        maxDrawdown: tradeMaxDrawdown
+      });
+      
+      lastClosedIndex = snapshots1m.length - 1;
+    }
+  }
+
+  const totalTrades = trades.length;
+  const winningTrades = trades.filter(t => t.profit > 0).length;
+  const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+  const netProfit = trades.reduce((sum, t) => sum + t.profit, 0);
+  const maxDrawdown = trades.length > 0 ? Math.max(...trades.map(t => t.maxDrawdown)) : 0;
+
+  return {
+    totalTrades,
+    winRate,
+    netProfit,
+    maxDrawdown,
+    markers
+  };
+}
+
+function runMetricsAnalysis(snapshots1m, signals) {
+  const drawdowns = [];
+  const upsides = [];
+  const markers = [];
+
+  for (const signal of signals) {
+    const triggerPrice = signal.price;
+    const isShort = (signal.type === 'short');
+    
+    markers.push({
+      time: getLocalTimestamp(signal.timestamp),
+      position: isShort ? 'aboveBar' : 'belowBar',
+      color: isShort ? '#ef5e5e' : '#35d083',
+      shape: isShort ? 'arrowDown' : 'arrowUp',
+      text: `Signal ${isShort ? 'S' : 'L'}`
+    });
+
+    const windowMinutes = 1440; // 24h
+    const endIndex = Math.min(signal.index + windowMinutes, snapshots1m.length - 1);
+    
+    let lowPrice = Infinity;
+    let highPrice = -Infinity;
+    
+    for (let k = signal.index + 1; k <= endIndex; k++) {
+      const s = snapshots1m[k];
+      const sLow = Number.isFinite(s.low) ? s.low : s.price;
+      const sHigh = Number.isFinite(s.high) ? s.high : s.price;
+      if (sLow < lowPrice) lowPrice = sLow;
+      if (sHigh > highPrice) highPrice = sHigh;
+    }
+
+    if (lowPrice !== Infinity && highPrice !== -Infinity) {
+      let downsidePercent = 0;
+      let upsidePercent = 0;
+      if (isShort) {
+        downsidePercent = Math.max(0, ((highPrice - triggerPrice) / triggerPrice) * 100);
+        upsidePercent = Math.max(0, ((triggerPrice - lowPrice) / triggerPrice) * 100);
+      } else {
+        downsidePercent = Math.max(0, ((triggerPrice - lowPrice) / triggerPrice) * 100);
+        upsidePercent = Math.max(0, ((highPrice - triggerPrice) / triggerPrice) * 100);
+      }
+      drawdowns.push(downsidePercent);
+      upsides.push(upsidePercent);
+    }
+  }
+
+  return {
+    drawdownMax: drawdowns.length > 0 ? Math.max(...drawdowns) : 0,
+    drawdownAvg: averageValues(drawdowns),
+    drawdownMed: medianValues(drawdowns),
+    upsideMax: upsides.length > 0 ? Math.max(...upsides) : 0,
+    upsideAvg: averageValues(upsides),
+    upsideMed: medianValues(upsides),
+    markers
+  };
+}
+
+function averageValues(arr) {
+  if (arr.length === 0) return 0;
+  return arr.reduce((sum, v) => sum + v, 0) / arr.length;
+}
+
+function medianValues(arr) {
+  if (arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const half = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 !== 0) {
+    return sorted[half];
+  }
+  return (sorted[half - 1] + sorted[half]) / 2;
+}
+
+function renderTradingResults(results) {
+  document.getElementById('backtestTradingResults').classList.remove('hidden');
+  document.getElementById('backtestMetricsResults').classList.add('hidden');
+  
+  document.getElementById('statTotalTrades').textContent = results.totalTrades;
+  document.getElementById('statWinRate').textContent = `${results.winRate.toFixed(2)}%`;
+  
+  const profitEl = document.getElementById('statNetProfit');
+  profitEl.textContent = `$${results.netProfit.toFixed(2)}`;
+  if (results.netProfit >= 0) {
+    profitEl.style.color = 'var(--green)';
+  } else {
+    profitEl.style.color = 'var(--red)';
+  }
+  
+  document.getElementById('statMaxDrawdown').textContent = `${results.maxDrawdown.toFixed(2)}%`;
+  
+  priceSeries.setMarkers(results.markers);
+}
+
+function renderMetricsResults(results) {
+  document.getElementById('backtestTradingResults').classList.add('hidden');
+  document.getElementById('backtestMetricsResults').classList.remove('hidden');
+  
+  document.getElementById('statDrawdownMax').textContent = `${results.drawdownMax.toFixed(2)}%`;
+  document.getElementById('statDrawdownAvg').textContent = `${results.drawdownAvg.toFixed(2)}%`;
+  document.getElementById('statDrawdownMed').textContent = `${results.drawdownMed.toFixed(2)}%`;
+  
+  document.getElementById('statUpsideMax').textContent = `${results.upsideMax.toFixed(2)}%`;
+  document.getElementById('statUpsideAvg').textContent = `${results.upsideAvg.toFixed(2)}%`;
+  document.getElementById('statUpsideMed').textContent = `${results.upsideMed.toFixed(2)}%`;
+  
+  priceSeries.setMarkers(results.markers);
 }
 
 // Run startup

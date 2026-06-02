@@ -140,6 +140,7 @@
           <div class="alerts-tabs hidden" id="alertsTabs" role="tablist">
             <button id="tabActiveAlerts" class="tab-btn active" type="button">Active Alerts (<span id="alertsCount">0</span>)</button>
             <button id="tabCreateAlert" class="tab-btn" type="button">Create Alert</button>
+            <button id="tabBacktest" class="tab-btn" type="button">Backtest & Sim</button>
           </div>
 
           <!-- Placeholder when not logged in -->
@@ -230,6 +231,165 @@
               <div id="formFeedback" class="feedback-msg"></div>
             </form>
           </div>
+
+          <!-- Tab Content: Backtest & Sim -->
+          <div id="tabContentBacktest" class="tab-content hidden">
+            <form id="backtestForm" class="alert-form">
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                  <label for="backtestPeriodInput" id="lblBacktestPeriod">Trading Period (1-365 days)</label>
+                  <input type="number" id="backtestPeriodInput" min="1" max="365" value="30" required/>
+                </div>
+                <div class="form-group">
+                  <label for="backtestAlertSelect" id="lblBacktestAlert">Signal Alert</label>
+                  <select id="backtestAlertSelect" required>
+                    <option value="" disabled selected>Select Alert...</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="backtestModeSelect" id="lblBacktestMode">Mode</label>
+                <select id="backtestModeSelect" required>
+                  <option value="trading" selected>Trading Simulation</option>
+                  <option value="metrics">Metrics Analysis</option>
+                </select>
+              </div>
+
+              <!-- Trading Simulation Settings Block -->
+              <div id="tradingSimSettingsBlock" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label for="backtestOrderCount" id="lblBacktestOrderCount">Number of Limit Orders</label>
+                  <select id="backtestOrderCount">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                  </select>
+                </div>
+
+                <div id="gridLegsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                  <!-- Leg 1 -->
+                  <div class="grid-leg-row" data-leg="1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegOffset1">Order 1 Offset (%)</label>
+                      <input type="number" class="leg-offset" step="0.01" value="-0.3" placeholder="e.g. -0.3"/>
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegAmount1">Order 1 Amount (USD)</label>
+                      <input type="number" class="leg-amount" step="0.1" value="10" placeholder="e.g. 10"/>
+                    </div>
+                  </div>
+                  <!-- Leg 2 -->
+                  <div class="grid-leg-row" data-leg="2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegOffset2">Order 2 Offset (%)</label>
+                      <input type="number" class="leg-offset" step="0.01" value="-1.0" placeholder="e.g. -1.0"/>
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegAmount2">Order 2 Amount (USD)</label>
+                      <input type="number" class="leg-amount" step="0.1" value="20" placeholder="e.g. 20"/>
+                    </div>
+                  </div>
+                  <!-- Leg 3 -->
+                  <div class="grid-leg-row" data-leg="3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegOffset3">Order 3 Offset (%)</label>
+                      <input type="number" class="leg-offset" step="0.01" value="-2.0" placeholder="e.g. -2.0"/>
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegAmount3">Order 3 Amount (USD)</label>
+                      <input type="number" class="leg-amount" step="0.1" value="30" placeholder="e.g. 30"/>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <div class="form-group">
+                    <label for="backtestTpPercent" id="lblBacktestTpPercent">Take Profit (%)</label>
+                    <input type="number" id="backtestTpPercent" step="0.01" value="1.5" required/>
+                  </div>
+                  <div class="form-group">
+                    <label for="backtestTpAnchor" id="lblBacktestTpAnchor">TP Anchor Price</label>
+                    <select id="backtestTpAnchor" required>
+                      <option value="avg" selected>Average Entry Price</option>
+                      <option value="order1">Order 1 Price</option>
+                      <option value="order2">Order 2 Price</option>
+                      <option value="order3">Order 3 Price</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="action-btn create-btn" id="btnRunBacktest">Run Simulation</button>
+              <div id="backtestFeedback" class="feedback-msg"></div>
+            </form>
+
+            <!-- Trading Simulation Results Dashboard -->
+            <div id="backtestTradingResults" class="backtest-results-block hidden" style="margin-top: 16px;">
+              <h3 style="margin-bottom: 12px; color: var(--amber);" id="titleTradingResults">Trading Simulation Results</h3>
+              <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                <div class="stat-card">
+                  <span class="label" id="lblStatTotalTrades">Total Trades</span>
+                  <strong id="statTotalTrades">0</strong>
+                </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatWinRate">Win Rate</span>
+                  <strong style="color: var(--green);" id="statWinRate">0%</strong>
+                </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatNetProfit">Total Net Profit</span>
+                  <strong id="statNetProfit">$0.00</strong>
+                </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatMaxDrawdown">Max Drawdown</span>
+                  <strong style="color: var(--red);" id="statMaxDrawdown">0.00%</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Metrics Analysis Results Dashboard -->
+            <div id="backtestMetricsResults" class="backtest-results-block hidden" style="margin-top: 16px;">
+              <h3 style="margin-bottom: 12px; color: var(--amber);" id="titleMetricsResults">Metrics Analysis Results (24h Window)</h3>
+              
+              <div class="metrics-section">
+                <h4 id="titleDrawdownSection">Downside Drawdown Deviation</h4>
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblDrawdownMax">Maximum</span>
+                    <strong style="font-size: 16px; color: var(--red);" id="statDrawdownMax">0.00%</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblDrawdownAvg">Average</span>
+                    <strong style="font-size: 16px; color: var(--red);" id="statDrawdownAvg">0.00%</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblDrawdownMed">Median</span>
+                    <strong style="font-size: 16px; color: var(--red);" id="statDrawdownMed">0.00%</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="metrics-section">
+                <h4 id="titleUpsideSection">Upside Profit Run</h4>
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblUpsideMax">Maximum</span>
+                    <strong style="font-size: 16px; color: var(--green);" id="statUpsideMax">0.00%</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblUpsideAvg">Average</span>
+                    <strong style="font-size: 16px; color: var(--green);" id="statUpsideAvg">0.00%</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblUpsideMed">Median</span>
+                    <strong style="font-size: 16px; color: var(--green);" id="statUpsideMed">0.00%</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
         </div>
       </section>
     </main>
