@@ -237,23 +237,44 @@
             <form id="backtestForm" class="alert-form">
               <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                 <div class="form-group">
-                  <label for="backtestPeriodInput" id="lblBacktestPeriod">Trading Period (1-365 days)</label>
-                  <input type="number" id="backtestPeriodInput" min="1" max="365" value="30" required/>
+                  <label for="backtestStartDate" id="lblBacktestStartDate">Start Date</label>
+                  <input type="date" id="backtestStartDate" required/>
                 </div>
+                <div class="form-group">
+                  <label for="backtestEndDate" id="lblBacktestEndDate">End Date</label>
+                  <input type="date" id="backtestEndDate" required/>
+                </div>
+              </div>
+
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                 <div class="form-group">
                   <label for="backtestAlertSelect" id="lblBacktestAlert">Signal Alert</label>
                   <select id="backtestAlertSelect" required>
                     <option value="" disabled selected>Select Alert...</option>
                   </select>
                 </div>
+                <div class="form-group">
+                  <label for="backtestDirectionSelect" id="lblBacktestDirection">Signal Direction</label>
+                  <select id="backtestDirectionSelect" required>
+                    <option value="auto" selected>Auto (From Crossover)</option>
+                    <option value="long">Force Long</option>
+                    <option value="short">Force Short</option>
+                  </select>
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="backtestModeSelect" id="lblBacktestMode">Mode</label>
-                <select id="backtestModeSelect" required>
-                  <option value="trading" selected>Trading Simulation</option>
-                  <option value="metrics">Metrics Analysis</option>
-                </select>
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                  <label for="backtestModeSelect" id="lblBacktestMode">Mode</label>
+                  <select id="backtestModeSelect" required>
+                    <option value="trading" selected>Trading Simulation</option>
+                    <option value="metrics">Metrics Analysis</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="backtestTradeAmount" id="lblBacktestTradeAmount">Sum per Trade (USD)</label>
+                  <input type="number" id="backtestTradeAmount" min="0" placeholder="e.g. 100 (Optional)"/>
+                </div>
               </div>
 
               <!-- Trading Simulation Settings Block -->
@@ -303,14 +324,23 @@
                   </div>
                 </div>
 
-                <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <!-- Take Profit Options -->
+                <div class="form-group" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="backtestTpMode" id="lblBacktestTpMode">Take Profit Mode</label>
+                  <select id="backtestTpMode" required>
+                    <option value="percent" selected>Percent Offset</option>
+                    <option value="metric">Metric Crossover (Next Signal)</option>
+                  </select>
+                </div>
+
+                <div id="tpPercentSettingsGroup" class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                   <div class="form-group">
                     <label for="backtestTpPercent" id="lblBacktestTpPercent">Take Profit (%)</label>
-                    <input type="number" id="backtestTpPercent" step="0.01" value="1.5" required/>
+                    <input type="number" id="backtestTpPercent" step="0.01" value="1.5"/>
                   </div>
                   <div class="form-group">
                     <label for="backtestTpAnchor" id="lblBacktestTpAnchor">TP Anchor Price</label>
-                    <select id="backtestTpAnchor" required>
+                    <select id="backtestTpAnchor">
                       <option value="avg" selected>Average Entry Price</option>
                       <option value="order1">Order 1 Price</option>
                       <option value="order2">Order 2 Price</option>
@@ -318,6 +348,22 @@
                     </select>
                   </div>
                 </div>
+
+                <!-- Stop Loss Options -->
+                <div class="form-group" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="backtestSlMode" id="lblBacktestSlMode">Stop Loss Mode</label>
+                  <select id="backtestSlMode" required>
+                    <option value="none" selected>None</option>
+                    <option value="percent">Percent Offset</option>
+                    <option value="metric">Metric Crossover (Next Signal)</option>
+                  </select>
+                </div>
+
+                <div id="slPercentSettingsGroup" class="form-group hidden" style="margin-bottom: 12px;">
+                  <label for="backtestSlPercent" id="lblBacktestSlPercent">Stop Loss (%)</label>
+                  <input type="number" id="backtestSlPercent" step="0.01" value="2.0"/>
+                </div>
+
               </div>
 
               <button type="submit" class="action-btn create-btn" id="btnRunBacktest">Run Simulation</button>

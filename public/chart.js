@@ -2129,6 +2129,13 @@ const TRANSLATIONS = {
     alertUpdated: "Alert updated successfully.",
     backtestTab: "Backtest & Sim",
     backtestPeriod: "Trading Period (1-365 days)",
+    backtestStartDate: "Start Date",
+    backtestEndDate: "End Date",
+    backtestDirection: "Signal Direction",
+    backtestTradeAmount: "Sum per Trade (USD)",
+    backtestTpMode: "Take Profit Mode",
+    backtestSlMode: "Stop Loss Mode",
+    backtestSlPercent: "Stop Loss (%)",
     backtestAlert: "Signal Alert",
     backtestMode: "Mode",
     tradingSim: "Trading Simulation",
@@ -2205,7 +2212,7 @@ const TRANSLATIONS = {
     dontSeeButton: "Не видите кнопку?",
     makeSure: "Убедитесь, что:",
     botTokenSaved: "Токен бота сохранен в ⚙️ Настройках бота.",
-    domainMatches: "Текущий домен совпадает с доменом бота в @BotFather (команда /setdomain).",
+    domainMatches: "Текущий домен совпадает с доменов бота в @BotFather (команда /setdomain).",
 
     connected: "Соединение успешно установлено!",
     settingsSaved: "Настройки успешно сохранены!",
@@ -2217,6 +2224,13 @@ const TRANSLATIONS = {
     alertUpdated: "Алерт успешно обновлен.",
     backtestTab: "Бэктест и Тест",
     backtestPeriod: "Период торговли (1-365 дней)",
+    backtestStartDate: "Дата начала",
+    backtestEndDate: "Дата окончания",
+    backtestDirection: "Направление сигнала",
+    backtestTradeAmount: "Сумма на сделку (USD)",
+    backtestTpMode: "Режим Тейк Профита",
+    backtestSlMode: "Режим Стоп Лосса",
+    backtestSlPercent: "Стоп Лосс (%)",
     backtestAlert: "Сигнальное оповещение",
     backtestMode: "Режим",
     tradingSim: "Симуляция торговли",
@@ -2544,11 +2558,27 @@ function applyLanguage(lang) {
   const tabBacktest = document.getElementById('tabBacktest');
   if (tabBacktest) tabBacktest.textContent = t.backtestTab;
   
-  const lblBacktestPeriod = document.getElementById('lblBacktestPeriod');
-  if (lblBacktestPeriod) lblBacktestPeriod.textContent = t.backtestPeriod;
+  const lblBacktestStartDate = document.getElementById('lblBacktestStartDate');
+  if (lblBacktestStartDate) lblBacktestStartDate.textContent = t.backtestStartDate;
+  
+  const lblBacktestEndDate = document.getElementById('lblBacktestEndDate');
+  if (lblBacktestEndDate) lblBacktestEndDate.textContent = t.backtestEndDate;
   
   const lblBacktestAlert = document.getElementById('lblBacktestAlert');
   if (lblBacktestAlert) lblBacktestAlert.textContent = t.backtestAlert;
+  
+  const lblBacktestDirection = document.getElementById('lblBacktestDirection');
+  if (lblBacktestDirection) lblBacktestDirection.textContent = t.backtestDirection;
+  
+  const backtestDirectionSelect = document.getElementById('backtestDirectionSelect');
+  if (backtestDirectionSelect) {
+    backtestDirectionSelect.options[0].textContent = lang === 'en' ? 'Auto (From Crossover)' : 'Авто (из пересечения)';
+    backtestDirectionSelect.options[1].textContent = lang === 'en' ? 'Force Long' : 'Только Лонг';
+    backtestDirectionSelect.options[2].textContent = lang === 'en' ? 'Force Short' : 'Только Шорт';
+  }
+  
+  const lblBacktestTradeAmount = document.getElementById('lblBacktestTradeAmount');
+  if (lblBacktestTradeAmount) lblBacktestTradeAmount.textContent = t.backtestTradeAmount;
   
   const lblBacktestMode = document.getElementById('lblBacktestMode');
   if (lblBacktestMode) lblBacktestMode.textContent = t.backtestMode;
@@ -2572,6 +2602,15 @@ function applyLanguage(lang) {
     if (amountLbl) amountLbl.textContent = lang === 'en' ? `Order ${legNum} Amount (USD)` : `Ордер ${legNum} Сумма (USD)`;
   });
   
+  const lblBacktestTpMode = document.getElementById('lblBacktestTpMode');
+  if (lblBacktestTpMode) lblBacktestTpMode.textContent = t.backtestTpMode;
+  
+  const backtestTpMode = document.getElementById('backtestTpMode');
+  if (backtestTpMode) {
+    backtestTpMode.options[0].textContent = lang === 'en' ? 'Percent Offset' : 'Процентное отклонение';
+    backtestTpMode.options[1].textContent = lang === 'en' ? 'Metric Crossover (Next Signal)' : 'Пересечение показателей (след. сигнал)';
+  }
+  
   const lblBacktestTpPercent = document.getElementById('lblBacktestTpPercent');
   if (lblBacktestTpPercent) lblBacktestTpPercent.textContent = t.takeProfitPercent;
   
@@ -2585,6 +2624,19 @@ function applyLanguage(lang) {
     backtestTpAnchor.options[2].textContent = lang === 'en' ? 'Order 2 Price' : 'Цена 2-го ордера';
     backtestTpAnchor.options[3].textContent = lang === 'en' ? 'Order 3 Price' : 'Цена 3-го ордера';
   }
+  
+  const lblBacktestSlMode = document.getElementById('lblBacktestSlMode');
+  if (lblBacktestSlMode) lblBacktestSlMode.textContent = t.backtestSlMode;
+  
+  const backtestSlMode = document.getElementById('backtestSlMode');
+  if (backtestSlMode) {
+    backtestSlMode.options[0].textContent = lang === 'en' ? 'None' : 'Нет';
+    backtestSlMode.options[1].textContent = lang === 'en' ? 'Percent Offset' : 'Процентное отклонение';
+    backtestSlMode.options[2].textContent = lang === 'en' ? 'Metric Crossover (Next Signal)' : 'Пересечение показателей (след. сигнал)';
+  }
+  
+  const lblBacktestSlPercent = document.getElementById('lblBacktestSlPercent');
+  if (lblBacktestSlPercent) lblBacktestSlPercent.textContent = t.backtestSlPercent;
   
   const btnRunBacktest = document.getElementById('btnRunBacktest');
   if (btnRunBacktest) btnRunBacktest.textContent = t.runSimulation;
@@ -2646,6 +2698,49 @@ function initBacktestConfigurator() {
   const tradingSimSettingsBlock = document.getElementById('tradingSimSettingsBlock');
   const backtestOrderCount = document.getElementById('backtestOrderCount');
   const gridLegsContainer = document.getElementById('gridLegsContainer');
+
+  // Set default date range: 30 days ago to today
+  const backtestStartDate = document.getElementById('backtestStartDate');
+  const backtestEndDate = document.getElementById('backtestEndDate');
+  if (backtestStartDate && backtestEndDate) {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Format YYYY-MM-DD local time safely
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    backtestStartDate.value = formatLocalDate(thirtyDaysAgo);
+    backtestEndDate.value = formatLocalDate(today);
+  }
+
+  // Toggle TP mode offset visibility
+  const backtestTpMode = document.getElementById('backtestTpMode');
+  const tpPercentSettingsGroup = document.getElementById('tpPercentSettingsGroup');
+  if (backtestTpMode && tpPercentSettingsGroup) {
+    backtestTpMode.addEventListener('change', () => {
+      if (backtestTpMode.value === 'percent') {
+        tpPercentSettingsGroup.classList.remove('hidden');
+      } else {
+        tpPercentSettingsGroup.classList.add('hidden');
+      }
+    });
+  }
+
+  // Toggle SL mode offset visibility
+  const backtestSlMode = document.getElementById('backtestSlMode');
+  const slPercentSettingsGroup = document.getElementById('slPercentSettingsGroup');
+  if (backtestSlMode && slPercentSettingsGroup) {
+    backtestSlMode.addEventListener('change', () => {
+      if (backtestSlMode.value === 'percent') {
+        slPercentSettingsGroup.classList.remove('hidden');
+      } else {
+        slPercentSettingsGroup.classList.add('hidden');
+      }
+    });
+  }
 
   // Tab switching
   if (tabBacktest) {
@@ -2735,9 +2830,16 @@ async function runLocalBacktest(e) {
   runBtn.disabled = true;
 
   try {
-    const periodDays = parseInt(document.getElementById('backtestPeriodInput').value) || 30;
+    const startDateVal = document.getElementById('backtestStartDate').value;
+    const endDateVal = document.getElementById('backtestEndDate').value;
     const alertId = document.getElementById('backtestAlertSelect').value;
     const mode = document.getElementById('backtestModeSelect').value;
+    const directionOverride = document.getElementById('backtestDirectionSelect').value;
+    const tradeAmount = parseFloat(document.getElementById('backtestTradeAmount').value) || null;
+    
+    if (!startDateVal || !endDateVal) {
+      throw new Error(currentLang === 'en' ? 'Please select a valid date range.' : 'Пожалуйста, выберите корректный диапазон дат.');
+    }
     
     if (!alertId) {
       throw new Error(currentLang === 'en' ? 'Please select a trigger alert.' : 'Пожалуйста, выберите сигнальное оповещение.');
@@ -2755,15 +2857,20 @@ async function runLocalBacktest(e) {
     }
     const allSnapshots1m = await response.json();
     
-    const cutoffTime = Date.now() - (periodDays * 24 * 60 * 60 * 1000);
-    const snapshots1m = allSnapshots1m.filter(s => new Date(s.timestamp).getTime() >= cutoffTime);
+    // Parse start and end dates locally
+    const startMs = new Date(startDateVal + 'T00:00:00').getTime();
+    const endMs = new Date(endDateVal + 'T23:59:59').getTime();
+    const snapshots1m = allSnapshots1m.filter(s => {
+      const t = new Date(s.timestamp).getTime();
+      return t >= startMs && t <= endMs;
+    });
     
     if (snapshots1m.length === 0) {
       throw new Error(currentLang === 'en' ? 'No historical data found for the selected period.' : 'Нет исторических данных за выбранный период.');
     }
     
     feedback.textContent = currentLang === 'en' ? 'Identifying signals...' : 'Поиск сигналов...';
-    const signals = generateBacktestSignals(snapshots1m, alert);
+    const signals = generateBacktestSignals(snapshots1m, alert, directionOverride);
     
     if (signals.length === 0) {
       feedback.className = 'feedback-msg error';
@@ -2786,9 +2893,15 @@ async function runLocalBacktest(e) {
         if (legNum <= count) {
           const offsetInput = row.querySelector('.leg-offset');
           const amountInput = row.querySelector('.leg-amount');
+          
+          let amount = parseFloat(amountInput.value) || 0;
+          if (tradeAmount !== null) {
+            amount = tradeAmount / count;
+          }
+          
           legs.push({
             offset: parseFloat(offsetInput.value) || 0,
-            amount: parseFloat(amountInput.value) || 0
+            amount: amount
           });
         }
       });
@@ -2812,7 +2925,7 @@ async function runLocalBacktest(e) {
   }
 }
 
-function generateBacktestSignals(snapshots1m, alert) {
+function generateBacktestSignals(snapshots1m, alert, directionOverride) {
   const TIMEFRAMES = {
     '1m': 60_000,
     '5m': 5 * 60_000,
@@ -2893,7 +3006,7 @@ function generateBacktestSignals(snapshots1m, alert) {
     const isTriggered = evaluateExpression(currentBucketAgg, alert.expression);
     if (isTriggered) {
       const currentPrice = currentBucketAgg.price;
-      const trendMode = alert.trend_mode || 'none';
+      const trendMode = (directionOverride && directionOverride !== 'auto') ? directionOverride : (alert.trend_mode || 'none');
       let shouldTrigger = false;
       
       if (trendMode === 'long' || trendMode === 'short') {
@@ -2922,7 +3035,7 @@ function generateBacktestSignals(snapshots1m, alert) {
           signals.push({
             timestamp: s.timestamp,
             price: s.price,
-            type: alert.trend_mode === 'short' ? 'short' : 'long',
+            type: trendMode === 'short' ? 'short' : 'long',
             index: i
           });
           lastTriggerTime = sTime;
@@ -2999,20 +3112,26 @@ function evaluateExpression(snapshot, expr) {
 }
 
 function runTradingSimulation(snapshots1m, signals, legs) {
-  const tpPercent = parseFloat(document.getElementById('backtestTpPercent').value) || 1.5;
-  const tpAnchor = document.getElementById('backtestTpAnchor').value;
+  const tpMode = document.getElementById('backtestTpMode')?.value || 'percent';
+  const tpPercent = parseFloat(document.getElementById('backtestTpPercent')?.value) || 1.5;
+  const tpAnchor = document.getElementById('backtestTpAnchor')?.value || 'avg';
+  
+  const slMode = document.getElementById('backtestSlMode')?.value || 'none';
+  const slPercent = parseFloat(document.getElementById('backtestSlPercent')?.value) || 2.0;
   
   let lastClosedIndex = -1;
   const trades = [];
   const markers = [];
 
-  for (const signal of signals) {
+  for (let sIdx = 0; sIdx < signals.length; sIdx++) {
+    const signal = signals[sIdx];
     if (signal.index <= lastClosedIndex) {
       continue;
     }
     
     const triggerPrice = signal.price;
     const isShort = (signal.type === 'short');
+    const nextSignal = signals[sIdx + 1];
     
     const limitOrders = legs.map((leg, index) => {
       const offsetPct = Math.abs(leg.offset);
@@ -3039,19 +3158,28 @@ function runTradingSimulation(snapshots1m, signals, legs) {
       
       // Check cancels/fills if no orders filled yet
       const order1Price = limitOrders[0].limitPrice;
-      const cancelPrice = isShort 
-        ? order1Price * (1 - tpPercent / 100) 
-        : order1Price * (1 + tpPercent / 100);
       
       if (filledPositions.length === 0) {
-        let tpTargetReached = false;
-        if (isShort) {
-          if (s.low <= cancelPrice) tpTargetReached = true;
-        } else {
-          if (s.high >= cancelPrice) tpTargetReached = true;
+        if (tpMode === 'percent') {
+          const cancelPrice = isShort 
+            ? order1Price * (1 - tpPercent / 100) 
+            : order1Price * (1 + tpPercent / 100);
+          
+          let tpTargetReached = false;
+          if (isShort) {
+            if (s.low <= cancelPrice) tpTargetReached = true;
+          } else {
+            if (s.high >= cancelPrice) tpTargetReached = true;
+          }
+          if (tpTargetReached) {
+            lastClosedIndex = k;
+            active = false;
+            break;
+          }
         }
-        if (tpTargetReached) {
-          lastClosedIndex = k;
+        
+        if ((tpMode === 'metric' || slMode === 'metric') && nextSignal && k >= nextSignal.index) {
+          lastClosedIndex = nextSignal.index - 1;
           active = false;
           break;
         }
@@ -3111,35 +3239,106 @@ function runTradingSimulation(snapshots1m, signals, legs) {
           tradeMaxDrawdown = currentDrawdown;
         }
         
-        let tpHit = false;
-        if (isShort) {
-          if (s.low <= tpPrice) tpHit = true;
-        } else {
-          if (s.high >= tpPrice) tpHit = true;
+        // 1. Check Stop Loss Percent
+        if (slMode === 'percent') {
+          let slHit = false;
+          const slPrice = isShort 
+            ? avgPrice * (1 + slPercent / 100)
+            : avgPrice * (1 - slPercent / 100);
+            
+          if (isShort) {
+            if (currentHigh >= slPrice) slHit = true;
+          } else {
+            if (currentLow <= slPrice) slHit = true;
+          }
+          
+          if (slHit) {
+            exitTime = s.timestamp;
+            exitPrice = slPrice;
+            
+            const profit = isShort 
+              ? totalQty * (avgPrice - slPrice)
+              : totalQty * (slPrice - avgPrice);
+              
+            trades.push({
+              profit,
+              maxDrawdown: tradeMaxDrawdown
+            });
+            
+            markers.push({
+              time: getLocalTimestamp(s.timestamp),
+              position: isShort ? 'aboveBar' : 'belowBar',
+              color: '#ef5e5e',
+              shape: isShort ? 'arrowDown' : 'arrowUp',
+              text: `SL $${slPrice.toFixed(4)}`
+            });
+            
+            lastClosedIndex = k;
+            active = false;
+            break;
+          }
         }
         
-        if (tpHit) {
-          exitTime = s.timestamp;
-          exitPrice = tpPrice;
+        // 2. Check Take Profit Percent
+        if (tpMode === 'percent') {
+          let tpHit = false;
+          if (isShort) {
+            if (currentLow <= tpPrice) tpHit = true;
+          } else {
+            if (currentHigh >= tpPrice) tpHit = true;
+          }
+          
+          if (tpHit) {
+            exitTime = s.timestamp;
+            exitPrice = tpPrice;
+            
+            const profit = isShort 
+              ? totalQty * (avgPrice - tpPrice)
+              : totalQty * (tpPrice - avgPrice);
+              
+            trades.push({
+              profit,
+              maxDrawdown: tradeMaxDrawdown
+            });
+            
+            markers.push({
+              time: getLocalTimestamp(s.timestamp),
+              position: isShort ? 'belowBar' : 'aboveBar',
+              color: isShort ? '#35d083' : '#ef5e5e',
+              shape: isShort ? 'arrowUp' : 'arrowDown',
+              text: `TP $${tpPrice.toFixed(4)}`
+            });
+            
+            lastClosedIndex = k;
+            active = false;
+            break;
+          }
+        }
+        
+        // 3. Check Metric Crossover Exit (TP or SL)
+        if ((tpMode === 'metric' || slMode === 'metric') && nextSignal && k >= nextSignal.index) {
+          exitTime = nextSignal.timestamp;
+          exitPrice = nextSignal.price;
           
           const profit = isShort 
-            ? totalQty * (avgPrice - tpPrice)
-            : totalQty * (tpPrice - avgPrice);
+            ? totalQty * (avgPrice - exitPrice)
+            : totalQty * (exitPrice - avgPrice);
             
           trades.push({
             profit,
             maxDrawdown: tradeMaxDrawdown
           });
           
+          const isWin = profit > 0;
           markers.push({
-            time: getLocalTimestamp(s.timestamp),
-            position: isShort ? 'belowBar' : 'aboveBar',
-            color: isShort ? '#35d083' : '#ef5e5e',
-            shape: isShort ? 'arrowUp' : 'arrowDown',
-            text: `TP $${tpPrice.toFixed(4)}`
+            time: getLocalTimestamp(nextSignal.timestamp),
+            position: isWin ? (isShort ? 'belowBar' : 'aboveBar') : (isShort ? 'aboveBar' : 'belowBar'),
+            color: isWin ? '#35d083' : '#ef5e5e',
+            shape: isWin ? (isShort ? 'arrowUp' : 'arrowDown') : (isShort ? 'arrowDown' : 'arrowUp'),
+            text: `Metric Exit $${exitPrice.toFixed(4)}`
           });
           
-          lastClosedIndex = k;
+          lastClosedIndex = nextSignal.index;
           active = false;
           break;
         }
@@ -3162,6 +3361,14 @@ function runTradingSimulation(snapshots1m, signals, legs) {
       trades.push({
         profit,
         maxDrawdown: tradeMaxDrawdown
+      });
+      
+      markers.push({
+        time: getLocalTimestamp(lastSnap.timestamp),
+        position: isShort ? 'belowBar' : 'aboveBar',
+        color: '#888888',
+        shape: 'square',
+        text: `End Exit $${exitPrice.toFixed(4)}`
       });
       
       lastClosedIndex = snapshots1m.length - 1;
