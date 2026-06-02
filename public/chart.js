@@ -2934,6 +2934,70 @@ function generateBacktestSignals(snapshots1m, alert) {
   return signals;
 }
 
+function finalizeActiveBucket(b) {
+  const bucket = {
+    timestamp: b.timestamp,
+    open: b.open,
+    high: b.high,
+    low: b.low,
+    close: b.close,
+    price: b.close
+  };
+  for (const key of Object.keys(b.sums)) {
+    bucket[key] = b.sums[key] / b.counts[key];
+  }
+  bucket.twapModes = {};
+  for (const mode of Object.keys(b.twapModes)) {
+    bucket.twapModes[mode] = {};
+    const modeData = b.twapModes[mode];
+    for (const key of Object.keys(modeData.sums)) {
+      bucket.twapModes[mode][key] = modeData.sums[key] / modeData.counts[key];
+    }
+  }
+  return bucket;
+}
+
+function evaluateExpression(snapshot, expr) {
+  if (!expr) return false;
+
+  if (expr.type === 'compound') {
+    const conditions = expr.conditions || [];
+    if (conditions.length === 0) return false;
+
+    if (expr.logicalOperator === 'or') {
+      return conditions.some(cond => evaluateExpression(snapshot, cond));
+    } else {
+      return conditions.every(cond => evaluateExpression(snapshot, cond));
+    }
+  }
+
+  if (!expr.field1 || !expr.operator) return false;
+
+  const v1 = snapshot[expr.field1];
+  if (v1 === null || v1 === undefined) return false;
+
+  let v2;
+  if (expr.compareType === 'value') {
+    v2 = expr.value;
+  } else {
+    v2 = snapshot[expr.field2];
+  }
+  if (v2 === null || v2 === undefined) return false;
+
+  const num1 = Number(v1);
+  const num2 = Number(v2);
+
+  if (!Number.isFinite(num1) || !Number.isFinite(num2)) return false;
+
+  switch (expr.operator) {
+    case 'gt': return num1 > num2;
+    case 'lt': return num1 < num2;
+    case 'gte': return num1 >= num2;
+    case 'lte': return num1 <= num2;
+    default: return false;
+  }
+}
+
 function runTradingSimulation(snapshots1m, signals, legs) {
   const tpPercent = parseFloat(document.getElementById('backtestTpPercent').value) || 1.5;
   const tpAnchor = document.getElementById('backtestTpAnchor').value;
