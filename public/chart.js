@@ -193,7 +193,7 @@ function initPriceChart() {
     }
   });
 
-  priceSeries = priceChart.addSeries(LightweightCharts.CandlestickSeries, {
+  priceSeries = priceChart.addCandlestickSeries({
     upColor: '#35d083',
     downColor: '#ef5e5e',
     borderVisible: false,
@@ -233,10 +233,10 @@ function initTwapChart() {
   });
 
   twapSeriesMap = {
-    twapNet1h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#5aa7ff', lineWidth: 2, title: 'Net 1H', priceLineVisible: false }),
-    twapNet24h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#eef4ee', lineWidth: 1.5, title: 'Net 24H', priceLineVisible: false }),
-    twapBuy24h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#35d083', lineWidth: 1.5, title: 'Buy 24H', priceLineVisible: false }),
-    twapSell24h: twapChart.addSeries(LightweightCharts.LineSeries, { color: '#ef5e5e', lineWidth: 1.5, title: 'Sell 24H', priceLineVisible: false })
+    twapNet1h: twapChart.addLineSeries({ color: '#5aa7ff', lineWidth: 2, title: 'Net 1H', priceLineVisible: false }),
+    twapNet24h: twapChart.addLineSeries({ color: '#eef4ee', lineWidth: 1.5, title: 'Net 24H', priceLineVisible: false }),
+    twapBuy24h: twapChart.addLineSeries({ color: '#35d083', lineWidth: 1.5, title: 'Buy 24H', priceLineVisible: false }),
+    twapSell24h: twapChart.addLineSeries({ color: '#ef5e5e', lineWidth: 1.5, title: 'Sell 24H', priceLineVisible: false })
   };
 
   twapChart._type = 'twap';
@@ -433,27 +433,27 @@ function addMetricToPanel(panelId, type, depth) {
   const series = {};
 
   if (type === 'bid' || type === 'ask') {
-    series.bybit = panel.chart.addSeries(LightweightCharts.LineSeries, {
+    series.bybit = panel.chart.addLineSeries({
       color: color,
       lineWidth: 1.5,
       title: `Bybit ${type === 'bid' ? 'Bid' : 'Ask'} ${depth}%`,
       priceLineVisible: false
     });
-    series.hl = panel.chart.addSeries(LightweightCharts.LineSeries, {
+    series.hl = panel.chart.addLineSeries({
       color: color,
       lineWidth: 1.2,
       lineStyle: 2,
       title: `HL ${type === 'bid' ? 'Bid' : 'Ask'} ${depth}%`,
       priceLineVisible: false
     });
-    series.combined = panel.chart.addSeries(LightweightCharts.LineSeries, {
+    series.combined = panel.chart.addLineSeries({
       color: color,
       lineWidth: 2.2,
       title: `Combined ${type === 'bid' ? 'Bid' : 'Ask'} ${depth}%`,
       priceLineVisible: false
     });
   } else if (type === 'diff') {
-    series.diff = panel.chart.addSeries(LightweightCharts.BaselineSeries, {
+    series.diff = panel.chart.addBaselineSeries({
       baseValue: { type: 'price', price: 0 },
       topLineColor: '#35d083',          // Green line for positive values
       topFillColor1: 'rgba(53, 208, 131, 0.15)',
