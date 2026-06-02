@@ -277,8 +277,8 @@
                 </div>
               </div>
 
-              <!-- Trading Simulation Settings Block -->
-              <div id="tradingSimSettingsBlock" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
+              <!-- Grid Simulation Settings Block (exclusive to Trading Simulation) -->
+              <div id="gridSettingsBlock" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
                 <div class="form-group" style="margin-bottom: 12px;">
                   <label for="backtestOrderCount" id="lblBacktestOrderCount">Number of Limit Orders</label>
                   <select id="backtestOrderCount">
@@ -288,7 +288,7 @@
                   </select>
                 </div>
 
-                <div id="gridLegsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                <div id="gridLegsContainer" style="display: flex; flex-direction: column; gap: 8px;">
                   <!-- Leg 1 -->
                   <div class="grid-leg-row" data-leg="1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
@@ -323,9 +323,12 @@
                     </div>
                   </div>
                 </div>
+              </div>
 
+              <!-- Take Profit & Stop Loss Settings Block (visible in both modes) -->
+              <div id="exitsSettingsBlock" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
                 <!-- Take Profit Options -->
-                <div class="form-group" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                <div class="form-group" style="margin-bottom: 12px;">
                   <label for="backtestTpMode" id="lblBacktestTpMode">Take Profit Mode</label>
                   <select id="backtestTpMode" required>
                     <option value="percent" selected>Percent Offset</option>
@@ -364,6 +367,13 @@
                   <input type="number" id="backtestSlPercent" step="0.01" value="2.0"/>
                 </div>
 
+                <!-- Exit Signal Alert selection (shown if TP/SL is metric) -->
+                <div id="backtestCloseAlertGroup" class="form-group hidden" style="border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="backtestCloseAlertSelect" id="lblBacktestCloseAlert">Exit Signal Alert</label>
+                  <select id="backtestCloseAlertSelect">
+                    <option value="same" selected>Same as Signal Alert</option>
+                  </select>
+                </div>
               </div>
 
               <button type="submit" class="action-btn create-btn" id="btnRunBacktest">Run Simulation</button>
@@ -429,6 +439,25 @@
                   <div class="stat-card" style="text-align: center;">
                     <span class="label" style="font-size: 9px;" id="lblUpsideMed">Median</span>
                     <strong style="font-size: 16px; color: var(--green);" id="statUpsideMed">0.00%</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metrics Trading Simulation Stats Block (only shown if Trade Amount > 0) -->
+              <div id="metricsTradingStatsBlock" class="metrics-section hidden" style="border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 12px;">
+                <h4 id="titleMetricsTradingSection" style="color: var(--amber);">Trading Results</h4>
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatTotalTrades">Total Trades</span>
+                    <strong style="font-size: 16px;" id="metricsStatTotalTrades">0</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatWinRate">Win Rate</span>
+                    <strong style="font-size: 16px; color: var(--green);" id="metricsStatWinRate">0.00%</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatNetProfit">Net Profit</span>
+                    <strong style="font-size: 16px;" id="metricsStatNetProfit">$0.00</strong>
                   </div>
                 </div>
               </div>

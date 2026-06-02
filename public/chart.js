@@ -2136,6 +2136,9 @@ const TRANSLATIONS = {
     backtestTpMode: "Take Profit Mode",
     backtestSlMode: "Stop Loss Mode",
     backtestSlPercent: "Stop Loss (%)",
+    backtestCloseAlert: "Exit Signal Alert",
+    sameAsSignal: "Same as Signal Alert",
+    tradingResults: "Trading Results",
     backtestAlert: "Signal Alert",
     backtestMode: "Mode",
     tradingSim: "Trading Simulation",
@@ -2231,6 +2234,9 @@ const TRANSLATIONS = {
     backtestTpMode: "Режим Тейк Профита",
     backtestSlMode: "Режим Стоп Лосса",
     backtestSlPercent: "Стоп Лосс (%)",
+    backtestCloseAlert: "Сигнал для закрытия",
+    sameAsSignal: "По умолчанию (текущий)",
+    tradingResults: "Результаты торговли",
     backtestAlert: "Сигнальное оповещение",
     backtestMode: "Режим",
     tradingSim: "Симуляция торговли",
@@ -2638,6 +2644,14 @@ function applyLanguage(lang) {
   const lblBacktestSlPercent = document.getElementById('lblBacktestSlPercent');
   if (lblBacktestSlPercent) lblBacktestSlPercent.textContent = t.backtestSlPercent;
   
+  const lblBacktestCloseAlert = document.getElementById('lblBacktestCloseAlert');
+  if (lblBacktestCloseAlert) lblBacktestCloseAlert.textContent = t.backtestCloseAlert;
+  
+  const selectCloseAlert = document.getElementById('backtestCloseAlertSelect');
+  if (selectCloseAlert && selectCloseAlert.options[0]) {
+    selectCloseAlert.options[0].textContent = t.sameAsSignal;
+  }
+  
   const btnRunBacktest = document.getElementById('btnRunBacktest');
   if (btnRunBacktest) btnRunBacktest.textContent = t.runSimulation;
   
@@ -2679,6 +2693,18 @@ function applyLanguage(lang) {
   const upMedLbl = document.getElementById('lblUpsideMed');
   if (upMedLbl) upMedLbl.textContent = t.median;
 
+  const titleMetricsTradingSection = document.getElementById('titleMetricsTradingSection');
+  if (titleMetricsTradingSection) titleMetricsTradingSection.textContent = t.tradingResults;
+  
+  const lblMetricsStatTotalTrades = document.getElementById('lblMetricsStatTotalTrades');
+  if (lblMetricsStatTotalTrades) lblMetricsStatTotalTrades.textContent = t.totalTrades;
+  
+  const lblMetricsStatWinRate = document.getElementById('lblMetricsStatWinRate');
+  if (lblMetricsStatWinRate) lblMetricsStatWinRate.textContent = t.winRate;
+  
+  const lblMetricsStatNetProfit = document.getElementById('lblMetricsStatNetProfit');
+  if (lblMetricsStatNetProfit) lblMetricsStatNetProfit.textContent = t.totalNetProfit;
+
   // Re-render cached list of alerts in correct language
   if (cachedAlerts.length > 0) {
     renderAlertsList(cachedAlerts);
@@ -2695,9 +2721,10 @@ function initBacktestConfigurator() {
   const backtestForm = document.getElementById('backtestForm');
   const backtestAlertSelect = document.getElementById('backtestAlertSelect');
   const backtestModeSelect = document.getElementById('backtestModeSelect');
-  const tradingSimSettingsBlock = document.getElementById('tradingSimSettingsBlock');
+  const gridSettingsBlock = document.getElementById('gridSettingsBlock');
   const backtestOrderCount = document.getElementById('backtestOrderCount');
   const gridLegsContainer = document.getElementById('gridLegsContainer');
+  const backtestCloseAlertGroup = document.getElementById('backtestCloseAlertGroup');
 
   // Set default date range: 30 days ago to today
   const backtestStartDate = document.getElementById('backtestStartDate');
@@ -2716,9 +2743,22 @@ function initBacktestConfigurator() {
     backtestEndDate.value = formatLocalDate(today);
   }
 
-  // Toggle TP mode offset visibility
+  // Toggle TP mode offset visibility and close alert group visibility
   const backtestTpMode = document.getElementById('backtestTpMode');
   const tpPercentSettingsGroup = document.getElementById('tpPercentSettingsGroup');
+  const backtestSlMode = document.getElementById('backtestSlMode');
+  const slPercentSettingsGroup = document.getElementById('slPercentSettingsGroup');
+
+  const updateCloseAlertVisibility = () => {
+    if (backtestCloseAlertGroup && backtestTpMode && backtestSlMode) {
+      if (backtestTpMode.value === 'metric' || backtestSlMode.value === 'metric') {
+        backtestCloseAlertGroup.classList.remove('hidden');
+      } else {
+        backtestCloseAlertGroup.classList.add('hidden');
+      }
+    }
+  };
+
   if (backtestTpMode && tpPercentSettingsGroup) {
     backtestTpMode.addEventListener('change', () => {
       if (backtestTpMode.value === 'percent') {
@@ -2726,12 +2766,11 @@ function initBacktestConfigurator() {
       } else {
         tpPercentSettingsGroup.classList.add('hidden');
       }
+      updateCloseAlertVisibility();
     });
   }
 
-  // Toggle SL mode offset visibility
-  const backtestSlMode = document.getElementById('backtestSlMode');
-  const slPercentSettingsGroup = document.getElementById('slPercentSettingsGroup');
+  // Toggle SL mode offset visibility and close alert group visibility
   if (backtestSlMode && slPercentSettingsGroup) {
     backtestSlMode.addEventListener('change', () => {
       if (backtestSlMode.value === 'percent') {
@@ -2739,6 +2778,7 @@ function initBacktestConfigurator() {
       } else {
         slPercentSettingsGroup.classList.add('hidden');
       }
+      updateCloseAlertVisibility();
     });
   }
 
@@ -2754,6 +2794,7 @@ function initBacktestConfigurator() {
       alertElements.tabContentForm.classList.add('hidden');
 
       populateBacktestAlertSelect();
+      populateBacktestCloseAlertSelect();
     });
   }
 
@@ -2762,26 +2803,30 @@ function initBacktestConfigurator() {
     backtestModeSelect.addEventListener('change', () => {
       const mode = backtestModeSelect.value;
       if (mode === 'trading') {
-        tradingSimSettingsBlock.classList.remove('hidden');
+        if (gridSettingsBlock) gridSettingsBlock.classList.remove('hidden');
       } else {
-        tradingSimSettingsBlock.classList.add('hidden');
+        if (gridSettingsBlock) gridSettingsBlock.classList.add('hidden');
       }
     });
+    // Trigger initial change
+    backtestModeSelect.dispatchEvent(new Event('change'));
   }
 
   // Hide/show order legs based on order count
   if (backtestOrderCount) {
     backtestOrderCount.addEventListener('change', () => {
       const count = parseInt(backtestOrderCount.value) || 3;
-      const legRows = gridLegsContainer.querySelectorAll('.grid-leg-row');
-      legRows.forEach(row => {
-        const legNum = parseInt(row.dataset.leg);
-        if (legNum <= count) {
-          row.style.display = 'grid';
-        } else {
-          row.style.display = 'none';
-        }
-      });
+      if (gridLegsContainer) {
+        const legRows = gridLegsContainer.querySelectorAll('.grid-leg-row');
+        legRows.forEach(row => {
+          const legNum = parseInt(row.dataset.leg);
+          if (legNum <= count) {
+            row.style.display = 'grid';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      }
     });
     // Trigger initial change
     backtestOrderCount.dispatchEvent(new Event('change'));
@@ -2816,6 +2861,31 @@ function populateBacktestAlertSelect() {
       opt.selected = true;
     }
     backtestAlertSelect.appendChild(opt);
+  });
+}
+
+function populateBacktestCloseAlertSelect() {
+  const select = document.getElementById('backtestCloseAlertSelect');
+  if (!select) return;
+  
+  const currentVal = select.value;
+  select.innerHTML = '';
+  
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = 'same';
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  defaultOpt.textContent = currentLang === 'en' ? 'Same as Signal Alert' : 'По умолчанию (текущий)';
+  defaultOpt.selected = !currentVal || currentVal === 'same';
+  select.appendChild(defaultOpt);
+  
+  cachedAlerts.forEach(alert => {
+    const opt = document.createElement('option');
+    opt.value = alert.id;
+    opt.textContent = `${alert.name} (${alert.timeframe || '1m'})`;
+    if (alert.id === currentVal) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
   });
 }
 
@@ -2882,6 +2952,19 @@ async function runLocalBacktest(e) {
       return;
     }
     
+    const closeAlertId = document.getElementById('backtestCloseAlertSelect')?.value || 'same';
+    let closeSignals = [];
+    if (closeAlertId && closeAlertId !== 'same') {
+      const closeAlert = cachedAlerts.find(a => a.id === closeAlertId);
+      if (closeAlert) {
+        closeSignals = generateBacktestSignals(snapshots1m, closeAlert, 'auto');
+      } else {
+        closeSignals = signals;
+      }
+    } else {
+      closeSignals = signals;
+    }
+    
     if (mode === 'trading') {
       feedback.textContent = currentLang === 'en' ? 'Simulating trades...' : 'Симуляция сделок...';
       
@@ -2906,11 +2989,11 @@ async function runLocalBacktest(e) {
         }
       });
 
-      const results = runTradingSimulation(snapshots1m, signals, legs);
+      const results = runTradingSimulation(snapshots1m, signals, legs, closeSignals);
       renderTradingResults(results);
     } else {
       feedback.textContent = currentLang === 'en' ? 'Analyzing price deviation metrics...' : 'Анализ отклонения цен...';
-      const results = runMetricsAnalysis(snapshots1m, signals);
+      const results = runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount);
       renderMetricsResults(results);
     }
     
@@ -3111,7 +3194,7 @@ function evaluateExpression(snapshot, expr) {
   }
 }
 
-function runTradingSimulation(snapshots1m, signals, legs) {
+function runTradingSimulation(snapshots1m, signals, legs, closeSignals) {
   const tpMode = document.getElementById('backtestTpMode')?.value || 'percent';
   const tpPercent = parseFloat(document.getElementById('backtestTpPercent')?.value) || 1.5;
   const tpAnchor = document.getElementById('backtestTpAnchor')?.value || 'avg';
@@ -3123,6 +3206,8 @@ function runTradingSimulation(snapshots1m, signals, legs) {
   const trades = [];
   const markers = [];
 
+  const safeCloseSignals = closeSignals || [];
+
   for (let sIdx = 0; sIdx < signals.length; sIdx++) {
     const signal = signals[sIdx];
     if (signal.index <= lastClosedIndex) {
@@ -3131,7 +3216,7 @@ function runTradingSimulation(snapshots1m, signals, legs) {
     
     const triggerPrice = signal.price;
     const isShort = (signal.type === 'short');
-    const nextSignal = signals[sIdx + 1];
+    const nextCloseSignal = safeCloseSignals.find(cs => cs.index > signal.index);
     
     const limitOrders = legs.map((leg, index) => {
       const offsetPct = Math.abs(leg.offset);
@@ -3178,8 +3263,8 @@ function runTradingSimulation(snapshots1m, signals, legs) {
           }
         }
         
-        if ((tpMode === 'metric' || slMode === 'metric') && nextSignal && k >= nextSignal.index) {
-          lastClosedIndex = nextSignal.index - 1;
+        if ((tpMode === 'metric' || slMode === 'metric') && nextCloseSignal && k >= nextCloseSignal.index) {
+          lastClosedIndex = nextCloseSignal.index - 1;
           active = false;
           break;
         }
@@ -3316,9 +3401,9 @@ function runTradingSimulation(snapshots1m, signals, legs) {
         }
         
         // 3. Check Metric Crossover Exit (TP or SL)
-        if ((tpMode === 'metric' || slMode === 'metric') && nextSignal && k >= nextSignal.index) {
-          exitTime = nextSignal.timestamp;
-          exitPrice = nextSignal.price;
+        if ((tpMode === 'metric' || slMode === 'metric') && nextCloseSignal && k >= nextCloseSignal.index) {
+          exitTime = nextCloseSignal.timestamp;
+          exitPrice = nextCloseSignal.price;
           
           const profit = isShort 
             ? totalQty * (avgPrice - exitPrice)
@@ -3331,14 +3416,14 @@ function runTradingSimulation(snapshots1m, signals, legs) {
           
           const isWin = profit > 0;
           markers.push({
-            time: getLocalTimestamp(nextSignal.timestamp),
+            time: getLocalTimestamp(nextCloseSignal.timestamp),
             position: isWin ? (isShort ? 'belowBar' : 'aboveBar') : (isShort ? 'aboveBar' : 'belowBar'),
             color: isWin ? '#35d083' : '#ef5e5e',
             shape: isWin ? (isShort ? 'arrowUp' : 'arrowDown') : (isShort ? 'arrowDown' : 'arrowUp'),
             text: `Metric Exit $${exitPrice.toFixed(4)}`
           });
           
-          lastClosedIndex = nextSignal.index;
+          lastClosedIndex = nextCloseSignal.index;
           active = false;
           break;
         }
@@ -3390,10 +3475,18 @@ function runTradingSimulation(snapshots1m, signals, legs) {
   };
 }
 
-function runMetricsAnalysis(snapshots1m, signals) {
+function runMetricsAnalysis(snapshots1m, signals, closeSignals, tradeAmount) {
   const drawdowns = [];
   const upsides = [];
   const markers = [];
+  const metricTrades = [];
+
+  const tpMode = document.getElementById('backtestTpMode')?.value || 'percent';
+  const tpPercent = parseFloat(document.getElementById('backtestTpPercent')?.value) || 1.5;
+  const slMode = document.getElementById('backtestSlMode')?.value || 'none';
+  const slPercent = parseFloat(document.getElementById('backtestSlPercent')?.value) || 2.0;
+
+  const safeCloseSignals = closeSignals || [];
 
   for (const signal of signals) {
     const triggerPrice = signal.price;
@@ -3434,6 +3527,109 @@ function runMetricsAnalysis(snapshots1m, signals) {
       drawdowns.push(downsidePercent);
       upsides.push(upsidePercent);
     }
+
+    // Trade Simulation for Metrics Analysis (only if tradeAmount > 0)
+    if (tradeAmount && tradeAmount > 0) {
+      const qty = tradeAmount / triggerPrice;
+      const nextCloseSignal = safeCloseSignals.find(cs => cs.index > signal.index);
+      
+      let exitPrice = null;
+      let tradeMaxDrawdown = 0;
+      let tradeClosed = false;
+
+      // Define TP / SL absolute prices
+      const tpPrice = isShort 
+        ? triggerPrice * (1 - tpPercent / 100) 
+        : triggerPrice * (1 + tpPercent / 100);
+        
+      const slPrice = isShort 
+        ? triggerPrice * (1 + slPercent / 100) 
+        : triggerPrice * (1 - slPercent / 100);
+
+      for (let k = signal.index + 1; k <= endIndex; k++) {
+        const s = snapshots1m[k];
+        const sLow = Number.isFinite(s.low) ? s.low : s.price;
+        const sHigh = Number.isFinite(s.high) ? s.high : s.price;
+        const currentPrice = s.price;
+
+        // Track max drawdown
+        let drawdown = 0;
+        if (isShort) {
+          drawdown = ((sHigh - triggerPrice) / triggerPrice) * 100;
+        } else {
+          drawdown = ((triggerPrice - sLow) / triggerPrice) * 100;
+        }
+        tradeMaxDrawdown = Math.max(tradeMaxDrawdown, Math.max(0, drawdown));
+
+        // Check SL Percent
+        if (slMode === 'percent') {
+          let slHit = false;
+          if (isShort) {
+            if (sHigh >= slPrice) slHit = true;
+          } else {
+            if (sLow <= slPrice) slHit = true;
+          }
+          if (slHit) {
+            exitPrice = slPrice;
+            tradeClosed = true;
+          }
+        }
+
+        // Check TP Percent
+        if (!tradeClosed && tpMode === 'percent') {
+          let tpHit = false;
+          if (isShort) {
+            if (sLow <= tpPrice) tpHit = true;
+          } else {
+            if (sHigh >= tpPrice) tpHit = true;
+          }
+          if (tpHit) {
+            exitPrice = tpPrice;
+            tradeClosed = true;
+          }
+        }
+
+        // Check Close Metric Crossover Exit
+        if (!tradeClosed && (tpMode === 'metric' || slMode === 'metric') && nextCloseSignal && k >= nextCloseSignal.index) {
+          exitPrice = nextCloseSignal.price;
+          tradeClosed = true;
+        }
+
+        // Check if trade closed or reached end of 24h window
+        if (tradeClosed) {
+          break;
+        }
+        
+        if (k === endIndex) {
+          exitPrice = currentPrice;
+          tradeClosed = true;
+          break;
+        }
+      }
+
+      if (exitPrice !== null) {
+        const profit = isShort 
+          ? qty * (triggerPrice - exitPrice)
+          : qty * (exitPrice - triggerPrice);
+        metricTrades.push({
+          profit,
+          maxDrawdown: tradeMaxDrawdown
+        });
+      }
+    }
+  }
+
+  let tradingStats = null;
+  if (tradeAmount && tradeAmount > 0 && metricTrades.length > 0) {
+    const totalTrades = metricTrades.length;
+    const winningTrades = metricTrades.filter(t => t.profit > 0).length;
+    const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+    const netProfit = metricTrades.reduce((sum, t) => sum + t.profit, 0);
+    tradingStats = {
+      totalTrades,
+      winRate,
+      netProfit
+    };
   }
 
   return {
@@ -3443,7 +3639,8 @@ function runMetricsAnalysis(snapshots1m, signals) {
     upsideMax: upsides.length > 0 ? Math.max(...upsides) : 0,
     upsideAvg: averageValues(upsides),
     upsideMed: medianValues(upsides),
-    markers
+    markers,
+    tradingStats
   };
 }
 
@@ -3493,6 +3690,21 @@ function renderMetricsResults(results) {
   document.getElementById('statUpsideMax').textContent = `${results.upsideMax.toFixed(2)}%`;
   document.getElementById('statUpsideAvg').textContent = `${results.upsideAvg.toFixed(2)}%`;
   document.getElementById('statUpsideMed').textContent = `${results.upsideMed.toFixed(2)}%`;
+  
+  const metricsTradingStatsBlock = document.getElementById('metricsTradingStatsBlock');
+  if (metricsTradingStatsBlock) {
+    if (results.tradingStats) {
+      metricsTradingStatsBlock.classList.remove('hidden');
+      document.getElementById('metricsStatTotalTrades').textContent = results.tradingStats.totalTrades;
+      document.getElementById('metricsStatWinRate').textContent = `${results.tradingStats.winRate.toFixed(2)}%`;
+      
+      const profitEl = document.getElementById('metricsStatNetProfit');
+      profitEl.textContent = `$${results.tradingStats.netProfit.toFixed(2)}`;
+      profitEl.style.color = results.tradingStats.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      metricsTradingStatsBlock.classList.add('hidden');
+    }
+  }
   
   priceSeries.setMarkers(results.markers);
 }
