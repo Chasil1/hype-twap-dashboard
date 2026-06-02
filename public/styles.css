@@ -1290,7 +1290,7 @@ input:checked + .slider:before {
   align-items: center;
   padding: 6px 0;
   gap: 8px;
-  z-index: 100;
+  z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
