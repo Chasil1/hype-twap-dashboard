@@ -490,6 +490,63 @@
               </div>
             </div>
 
+            <!-- Wallets Management Panel -->
+            <div class="metrics-section" style="margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 16px;">
+              <h3 style="margin-bottom: 12px; color: var(--amber); display: flex; align-items: center; justify-content: space-between; font-size: 14px;">
+                <span id="lblConfiguredWallets">Saved Wallets & API Keys</span>
+                <button id="createWalletBtn" class="action-btn" type="button" style="background: rgba(53, 208, 131, 0.1); border-color: rgba(53, 208, 131, 0.2); font-size: 11px; padding: 4px 10px; color: #35d083; border-radius: 4px; cursor: pointer; font-weight: bold;">➕ Add Wallet</button>
+              </h3>
+              <div id="walletsList" class="alerts-list">
+                <!-- List of wallets populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Form to add/edit wallet (hidden by default) -->
+            <form id="walletForm" class="alert-form hidden" style="background: rgba(15,19,23,0.3); border: 1px solid var(--line); padding: 14px; border-radius: 8px; margin-bottom: 16px;">
+              <h3 id="walletFormTitle" style="margin-top: 0; margin-bottom: 14px; font-size: 13px; color: var(--amber); border-bottom: 1px dashed var(--line); padding-bottom: 6px;">Add Wallet / API Credentials</h3>
+              
+              <!-- Wallet Name -->
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label for="walletNameInput" id="lblWalletName">Wallet Name</label>
+                <input type="text" id="walletNameInput" placeholder="e.g. My Solana Wallet 1" required style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+              </div>
+
+              <!-- Wallet Exchange Type -->
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label for="walletExchangeSelect" id="lblWalletExchange">Exchange Type</label>
+                <select id="walletExchangeSelect" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;">
+                  <option value="hl_solana" selected>Solana Key (01 Exchange / Hyperliquid)</option>
+                  <option value="bybit_api">Bybit API Keys</option>
+                </select>
+              </div>
+
+              <!-- Wallet Credentials Block -->
+              <div id="walletCredsBlock">
+                <div class="form-group" id="walletGroupAddress" style="margin-bottom: 8px;">
+                  <label for="walletAddressInput" id="lblWalletAddress">Wallet Address</label>
+                  <input type="text" id="walletAddressInput" placeholder="e.g. 0x... or Solana Address" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                </div>
+                <div class="form-group" id="walletGroupPrivateKey" style="margin-bottom: 8px;">
+                  <label for="walletPrivateKeyInput" id="lblWalletPrivateKey">Private Key</label>
+                  <input type="password" id="walletPrivateKeyInput" placeholder="Secret private key..." style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                </div>
+                <div class="form-group hidden" id="walletGroupApiKey" style="margin-bottom: 8px;">
+                  <label for="walletApiKeyInput" id="lblWalletApiKey">API Key</label>
+                  <input type="text" id="walletApiKeyInput" placeholder="API Key..." style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                </div>
+                <div class="form-group hidden" id="walletGroupApiSecret" style="margin-bottom: 8px;">
+                  <label for="walletApiSecretInput" id="lblWalletApiSecret">API Secret</label>
+                  <input type="password" id="walletApiSecretInput" placeholder="API Secret..." style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                </div>
+              </div>
+
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                <button type="submit" class="action-btn create-btn" id="btnSaveWallet" style="width: 100%;">Save Wallet</button>
+                <button type="button" class="action-btn" id="btnCancelWallet" style="width: 100%; border-color: var(--red); color: var(--red);">Cancel</button>
+              </div>
+              <div id="walletFeedback" class="feedback-msg"></div>
+            </form>
+
             <!-- Form to create/edit strategy (hidden by default) -->
             <form id="autoTradingForm" class="alert-form hidden" style="background: rgba(15,19,23,0.3); border: 1px solid var(--line); padding: 14px; border-radius: 8px; margin-bottom: 16px;">
               <h3 id="strategyFormTitle" style="margin-top: 0; margin-bottom: 14px; font-size: 13px; color: var(--amber); border-bottom: 1px dashed var(--line); padding-bottom: 6px;">Create Strategy</h3>
@@ -527,24 +584,12 @@
                 </div>
               </div>
 
-              <!-- Credentials Block -->
-              <div id="autoTradeCredsBlock" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
-                <div class="form-group" id="groupAutoTradeWallet" style="margin-bottom: 8px;">
-                  <label for="autoTradeWallet" id="lblAutoTradeWallet">Wallet Address</label>
-                  <input type="text" id="autoTradeWallet" placeholder="e.g. 0x..."/>
-                </div>
-                <div class="form-group" id="groupAutoTradePrivateKey" style="margin-bottom: 8px;">
-                  <label for="autoTradePrivateKey" id="lblAutoTradePrivateKey">Private Key</label>
-                  <input type="password" id="autoTradePrivateKey" placeholder="Secret private key..."/>
-                </div>
-                <div class="form-group hidden" id="groupAutoTradeApiKey" style="margin-bottom: 8px;">
-                  <label for="autoTradeApiKey" id="lblAutoTradeApiKey">API Key</label>
-                  <input type="text" id="autoTradeApiKey" placeholder="API Key..."/>
-                </div>
-                <div class="form-group hidden" id="groupAutoTradeApiSecret" style="margin-bottom: 8px;">
-                  <label for="autoTradeApiSecret" id="lblAutoTradeApiSecret">API Secret</label>
-                  <input type="password" id="autoTradeApiSecret" placeholder="API Secret..."/>
-                </div>
+              <!-- Strategy Wallet Selection -->
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label for="strategyWalletSelect" id="lblStrategyWalletSelect">Select Wallet / API Account</label>
+                <select id="strategyWalletSelect" required style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;">
+                  <option value="" disabled selected>Select Wallet...</option>
+                </select>
               </div>
 
               <!-- Strategy Configuration -->

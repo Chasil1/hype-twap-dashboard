@@ -566,6 +566,7 @@ app.get('/api/autotrade/status', restrictToOwner, async (req, res) => {
     res.json({
       enabled: !!(config && config.strategies && config.strategies.some(s => s.enabled)),
       strategies: config.strategies || [],
+      wallets: config.wallets || [],
       currentPrice,
       activePositions: state.activePositions || [],
       logs: state.logs || [],

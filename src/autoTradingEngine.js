@@ -22,6 +22,21 @@ function parsePrivateKey(input) {
   }
 }
 
+export function resolveStrategyCredentials(strategy, wallets = []) {
+  if (!strategy) return null;
+  const clone = { ...strategy };
+  if (strategy.walletId) {
+    const wallet = wallets.find(w => w.id === strategy.walletId);
+    if (wallet) {
+      clone.wallet = wallet.address || wallet.walletAddress || '';
+      clone.privateKey = wallet.privateKey || '';
+      clone.apiKey = wallet.apiKey || '';
+      clone.apiSecret = wallet.apiSecret || '';
+    }
+  }
+  return clone;
+}
+
 async function get01User(config) {
   const isTestnet = !!config.testnet;
   const solanaUrl = isTestnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
@@ -168,8 +183,9 @@ export class AutoTradingEngine {
     };
 
     // 1. Process each strategy for opening new positions
-    for (const strategy of config.strategies) {
-      if (!strategy.enabled) continue;
+    for (const rawStrategy of config.strategies) {
+      if (!rawStrategy.enabled) continue;
+      const strategy = resolveStrategyCredentials(rawStrategy, config.wallets);
 
       const alert = alertsList.find(a => a.id === strategy.alertId);
       if (!alert) continue;
@@ -316,7 +332,8 @@ export class AutoTradingEngine {
     // 2. Update Existing Active Positions
     const activePositions = state.activePositions.filter(p => p.status === 'active');
     for (const pos of activePositions) {
-      const strategy = config.strategies.find(s => s.id === pos.strategyId);
+      const rawStrategy = config.strategies.find(s => s.id === pos.strategyId);
+      const strategy = resolveStrategyCredentials(rawStrategy, config.wallets);
       const strategyName = pos.strategyName || 'Unknown Strategy';
       const logMsg = (text) => logMsgForStrategy(strategyName, text);
 
@@ -568,7 +585,8 @@ export class AutoTradingEngine {
 
     const pos = state.activePositions[posIndex];
     const config = await this.autoTradeStore.getConfig();
-    const strategy = config.strategies.find(s => s.id === pos.strategyId);
+    const rawStrategy = config.strategies.find(s => s.id === pos.strategyId);
+    const strategy = resolveStrategyCredentials(rawStrategy, config.wallets);
     const currentStrategyConfig = strategy || {
       exchange: pos.exchange,
       wallet: config.wallet,

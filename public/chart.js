@@ -2220,6 +2220,16 @@ const TRANSLATIONS = {
     createStrategy: "➕ Create Strategy",
     strategyName: "Strategy Name",
     btnCancel: "Cancel",
+    configuredWallets: "Saved Wallets & API Keys",
+    addWallet: "➕ Add Wallet",
+    walletName: "Wallet Name",
+    walletExchange: "Exchange Type",
+    walletAddress: "Wallet Address",
+    walletPrivateKey: "Private Key",
+    walletApiKey: "API Key",
+    walletApiSecret: "API Secret",
+    btnSaveWallet: "Save Wallet",
+    strategyWalletSelect: "Trading Wallet / API Credentials",
     titleAutoTradeStatusLabel: "Bot Status",
     titleAutoTradePositionsLabel: "Active Positions",
     thAutotradeAssetLabel: "Asset",
@@ -2359,6 +2369,16 @@ const TRANSLATIONS = {
     createStrategy: "➕ Создать стратегию",
     strategyName: "Название стратегии",
     btnCancel: "Отмена",
+    configuredWallets: "Сохраненные кошельки и API ключи",
+    addWallet: "➕ Добавить кошелек",
+    walletName: "Название кошелька",
+    walletExchange: "Тип биржи",
+    walletAddress: "Адрес кошелька",
+    walletPrivateKey: "Приватный ключ",
+    walletApiKey: "API Ключ",
+    walletApiSecret: "API Секрет",
+    btnSaveWallet: "Сохранить кошелек",
+    strategyWalletSelect: "Торговый кошелек / API ключи",
     titleAutoTradeStatusLabel: "Статус бота",
     titleAutoTradePositionsLabel: "Активные позиции",
     thAutotradeAssetLabel: "Актив",
@@ -2926,6 +2946,36 @@ function applyLanguage(lang) {
 
   const lblConfiguredStrategies = document.getElementById('lblConfiguredStrategies');
   if (lblConfiguredStrategies) lblConfiguredStrategies.textContent = t.configuredStrategies;
+
+  const lblConfiguredWallets = document.getElementById('lblConfiguredWallets');
+  if (lblConfiguredWallets) lblConfiguredWallets.textContent = t.configuredWallets;
+
+  const createWalletBtn = document.getElementById('createWalletBtn');
+  if (createWalletBtn) createWalletBtn.textContent = t.addWallet;
+
+  const lblWalletName = document.getElementById('lblWalletName');
+  if (lblWalletName) lblWalletName.textContent = t.walletName;
+
+  const lblWalletExchange = document.getElementById('lblWalletExchange');
+  if (lblWalletExchange) lblWalletExchange.textContent = t.walletExchange;
+
+  const lblWalletAddress = document.getElementById('lblWalletAddress');
+  if (lblWalletAddress) lblWalletAddress.textContent = t.walletAddress;
+
+  const lblWalletPrivateKey = document.getElementById('lblWalletPrivateKey');
+  if (lblWalletPrivateKey) lblWalletPrivateKey.textContent = t.walletPrivateKey;
+
+  const lblWalletApiKey = document.getElementById('lblWalletApiKey');
+  if (lblWalletApiKey) lblWalletApiKey.textContent = t.walletApiKey;
+
+  const lblWalletApiSecret = document.getElementById('lblWalletApiSecret');
+  if (lblWalletApiSecret) lblWalletApiSecret.textContent = t.walletApiSecret;
+
+  const btnSaveWallet = document.getElementById('btnSaveWallet');
+  if (btnSaveWallet) btnSaveWallet.textContent = t.btnSaveWallet;
+
+  const lblStrategyWalletSelect = document.getElementById('lblStrategyWalletSelect');
+  if (lblStrategyWalletSelect) lblStrategyWalletSelect.textContent = t.strategyWalletSelect;
 
   const createStrategyBtn = document.getElementById('createStrategyBtn');
   if (createStrategyBtn) createStrategyBtn.textContent = t.createStrategy;
@@ -4241,6 +4291,8 @@ function renderMetricsResults(results) {
 let autoTradeStatusIntervalId = null;
 let currentStrategies = [];
 let editingStrategyId = null;
+let currentWallets = [];
+let editingWalletId = null;
 
 function initAutoTradingConfigurator() {
   const tabAutoTrading = document.getElementById('tabAutoTrading');
@@ -4256,30 +4308,70 @@ function initAutoTradingConfigurator() {
   const autoTradeSlCloseSelect = document.getElementById('autoTradeSlCloseSelect');
   const autoTradeSlCloseCustomContainer = document.getElementById('autoTradeSlCloseCustomContainer');
 
-  // Exchange credentials toggling
-  const groupAutoTradeWallet = document.getElementById('groupAutoTradeWallet');
-  const groupAutoTradePrivateKey = document.getElementById('groupAutoTradePrivateKey');
-  const groupAutoTradeApiKey = document.getElementById('groupAutoTradeApiKey');
-  const groupAutoTradeApiSecret = document.getElementById('groupAutoTradeApiSecret');
+  // Wallet form inputs and toggles
+  const walletExchangeSelect = document.getElementById('walletExchangeSelect');
+  const walletForm = document.getElementById('walletForm');
 
-  const updateExchangeFields = () => {
-    const exchange = autoTradeExchange.value;
-    if (exchange === 'hl' || exchange === '01_exchange') {
-      groupAutoTradeWallet.classList.remove('hidden');
-      groupAutoTradePrivateKey.classList.remove('hidden');
-      groupAutoTradeApiKey.classList.add('hidden');
-      groupAutoTradeApiSecret.classList.add('hidden');
+  const updateWalletExchangeFields = () => {
+    const exchangeType = walletExchangeSelect.value;
+    const groupAddress = document.getElementById('walletGroupAddress');
+    const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
+    const groupApiKey = document.getElementById('walletGroupApiKey');
+    const groupApiSecret = document.getElementById('walletGroupApiSecret');
+
+    if (exchangeType === 'hl_solana') {
+      groupAddress.classList.remove('hidden');
+      groupPrivateKey.classList.remove('hidden');
+      groupApiKey.classList.add('hidden');
+      groupApiSecret.classList.add('hidden');
     } else {
-      // bybit
-      groupAutoTradeWallet.classList.add('hidden');
-      groupAutoTradePrivateKey.classList.add('hidden');
-      groupAutoTradeApiKey.classList.remove('hidden');
-      groupAutoTradeApiSecret.classList.remove('hidden');
+      groupAddress.classList.add('hidden');
+      groupPrivateKey.classList.add('hidden');
+      groupApiKey.classList.remove('hidden');
+      groupApiSecret.classList.remove('hidden');
     }
   };
 
-  if (autoTradeExchange) {
-    autoTradeExchange.addEventListener('change', updateExchangeFields);
+  if (walletExchangeSelect) {
+    walletExchangeSelect.addEventListener('change', updateWalletExchangeFields);
+  }
+
+  // Add Wallet Button
+  const createWalletBtn = document.getElementById('createWalletBtn');
+  if (createWalletBtn) {
+    createWalletBtn.addEventListener('click', () => {
+      editingWalletId = null;
+      document.getElementById('walletNameInput').value = '';
+      document.getElementById('walletAddressInput').value = '';
+      document.getElementById('walletPrivateKeyInput').value = '';
+      document.getElementById('walletApiKeyInput').value = '';
+      document.getElementById('walletApiSecretInput').value = '';
+      walletExchangeSelect.value = 'hl_solana';
+      updateWalletExchangeFields();
+      
+      const lang = localStorage.getItem('hype_twap_lang') || 'en';
+      document.getElementById('walletFormTitle').textContent = lang === 'en' ? 'Add Wallet / API Credentials' : 'Добавить кошелек / API ключи';
+      
+      const feedback = document.getElementById('walletFeedback');
+      if (feedback) {
+        feedback.textContent = '';
+        feedback.className = 'feedback-msg';
+      }
+      walletForm.classList.remove('hidden');
+    });
+  }
+
+  // Cancel Wallet Button
+  const btnCancelWallet = document.getElementById('btnCancelWallet');
+  if (btnCancelWallet) {
+    btnCancelWallet.addEventListener('click', () => {
+      walletForm.classList.add('hidden');
+      editingWalletId = null;
+    });
+  }
+
+  if (walletForm) {
+    walletForm.addEventListener('submit', saveWallet);
   }
 
   // TP/SL toggling
@@ -4381,7 +4473,6 @@ function initAutoTradingConfigurator() {
       loadAutoTradeConfig();
 
       // Trigger field update visibility state
-      updateExchangeFields();
       updateExitFields();
       if (autoTradeOrderCount) autoTradeOrderCount.dispatchEvent(new Event('change'));
 
@@ -4437,17 +4528,15 @@ function resetStrategyForm() {
   document.getElementById('strategyNameInput').value = '';
   document.getElementById('autoTradeEnabled').checked = true;
   document.getElementById('autoTradeExchange').value = 'hl';
-  document.getElementById('autoTradeExchange').dispatchEvent(new Event('change'));
   document.getElementById('autoTradeTestnet').checked = true;
-  document.getElementById('autoTradeWallet').value = '';
-  document.getElementById('autoTradePrivateKey').value = '';
-  document.getElementById('autoTradeApiKey').value = '';
-  document.getElementById('autoTradeApiSecret').value = '';
   document.getElementById('autoTradeAlertSelect').value = '';
   document.getElementById('autoTradeDirection').value = 'auto';
   document.getElementById('autoTradeOrderCount').value = '3';
   document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
   document.getElementById('autoTradeAmount').value = '60';
+
+  populateStrategyWalletSelect();
+  document.getElementById('strategyWalletSelect').value = '';
 
   // legs
   for (let i = 1; i <= 3; i++) {
@@ -4550,7 +4639,11 @@ async function loadAutoTradeConfig() {
     if (!config) return;
 
     currentStrategies = config.strategies || [];
+    currentWallets = config.wallets || [];
+    
     renderStrategiesList();
+    renderWalletsList();
+    populateStrategyWalletSelect();
   } catch (err) {
     console.error('Error loading auto-trading config:', err);
   }
@@ -4585,6 +4678,13 @@ function renderStrategiesList() {
       alertName = strategy.alertId ? `Alert ID: ${strategy.alertId}` : 'None';
     }
 
+    // Find wallet name
+    let walletLabel = '';
+    if (strategy.walletId) {
+      const wallet = currentWallets.find(w => w.id === strategy.walletId);
+      walletLabel = wallet ? ` | 💼 ${wallet.name}` : ' | 💼 (Deleted)';
+    }
+
     const directionStr = strategy.direction === 'long' ? 'Force Long' : (strategy.direction === 'short' ? 'Force Short' : 'Auto');
     const directionColor = strategy.direction === 'long' ? '#35d083' : (strategy.direction === 'short' ? '#ef5e5e' : 'var(--amber)');
     const directionBadge = ` <span style="color: ${directionColor}; background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-left: 4px;">${directionStr}</span>`;
@@ -4592,7 +4692,7 @@ function renderStrategiesList() {
     item.innerHTML = `
       <div class="alert-info">
         <span class="alert-title">${strategy.name || 'Unnamed Strategy'}${directionBadge}</span>
-        <span class="alert-rule">${exchangeName} ${netType} | ${lang === 'en' ? 'Trigger' : 'Триггер'}: ${alertName} | ${lang === 'en' ? 'Size' : 'Объем'}: ${amountStr}</span>
+        <span class="alert-rule">${exchangeName} ${netType}${walletLabel} | ${lang === 'en' ? 'Trigger' : 'Триггер'}: ${alertName} | ${lang === 'en' ? 'Size' : 'Объем'}: ${amountStr}</span>
       </div>
       <div class="alert-actions">
         <label class="switch">
@@ -4637,21 +4737,8 @@ function renderStrategiesList() {
 }
 
 async function saveAllStrategiesSilent() {
-  try {
-    const response = await fetch('/api/autotrade/config', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ strategies: currentStrategies })
-    });
-    if (!response.ok) {
-      console.error('Failed to save config on change');
-    }
-    renderStrategiesList();
-  } catch (err) {
-    console.error('Error in saveAllStrategiesSilent:', err);
-  }
+  await saveConfigToServer();
+  renderStrategiesList();
 }
 
 function startEditStrategy(strategy) {
@@ -4667,13 +4754,11 @@ function startEditStrategy(strategy) {
   document.getElementById('strategyNameInput').value = strategy.name || '';
   document.getElementById('autoTradeEnabled').checked = !!strategy.enabled;
   document.getElementById('autoTradeExchange').value = strategy.exchange || 'hl';
-  document.getElementById('autoTradeExchange').dispatchEvent(new Event('change'));
   document.getElementById('autoTradeTestnet').checked = !!strategy.testnet;
-  document.getElementById('autoTradeWallet').value = strategy.wallet || '';
-  document.getElementById('autoTradePrivateKey').value = strategy.privateKey || '';
-  document.getElementById('autoTradeApiKey').value = strategy.apiKey || '';
-  document.getElementById('autoTradeApiSecret').value = strategy.apiSecret || '';
   
+  populateStrategyWalletSelect();
+  document.getElementById('strategyWalletSelect').value = strategy.walletId || '';
+
   document.getElementById('autoTradeAlertSelect').value = strategy.alertId || '';
   document.getElementById('autoTradeDirection').value = strategy.direction || 'auto';
   document.getElementById('autoTradeOrderCount').value = strategy.orderCount || '3';
@@ -4753,8 +4838,12 @@ async function saveAutoTradeConfig(e) {
       throw new Error(currentLang === 'en' ? 'Please select a trigger alert.' : 'Пожалуйста, выберите сигнальное оповещение.');
     }
 
-    const name = document.getElementById('strategyNameInput').value.trim() || 'Strategy';
+    const walletId = document.getElementById('strategyWalletSelect').value;
+    if (!walletId) {
+      throw new Error(currentLang === 'en' ? 'Please select a wallet.' : 'Пожалуйста, выберите кошелек.');
+    }
 
+    const name = document.getElementById('strategyNameInput').value.trim() || 'Strategy';
     const strategyId = editingStrategyId || crypto.randomUUID();
 
     const strategy = {
@@ -4763,10 +4852,7 @@ async function saveAutoTradeConfig(e) {
       enabled: document.getElementById('autoTradeEnabled').checked,
       exchange: document.getElementById('autoTradeExchange').value,
       testnet: document.getElementById('autoTradeTestnet').checked,
-      wallet: document.getElementById('autoTradeWallet').value,
-      privateKey: document.getElementById('autoTradePrivateKey').value,
-      apiKey: document.getElementById('autoTradeApiKey').value,
-      apiSecret: document.getElementById('autoTradeApiSecret').value,
+      walletId: walletId,
       alertId: alertId,
       direction: document.getElementById('autoTradeDirection').value,
       orderCount: parseInt(document.getElementById('autoTradeOrderCount').value) || 3,
@@ -4802,17 +4888,7 @@ async function saveAutoTradeConfig(e) {
       currentStrategies.push(strategy);
     }
 
-    const response = await fetch('/api/autotrade/config', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ strategies: currentStrategies })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to save: ${response.statusText}`);
-    }
+    await saveConfigToServer();
 
     feedback.className = 'feedback-msg success';
     feedback.textContent = currentLang === 'en' ? 'Strategy saved successfully!' : 'Стратегия сохранена!';
@@ -4825,6 +4901,225 @@ async function saveAutoTradeConfig(e) {
     feedback.className = 'feedback-msg error';
     feedback.textContent = err.message;
     console.error('Error saving strategy config:', err);
+  }
+}
+
+// Wallets Implementation
+function renderWalletsList() {
+  const container = document.getElementById('walletsList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+
+  if (currentWallets.length === 0) {
+    container.innerHTML = `<p class="placeholder-text">${lang === 'en' ? 'No wallets configured yet.' : 'Кошельки не настроены.'}</p>`;
+    return;
+  }
+
+  currentWallets.forEach(wallet => {
+    const item = document.createElement('div');
+    item.className = 'alert-item';
+
+    const exchangeTypeStr = wallet.exchangeType === 'hl_solana' ? 'Solana (Hyperliquid/01)' : 'Bybit API Keys';
+    
+    // Mask private keys / secrets for safety
+    let keyInfo = '';
+    if (wallet.exchangeType === 'hl_solana') {
+      const addr = wallet.address || '';
+      const displayAddr = addr.length > 10 ? (addr.substring(0, 6) + '...' + addr.substring(addr.length - 4)) : addr;
+      keyInfo = `${lang === 'en' ? 'Address' : 'Адрес'}: ${displayAddr}`;
+    } else {
+      const apiKey = wallet.apiKey || '';
+      const displayKey = apiKey.length > 8 ? (apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4)) : apiKey;
+      keyInfo = `API Key: ${displayKey}`;
+    }
+
+    item.innerHTML = `
+      <div class="alert-info">
+        <span class="alert-title">${wallet.name || 'Unnamed Wallet'} <span style="color: var(--muted); font-size: 10px; margin-left: 6px;">(${exchangeTypeStr})</span></span>
+        <span class="alert-rule">${keyInfo}</span>
+      </div>
+      <div class="alert-actions">
+        <button class="edit-wallet-btn" data-id="${wallet.id}" title="${lang === 'en' ? 'Edit Wallet' : 'Редактировать кошелек'}" type="button">✏️</button>
+        <button class="delete-wallet-btn" data-id="${wallet.id}" title="${lang === 'en' ? 'Delete Wallet' : 'Удалить кошелек'}" type="button">×</button>
+      </div>
+    `;
+
+    // Edit event listener
+    item.querySelector('.edit-wallet-btn').addEventListener('click', () => {
+      startEditWallet(wallet);
+    });
+
+    // Delete event listener
+    item.querySelector('.delete-wallet-btn').addEventListener('click', async () => {
+      const confirmMsg = lang === 'en' 
+        ? `Are you sure you want to delete wallet "${wallet.name}"?` 
+        : `Вы уверены, что хотите удалить кошелек "${wallet.name}"?`;
+      if (confirm(confirmMsg)) {
+        currentWallets = currentWallets.filter(w => w.id !== wallet.id);
+        await saveConfigToServer();
+        renderWalletsList();
+        populateStrategyWalletSelect();
+      }
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function startEditWallet(wallet) {
+  editingWalletId = wallet.id;
+  const form = document.getElementById('walletForm');
+  if (!form) return;
+
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  document.getElementById('walletFormTitle').textContent = lang === 'en' ? 'Edit Wallet / API Credentials' : 'Редактировать кошелек / API ключи';
+
+  document.getElementById('walletNameInput').value = wallet.name || '';
+  document.getElementById('walletExchangeSelect').value = wallet.exchangeType || 'hl_solana';
+  
+  // Trigger visibility toggles
+  const exchangeType = wallet.exchangeType || 'hl_solana';
+  const groupAddress = document.getElementById('walletGroupAddress');
+  const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
+  const groupApiKey = document.getElementById('walletGroupApiKey');
+  const groupApiSecret = document.getElementById('walletGroupApiSecret');
+  if (exchangeType === 'hl_solana') {
+    groupAddress.classList.remove('hidden');
+    groupPrivateKey.classList.remove('hidden');
+    groupApiKey.classList.add('hidden');
+    groupApiSecret.classList.add('hidden');
+  } else {
+    groupAddress.classList.add('hidden');
+    groupPrivateKey.classList.add('hidden');
+    groupApiKey.classList.remove('hidden');
+    groupApiSecret.classList.remove('hidden');
+  }
+
+  document.getElementById('walletAddressInput').value = wallet.address || '';
+  document.getElementById('walletPrivateKeyInput').value = wallet.privateKey || '';
+  document.getElementById('walletApiKeyInput').value = wallet.apiKey || '';
+  document.getElementById('walletApiSecretInput').value = wallet.apiSecret || '';
+
+  // Clear feedback
+  const feedback = document.getElementById('walletFeedback');
+  if (feedback) {
+    feedback.textContent = '';
+    feedback.className = 'feedback-msg';
+  }
+
+  form.classList.remove('hidden');
+}
+
+async function saveWallet(e) {
+  e.preventDefault();
+  const feedback = document.getElementById('walletFeedback');
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  
+  feedback.className = 'feedback-msg';
+  feedback.textContent = currentLang === 'en' ? 'Saving wallet...' : 'Сохранение кошелька...';
+
+  try {
+    const name = document.getElementById('walletNameInput').value.trim();
+    if (!name) {
+      throw new Error(currentLang === 'en' ? 'Please enter a wallet name.' : 'Пожалуйста, введите название кошелька.');
+    }
+
+    const exchangeType = document.getElementById('walletExchangeSelect').value;
+    const address = document.getElementById('walletAddressInput').value.trim();
+    const privateKey = document.getElementById('walletPrivateKeyInput').value.trim();
+    const apiKey = document.getElementById('walletApiKeyInput').value.trim();
+    const apiSecret = document.getElementById('walletApiSecretInput').value.trim();
+
+    if (exchangeType === 'hl_solana') {
+      if (!privateKey) {
+        throw new Error(currentLang === 'en' ? 'Private Key is required.' : 'Приватный ключ обязателен.');
+      }
+    } else {
+      if (!apiKey || !apiSecret) {
+        throw new Error(currentLang === 'en' ? 'API Key and Secret are required.' : 'API Ключ и Секрет обязательны.');
+      }
+    }
+
+    const id = editingWalletId || crypto.randomUUID();
+
+    const wallet = {
+      id,
+      name,
+      exchangeType,
+      address,
+      privateKey,
+      apiKey,
+      apiSecret
+    };
+
+    if (editingWalletId) {
+      const index = currentWallets.findIndex(w => w.id === editingWalletId);
+      if (index !== -1) {
+        currentWallets[index] = wallet;
+      }
+    } else {
+      currentWallets.push(wallet);
+    }
+
+    await saveConfigToServer();
+
+    feedback.className = 'feedback-msg success';
+    feedback.textContent = currentLang === 'en' ? 'Wallet saved successfully!' : 'Кошелек сохранен!';
+
+    document.getElementById('walletForm').classList.add('hidden');
+    editingWalletId = null;
+    renderWalletsList();
+    populateStrategyWalletSelect();
+  } catch (err) {
+    feedback.className = 'feedback-msg error';
+    feedback.textContent = err.message;
+    console.error('Error saving wallet config:', err);
+  }
+}
+
+function populateStrategyWalletSelect() {
+  const select = document.getElementById('strategyWalletSelect');
+  if (!select) return;
+  
+  const currentVal = select.value;
+  select.innerHTML = '';
+  
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.disabled = true;
+  defaultOpt.selected = !currentVal;
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  defaultOpt.textContent = currentLang === 'en' ? 'Select Wallet...' : 'Выберите кошелек...';
+  select.appendChild(defaultOpt);
+  
+  currentWallets.forEach(wallet => {
+    const opt = document.createElement('option');
+    opt.value = wallet.id;
+    const typeLabel = wallet.exchangeType === 'hl_solana' ? 'Solana' : 'Bybit';
+    opt.textContent = `${wallet.name} (${typeLabel})`;
+    if (wallet.id === currentVal) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+}
+
+async function saveConfigToServer() {
+  try {
+    const response = await fetch('/api/autotrade/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ strategies: currentStrategies, wallets: currentWallets })
+    });
+    if (!response.ok) {
+      console.error('Failed to save config to server');
+    }
+  } catch (err) {
+    console.error('Error in saveConfigToServer:', err);
   }
 }
 
@@ -4876,8 +5171,16 @@ async function refreshAutoTradeStatus() {
           const fillsCount = pos.filledPositions?.length || 0;
           const limitCount = pos.limitOrders?.length || 0;
           
-          // Display Strategy Name alongside Asset
-          const displayName = `HYPE<br/><span style="font-size: 9px; color: var(--muted);">${pos.strategyName || 'Strategy'}</span>`;
+          // Display Strategy & Wallet Name alongside Asset
+          let walletLabel = '';
+          const strategy = currentStrategies.find(s => s.id === pos.strategyId);
+          if (strategy && strategy.walletId) {
+            const wallet = currentWallets.find(w => w.id === strategy.walletId);
+            if (wallet) {
+              walletLabel = ` (${wallet.name})`;
+            }
+          }
+          const displayName = `HYPE<br/><span style="font-size: 9px; color: var(--muted);">${pos.strategyName || 'Strategy'}${walletLabel}</span>`;
 
           const tr = document.createElement('tr');
           tr.style.borderBottom = '1px solid var(--line)';

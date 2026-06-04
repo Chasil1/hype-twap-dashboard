@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AutoTradeStore } from '../src/store.js';
+import { resolveStrategyCredentials } from '../src/autoTradingEngine.js';
 import { rm, writeFile } from 'node:fs/promises';
 
 test('AutoTradeStore handles old single-strategy migration correctly', async () => {
@@ -95,4 +96,34 @@ test('AutoTradeStore handles clean multi-strategies config read/write', async ()
   // Clean up
   await rm(tempConfigPath, { force: true });
   await rm(tempStatePath, { force: true });
+});
+
+test('resolveStrategyCredentials maps walletId to credentials correctly', () => {
+  const wallets = [
+    { id: 'w1', name: 'Solana 1', exchangeType: 'hl_solana', address: 'addr_sol1', privateKey: 'pk_sol1' },
+    { id: 'w2', name: 'Bybit 1', exchangeType: 'bybit_api', apiKey: 'key_bb1', apiSecret: 'sec_bb1' }
+  ];
+
+  // Scenario A: Strategy has walletId pointing to Solana wallet
+  const stratA = { id: 's1', name: 'Strat A', walletId: 'w1' };
+  const resolvedA = resolveStrategyCredentials(stratA, wallets);
+  assert.equal(resolvedA.wallet, 'addr_sol1');
+  assert.equal(resolvedA.privateKey, 'pk_sol1');
+
+  // Scenario B: Strategy has walletId pointing to Bybit wallet
+  const stratB = { id: 's2', name: 'Strat B', walletId: 'w2' };
+  const resolvedB = resolveStrategyCredentials(stratB, wallets);
+  assert.equal(resolvedB.apiKey, 'key_bb1');
+  assert.equal(resolvedB.apiSecret, 'sec_bb1');
+
+  // Scenario C: Strategy has no walletId
+  const stratC = { id: 's3', name: 'Strat C' };
+  const resolvedC = resolveStrategyCredentials(stratC, wallets);
+  assert.equal(resolvedC.wallet, undefined);
+  assert.equal(resolvedC.privateKey, undefined);
+
+  // Scenario D: Strategy has non-existent walletId
+  const stratD = { id: 's4', name: 'Strat D', walletId: 'non-existent' };
+  const resolvedD = resolveStrategyCredentials(stratD, wallets);
+  assert.equal(resolvedD.wallet, undefined);
 });

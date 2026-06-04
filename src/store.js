@@ -611,11 +611,15 @@ export class AutoTradeStore {
           slCloseSelect: data.slCloseSelect || 'same',
           slCustomExpr: data.slCustomExpr || null
         };
-        return { strategies: [defaultStrategy] };
+        return { strategies: [defaultStrategy], wallets: [] };
       }
-      return data && data.strategies ? data : { strategies: [] };
+      if (!data) return { strategies: [], wallets: [] };
+      return {
+        strategies: data.strategies || [],
+        wallets: data.wallets || []
+      };
     } catch (error) {
-      if (error.code === 'ENOENT') return { strategies: [] };
+      if (error.code === 'ENOENT') return { strategies: [], wallets: [] };
       throw error;
     }
   }
