@@ -101,7 +101,8 @@ async function close01Position(pos, config, logMsg) {
     }
   } catch (err) {
     console.error('Error closing 01 Exchange position:', err);
-    logMsg(`⚠️ [ERROR] Failed to close position on 01 Exchange: ${err.message}`);
+    const detailedMessage = err.cause ? `${err.message} (Cause: ${err.cause.message})` : err.message;
+    logMsg(`⚠️ [ERROR] Failed to close position on 01 Exchange: ${detailedMessage}`);
   }
 }
 
@@ -310,7 +311,8 @@ export class AutoTradingEngine {
                 logMsg(`🤖 [OPEN] Live 01 Exchange order grid placed successfully! Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
                 stateChanged = true;
               } catch (err) {
-                logMsg(`⚠️ [ERROR] Failed to open position on 01 Exchange: ${err.message}`);
+                const detailedMessage = err.cause ? `${err.message} (Cause: ${err.cause.message})` : err.message;
+                logMsg(`⚠️ [ERROR] Failed to open position on 01 Exchange: ${detailedMessage}`);
                 console.error(err);
               }
             } else {
