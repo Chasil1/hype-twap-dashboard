@@ -658,7 +658,8 @@ app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
     res.json({ subaccounts });
   } catch (err) {
     console.error('Error fetching subaccounts:', err);
-    res.status(500).json({ error: err.message });
+    const detailedMessage = err.cause ? `${err.message} (Cause: ${err.cause.message})` : err.message;
+    res.status(500).json({ error: detailedMessage });
   }
 });
 
