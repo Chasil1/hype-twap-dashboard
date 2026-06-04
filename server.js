@@ -577,6 +577,81 @@ app.get('/api/autotrade/status', restrictToOwner, async (req, res) => {
   }
 });
 
+app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
+  try {
+    const { walletId, testnet } = req.query;
+    if (!walletId) {
+      res.status(400).json({ error: 'Wallet ID is required' });
+      return;
+    }
+
+    const config = await autoTradeStore.getConfig();
+    const wallets = config.wallets || [];
+    const wallet = wallets.find(w => w.id === walletId);
+    if (!wallet) {
+      res.status(404).json({ error: 'Wallet not found' });
+      return;
+    }
+
+    const privateKey = wallet.privateKey;
+    if (!privateKey) {
+      res.status(400).json({ error: 'Selected wallet does not have a private key' });
+      return;
+    }
+
+    // Initialize Nord connection
+    const isTestnet = testnet === 'true';
+    const solanaUrl = isTestnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
+    const webServerUrl = isTestnet ? 'https://zo-devnet.n1.xyz' : 'https://zo-mainnet.n1.xyz';
+    const appKey = 'zoau54n5U24GHNKqyoziVaVxgsiQYnPMx33fKmLLCT5';
+
+    const { Connection } = await import("@solana/web3.js");
+    const { Nord, NordUser } = await import("@n1xyz/nord-ts");
+    const bs58 = (await import("bs58")).default;
+
+    const parsePrivateKeyLocal = (input) => {
+      const trimmed = input.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          return new Uint8Array(JSON.parse(trimmed));
+        } catch (e) {
+          throw new Error('Invalid JSON private key format');
+        }
+      }
+      try {
+        return bs58.decode(trimmed);
+      } catch (e) {
+        if (/^[0-9a-fA-F]+$/.test(trimmed)) {
+          return Buffer.from(trimmed, 'hex');
+        }
+        throw new Error('Unsupported private key encoding. Please use Base58 or JSON array.');
+      }
+    };
+
+    const connection = new Connection(solanaUrl);
+    const nord = await Nord.new({
+      app: appKey,
+      solanaConnection: connection,
+      webServerUrl,
+    });
+
+    const parsedKey = parsePrivateKeyLocal(privateKey);
+    const user = NordUser.fromPrivateKey(nord, parsedKey);
+    
+    await user.updateAccountId();
+    
+    const subaccounts = (user.accountIds || []).map((id, index) => ({
+      index,
+      id
+    }));
+
+    res.json({ subaccounts });
+  } catch (err) {
+    console.error('Error fetching subaccounts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/autotrade/close', express.json(), restrictToOwner, async (req, res) => {
   try {
     const { id } = req.body;

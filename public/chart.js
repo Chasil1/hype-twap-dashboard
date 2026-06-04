@@ -4418,6 +4418,7 @@ function initAutoTradingConfigurator() {
     if (autoTradeExchange && autoTradeSubaccountGroup) {
       if (autoTradeExchange.value === '01_exchange') {
         autoTradeSubaccountGroup.classList.remove('hidden');
+        updateSubaccountDropdown();
       } else {
         autoTradeSubaccountGroup.classList.add('hidden');
       }
@@ -4425,6 +4426,16 @@ function initAutoTradingConfigurator() {
   };
   if (autoTradeExchange) {
     autoTradeExchange.addEventListener('change', updateExchangeFields);
+  }
+
+  const strategyWalletSelect = document.getElementById('strategyWalletSelect');
+  if (strategyWalletSelect) {
+    strategyWalletSelect.addEventListener('change', () => updateSubaccountDropdown());
+  }
+
+  const autoTradeTestnet = document.getElementById('autoTradeTestnet');
+  if (autoTradeTestnet) {
+    autoTradeTestnet.addEventListener('change', () => updateSubaccountDropdown());
   }
 
   // Custom Exits toggles
@@ -4780,18 +4791,20 @@ function startEditStrategy(strategy) {
   document.getElementById('autoTradeExchange').value = strategy.exchange || 'hl';
   document.getElementById('autoTradeTestnet').checked = !!strategy.testnet;
 
-  document.getElementById('autoTradeSubaccountIndex').value = strategy.subaccountIndex || 0;
+  populateStrategyWalletSelect();
+  document.getElementById('strategyWalletSelect').value = strategy.walletId || '';
+
+  const subaccountIndexVal = strategy.subaccountIndex || 0;
   const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
   if (autoTradeSubaccountGroup) {
     if (strategy.exchange === '01_exchange') {
       autoTradeSubaccountGroup.classList.remove('hidden');
+      updateSubaccountDropdown(subaccountIndexVal);
     } else {
       autoTradeSubaccountGroup.classList.add('hidden');
+      updateSubaccountDropdown(0);
     }
   }
-  
-  populateStrategyWalletSelect();
-  document.getElementById('strategyWalletSelect').value = strategy.walletId || '';
 
   document.getElementById('autoTradeAlertSelect').value = strategy.alertId || '';
   document.getElementById('autoTradeDirection').value = strategy.direction || 'auto';
@@ -5139,6 +5152,67 @@ function populateStrategyWalletSelect() {
     }
     select.appendChild(opt);
   });
+}
+
+async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
+  const exchange = document.getElementById('autoTradeExchange').value;
+  const walletId = document.getElementById('strategyWalletSelect').value;
+  const testnet = document.getElementById('autoTradeTestnet').checked;
+  const select = document.getElementById('autoTradeSubaccountIndex');
+
+  if (!select) return;
+
+  if (exchange !== '01_exchange' || !walletId) {
+    select.innerHTML = '<option value="0">Default (Subaccount #0)</option>';
+    select.value = "0";
+    return;
+  }
+
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  select.innerHTML = `<option value="" disabled selected>${lang === 'en' ? 'Loading subaccounts...' : 'Загрузка субаккаунтов...'}</option>`;
+
+  try {
+    const res = await fetch(`/api/autotrade/subaccounts?walletId=${walletId}&testnet=${testnet}`);
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    const data = await res.json();
+    select.innerHTML = '';
+
+    if (!data.subaccounts || data.subaccounts.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = "0";
+      opt.textContent = lang === 'en' ? 'No subaccounts found (Default #0)' : 'Субаккаунты не найдены (Дефолт #0)';
+      select.appendChild(opt);
+    } else {
+      data.subaccounts.forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub.index;
+        const shortId = sub.id ? (sub.id.slice(0, 6) + '...' + sub.id.slice(-4)) : '';
+        opt.textContent = `Subaccount #${sub.index} (${shortId})`;
+        if (sub.index === parseInt(selectedSubaccountIndex, 10)) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+    }
+
+    if (select.value === "") {
+      select.value = selectedSubaccountIndex.toString();
+    }
+  } catch (err) {
+    console.error('Error fetching subaccounts:', err);
+    select.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `Subaccount #${i} ${i === 0 ? '(Default)' : ''}`;
+      if (i === parseInt(selectedSubaccountIndex, 10)) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    }
+  }
 }
 
 async function saveConfigToServer() {
