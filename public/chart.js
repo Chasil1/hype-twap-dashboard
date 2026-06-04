@@ -5192,7 +5192,8 @@ async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
       data.subaccounts.forEach(sub => {
         const opt = document.createElement('option');
         opt.value = sub.index;
-        const shortId = sub.id ? (sub.id.slice(0, 6) + '...' + sub.id.slice(-4)) : '';
+        const idStr = sub.id !== undefined && sub.id !== null ? String(sub.id) : '';
+        const shortId = idStr.length > 10 ? (idStr.slice(0, 6) + '...' + idStr.slice(-4)) : idStr;
         const balanceStr = (sub.balance !== undefined) ? ` — $${sub.balance.toFixed(2)} USDC` : '';
         opt.textContent = `Subaccount #${sub.index} (${shortId})${balanceStr}`;
         if (sub.index === parseInt(selectedSubaccountIndex, 10)) {
