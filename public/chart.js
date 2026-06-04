@@ -5159,6 +5159,9 @@ async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
   const walletId = document.getElementById('strategyWalletSelect').value;
   const testnet = document.getElementById('autoTradeTestnet').checked;
   const select = document.getElementById('autoTradeSubaccountIndex');
+  const feedback = document.getElementById('subaccountFeedback');
+
+  if (feedback) feedback.textContent = '';
 
   if (!select) return;
 
@@ -5174,7 +5177,8 @@ async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
   try {
     const res = await fetch(`/api/autotrade/subaccounts?walletId=${walletId}&testnet=${testnet}`);
     if (!res.ok) {
-      throw new Error(await res.text());
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to fetch subaccounts');
     }
     const data = await res.json();
     select.innerHTML = '';
@@ -5203,6 +5207,9 @@ async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
     }
   } catch (err) {
     console.error('Error fetching subaccounts:', err);
+    if (feedback) {
+      feedback.textContent = err.message;
+    }
     select.innerHTML = '';
     for (let i = 0; i < 5; i++) {
       const opt = document.createElement('option');

@@ -10,6 +10,7 @@ import { SnapshotStore, AlertsStore, ConfigStore, PresetsStore, AutoTradeStore }
 import { TwapCache } from './src/twapCache.js';
 import { AlertEngine } from './src/alertEngine.js';
 import { AutoTradingEngine } from './src/autoTradingEngine.js';
+import { createNordUserHelper } from './src/nordHelper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -605,27 +606,7 @@ app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
     const appKey = 'zoau54n5U24GHNKqyoziVaVxgsiQYnPMx33fKmLLCT5';
 
     const { Connection } = await import("@solana/web3.js");
-    const { Nord, NordUser } = await import("@n1xyz/nord-ts");
-    const bs58 = (await import("bs58")).default;
-
-    const parsePrivateKeyLocal = (input) => {
-      const trimmed = input.trim();
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-        try {
-          return new Uint8Array(JSON.parse(trimmed));
-        } catch (e) {
-          throw new Error('Invalid JSON private key format');
-        }
-      }
-      try {
-        return bs58.decode(trimmed);
-      } catch (e) {
-        if (/^[0-9a-fA-F]+$/.test(trimmed)) {
-          return Buffer.from(trimmed, 'hex');
-        }
-        throw new Error('Unsupported private key encoding. Please use Base58 or JSON array.');
-      }
-    };
+    const { Nord } = await import("@n1xyz/nord-ts");
 
     const urls = isTestnet 
       ? ['https://api.devnet.solana.com'] 
@@ -658,8 +639,7 @@ app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
       throw new Error(`Failed to connect to any Solana RPC endpoint. Last error: ${lastError?.message}`);
     }
 
-    const parsedKey = parsePrivateKeyLocal(privateKey);
-    const user = NordUser.fromPrivateKey(nord, parsedKey);
+    const user = await createNordUserHelper(nord, wallet.address, privateKey);
     
     await user.updateAccountId();
     await user.fetchInfo();

@@ -396,7 +396,7 @@ export class ConfigStore {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({ key, value })
+          body: JSON.stringify({ key, value: typeof value === 'object' ? JSON.stringify(value) : value })
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -573,9 +573,41 @@ export class AutoTradeStore {
   constructor(configPath, statePath) {
     this.configPath = configPath;
     this.statePath = statePath;
+    this.supabaseUrl = process.env.SUPABASE_URL;
+    this.supabaseKey = process.env.SUPABASE_KEY;
+    this.isSupabase = !!(this.supabaseUrl && this.supabaseKey);
   }
 
   async getConfig() {
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_config?key=eq.autotrade_config&select=value`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`
+          }
+        });
+        if (!response.ok) {
+          if (response.status === 404) return { strategies: [], wallets: [] };
+          throw new Error(`Supabase get config failed: ${response.status}`);
+        }
+        const data = await response.json();
+        const value = data[0]?.value;
+        if (!value) return { strategies: [], wallets: [] };
+        
+        const parsed = (typeof value === 'string') ? JSON.parse(value) : value;
+        return {
+          strategies: parsed.strategies || [],
+          wallets: parsed.wallets || []
+        };
+      } catch (error) {
+        console.error('Error reading autotrade config from Supabase:', error);
+        return { strategies: [], wallets: [] };
+      }
+    }
+
     try {
       const raw = await readFile(this.configPath, 'utf8');
       const data = JSON.parse(raw);
@@ -625,6 +657,30 @@ export class AutoTradeStore {
   }
 
   async saveConfig(config) {
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_config`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({ key: 'autotrade_config', value: JSON.stringify(config) })
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Supabase set config failed: ${response.status} - ${errText}`);
+        }
+        return true;
+      } catch (error) {
+        console.error('Error writing autotrade config to Supabase:', error);
+        return false;
+      }
+    }
+
     const directory = path.dirname(this.configPath);
     await mkdir(directory, { recursive: true });
     await writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf8');
@@ -632,6 +688,36 @@ export class AutoTradeStore {
   }
 
   async getState() {
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_config?key=eq.autotrade_state&select=value`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`
+          }
+        });
+        if (!response.ok) {
+          if (response.status === 404) return { activePositions: [], logs: [], tradeHistory: [] };
+          throw new Error(`Supabase get state failed: ${response.status}`);
+        }
+        const data = await response.json();
+        const value = data[0]?.value;
+        if (!value) return { activePositions: [], logs: [], tradeHistory: [] };
+
+        const parsed = (typeof value === 'string') ? JSON.parse(value) : value;
+        return {
+          activePositions: parsed.activePositions || [],
+          logs: parsed.logs || [],
+          tradeHistory: parsed.tradeHistory || []
+        };
+      } catch (error) {
+        console.error('Error reading autotrade state from Supabase:', error);
+        return { activePositions: [], logs: [], tradeHistory: [] };
+      }
+    }
+
     try {
       const raw = await readFile(this.statePath, 'utf8');
       return JSON.parse(raw);
@@ -648,6 +734,30 @@ export class AutoTradeStore {
   }
 
   async saveState(state) {
+    if (this.isSupabase) {
+      try {
+        const url = `${this.supabaseUrl}/rest/v1/hype_config`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': this.supabaseKey,
+            'Authorization': `Bearer ${this.supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({ key: 'autotrade_state', value: JSON.stringify(state) })
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Supabase set state failed: ${response.status} - ${errText}`);
+        }
+        return true;
+      } catch (error) {
+        console.error('Error writing autotrade state to Supabase:', error);
+        return false;
+      }
+    }
+
     const directory = path.dirname(this.statePath);
     await mkdir(directory, { recursive: true });
     await writeFile(this.statePath, JSON.stringify(state, null, 2), 'utf8');

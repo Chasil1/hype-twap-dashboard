@@ -1,26 +1,7 @@
 import crypto from 'node:crypto';
 import { Nord, NordUser, Side, FillMode } from "@n1xyz/nord-ts";
 import { Connection } from "@solana/web3.js";
-import bs58 from "bs58";
-
-function parsePrivateKey(input) {
-  const trimmed = input.trim();
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      return new Uint8Array(JSON.parse(trimmed));
-    } catch (e) {
-      throw new Error('Invalid JSON private key format');
-    }
-  }
-  try {
-    return bs58.decode(trimmed);
-  } catch (e) {
-    if (/^[0-9a-fA-F]+$/.test(trimmed)) {
-      return Buffer.from(trimmed, 'hex');
-    }
-    throw new Error('Unsupported private key encoding. Please use Base58 or JSON array.');
-  }
-}
+import { createNordUserHelper } from "./nordHelper.js";
 
 export function resolveStrategyCredentials(strategy, wallets = []) {
   if (!strategy) return null;
@@ -50,8 +31,7 @@ async function get01User(config) {
     webServerUrl,
   });
 
-  const parsedKey = parsePrivateKey(config.privateKey);
-  const user = NordUser.fromPrivateKey(nord, parsedKey);
+  const user = await createNordUserHelper(nord, config.wallet, config.privateKey);
   
   await user.updateAccountId();
   await user.fetchInfo();
@@ -72,8 +52,7 @@ async function close01Position(pos, config, logMsg) {
       webServerUrl,
     });
 
-    const parsedKey = parsePrivateKey(config.privateKey);
-    const user = NordUser.fromPrivateKey(nord, parsedKey);
+    const user = await createNordUserHelper(nord, config.wallet, config.privateKey);
     
     await user.updateAccountId();
     await user.fetchInfo();
