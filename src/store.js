@@ -261,13 +261,7 @@ export class AlertsStore {
       }
     }
 
-    const merged = [...list];
-    DEFAULT_ALERTS.forEach(def => {
-      if (!merged.some(a => a.id === def.id)) {
-        merged.push(def);
-      }
-    });
-    return merged;
+    return list;
   }
 
   async save(alert) {
