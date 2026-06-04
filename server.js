@@ -117,6 +117,24 @@ async function authMiddleware(req, res, next) {
   }
 }
 
+// Restrict access to Auto Trading to specified Telegram ID
+async function restrictToOwner(req, res, next) {
+  try {
+    let token = await configStore.get('telegram_bot_token');
+    if (!token) token = process.env.TELEGRAM_BOT_TOKEN;
+
+    const user = getSessionUser(req, token ? token.trim() : null);
+    if (!user || String(user.id) !== '388735415') {
+      res.status(403).json({ error: 'Forbidden: You do not have access to Auto Trading.' });
+      return;
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function getBotUsername(botToken) {
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
@@ -521,7 +539,7 @@ app.post('/api/alerts/test', express.json(), async (req, res) => {
 
 // --- Auto-Trading API ---
 
-app.get('/api/autotrade/config', async (req, res) => {
+app.get('/api/autotrade/config', restrictToOwner, async (req, res) => {
   try {
     const config = await autoTradeStore.getConfig();
     res.json(config);
@@ -530,7 +548,7 @@ app.get('/api/autotrade/config', async (req, res) => {
   }
 });
 
-app.post('/api/autotrade/config', express.json(), async (req, res) => {
+app.post('/api/autotrade/config', express.json(), restrictToOwner, async (req, res) => {
   try {
     await autoTradeStore.saveConfig(req.body);
     res.json({ ok: true });
@@ -539,7 +557,7 @@ app.post('/api/autotrade/config', express.json(), async (req, res) => {
   }
 });
 
-app.get('/api/autotrade/status', async (req, res) => {
+app.get('/api/autotrade/status', restrictToOwner, async (req, res) => {
   try {
     const config = await autoTradeStore.getConfig();
     const state = await autoTradeStore.getState();
@@ -557,7 +575,7 @@ app.get('/api/autotrade/status', async (req, res) => {
   }
 });
 
-app.post('/api/autotrade/close', express.json(), async (req, res) => {
+app.post('/api/autotrade/close', express.json(), restrictToOwner, async (req, res) => {
   try {
     const { id } = req.body;
     if (!id) {

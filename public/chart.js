@@ -1926,6 +1926,15 @@ async function checkAuthState() {
       if (alertsTabs) alertsTabs.classList.remove('hidden');
       if (toggleSettingsBtn) toggleSettingsBtn.classList.remove('hidden');
       if (alertsAuthPlaceholder) alertsAuthPlaceholder.classList.add('hidden');
+
+      const tabAutoTrading = document.getElementById('tabAutoTrading');
+      if (tabAutoTrading) {
+        if (data.user.id && String(data.user.id) === '388735415') {
+          tabAutoTrading.classList.remove('hidden');
+        } else {
+          tabAutoTrading.classList.add('hidden');
+        }
+      }
     } else {
       isAuthenticated = false;
       currentUser = null;
@@ -1949,6 +1958,10 @@ async function checkAuthState() {
       }
       if (alertsAuthPlaceholder) {
         alertsAuthPlaceholder.classList.remove('hidden');
+      }
+      const tabAutoTrading = document.getElementById('tabAutoTrading');
+      if (tabAutoTrading) {
+        tabAutoTrading.classList.add('hidden');
       }
 
       const loginContainer = document.getElementById('telegram-login-container');
