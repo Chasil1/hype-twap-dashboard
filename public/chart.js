@@ -2215,6 +2215,7 @@ const TRANSLATIONS = {
     autoTradeSlModeLabel: "Stop Loss Mode",
     autoTradeSlPercentLabel: "Stop Loss (%)",
     autoTradeSlCloseLabel: "Stop Loss Exit Signal",
+    autoTradeSubaccountIndexLabel: "Subaccount Index",
     saveConfigStartBotLabel: "Save Strategy",
     configuredStrategies: "Configured Trading Strategies",
     createStrategy: "➕ Create Strategy",
@@ -2364,6 +2365,7 @@ const TRANSLATIONS = {
     autoTradeSlModeLabel: "Режим Стоп Лосса",
     autoTradeSlPercentLabel: "Стоп Лосс (%)",
     autoTradeSlCloseLabel: "Сигнал для закрытия по Стоп Лоссу",
+    autoTradeSubaccountIndexLabel: "Индекс субаккаунта",
     saveConfigStartBotLabel: "Сохранить стратегию",
     configuredStrategies: "Настроенные торговые стратегии",
     createStrategy: "➕ Создать стратегию",
@@ -2857,6 +2859,9 @@ function applyLanguage(lang) {
 
   const lblAutoTradeExchange = document.getElementById('lblAutoTradeExchange');
   if (lblAutoTradeExchange) lblAutoTradeExchange.textContent = t.autoTradeExchangeLabel;
+
+  const lblAutoTradeSubaccountIndex = document.getElementById('lblAutoTradeSubaccountIndex');
+  if (lblAutoTradeSubaccountIndex) lblAutoTradeSubaccountIndex.textContent = t.autoTradeSubaccountIndexLabel;
 
   const lblAutoTradeTestnet = document.getElementById('lblAutoTradeTestnet');
   if (lblAutoTradeTestnet) lblAutoTradeTestnet.textContent = t.autoTradeTestnetLabel;
@@ -4408,6 +4413,20 @@ function initAutoTradingConfigurator() {
   if (autoTradeTpMode) autoTradeTpMode.addEventListener('change', updateExitFields);
   if (autoTradeSlMode) autoTradeSlMode.addEventListener('change', updateExitFields);
 
+  const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
+  const updateExchangeFields = () => {
+    if (autoTradeExchange && autoTradeSubaccountGroup) {
+      if (autoTradeExchange.value === '01_exchange') {
+        autoTradeSubaccountGroup.classList.remove('hidden');
+      } else {
+        autoTradeSubaccountGroup.classList.add('hidden');
+      }
+    }
+  };
+  if (autoTradeExchange) {
+    autoTradeExchange.addEventListener('change', updateExchangeFields);
+  }
+
   // Custom Exits toggles
   if (autoTradeTpCloseSelect) {
     autoTradeTpCloseSelect.addEventListener('change', () => {
@@ -4534,6 +4553,10 @@ function resetStrategyForm() {
   document.getElementById('autoTradeOrderCount').value = '3';
   document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
   document.getElementById('autoTradeAmount').value = '60';
+
+  document.getElementById('autoTradeSubaccountIndex').value = '0';
+  const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
+  if (autoTradeSubaccountGroup) autoTradeSubaccountGroup.classList.add('hidden');
 
   populateStrategyWalletSelect();
   document.getElementById('strategyWalletSelect').value = '';
@@ -4667,6 +4690,7 @@ function renderStrategiesList() {
 
     const exchangeName = strategy.exchange === 'hl' ? 'Hyperliquid' : (strategy.exchange === 'bybit' ? 'Bybit' : '01 Exchange');
     const netType = strategy.testnet ? '(Testnet)' : '(Mainnet)';
+    const subaccountSuffix = strategy.exchange === '01_exchange' ? ` [Sub #${strategy.subaccountIndex ?? 0}]` : '';
     const amountStr = strategy.tradeAmount ? `$${strategy.tradeAmount}` : 'Grid';
     
     // Find alert name
@@ -4692,7 +4716,7 @@ function renderStrategiesList() {
     item.innerHTML = `
       <div class="alert-info">
         <span class="alert-title">${strategy.name || 'Unnamed Strategy'}${directionBadge}</span>
-        <span class="alert-rule">${exchangeName} ${netType}${walletLabel} | ${lang === 'en' ? 'Trigger' : 'Триггер'}: ${alertName} | ${lang === 'en' ? 'Size' : 'Объем'}: ${amountStr}</span>
+        <span class="alert-rule">${exchangeName}${subaccountSuffix} ${netType}${walletLabel} | ${lang === 'en' ? 'Trigger' : 'Триггер'}: ${alertName} | ${lang === 'en' ? 'Size' : 'Объем'}: ${amountStr}</span>
       </div>
       <div class="alert-actions">
         <label class="switch">
@@ -4755,6 +4779,16 @@ function startEditStrategy(strategy) {
   document.getElementById('autoTradeEnabled').checked = !!strategy.enabled;
   document.getElementById('autoTradeExchange').value = strategy.exchange || 'hl';
   document.getElementById('autoTradeTestnet').checked = !!strategy.testnet;
+
+  document.getElementById('autoTradeSubaccountIndex').value = strategy.subaccountIndex || 0;
+  const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
+  if (autoTradeSubaccountGroup) {
+    if (strategy.exchange === '01_exchange') {
+      autoTradeSubaccountGroup.classList.remove('hidden');
+    } else {
+      autoTradeSubaccountGroup.classList.add('hidden');
+    }
+  }
   
   populateStrategyWalletSelect();
   document.getElementById('strategyWalletSelect').value = strategy.walletId || '';
@@ -4852,6 +4886,7 @@ async function saveAutoTradeConfig(e) {
       enabled: document.getElementById('autoTradeEnabled').checked,
       exchange: document.getElementById('autoTradeExchange').value,
       testnet: document.getElementById('autoTradeTestnet').checked,
+      subaccountIndex: parseInt(document.getElementById('autoTradeSubaccountIndex').value, 10) || 0,
       walletId: walletId,
       alertId: alertId,
       direction: document.getElementById('autoTradeDirection').value,
@@ -5180,7 +5215,8 @@ async function refreshAutoTradeStatus() {
               walletLabel = ` (${wallet.name})`;
             }
           }
-          const displayName = `HYPE<br/><span style="font-size: 9px; color: var(--muted);">${pos.strategyName || 'Strategy'}${walletLabel}</span>`;
+          const subaccountLabel = (pos.exchange === '01_exchange') ? ` [Sub #${pos.subaccountIndex ?? 0}]` : '';
+          const displayName = `HYPE<br/><span style="font-size: 9px; color: var(--muted);">${pos.strategyName || 'Strategy'}${subaccountLabel}${walletLabel}</span>`;
 
           const tr = document.createElement('tr');
           tr.style.borderBottom = '1px solid var(--line)';
@@ -5240,7 +5276,8 @@ async function refreshAutoTradeStatus() {
           const pnlSign = profit >= 0 ? '+' : '';
 
           const timeStr = new Date(trade.exitTimestamp || trade.timestamp).toLocaleTimeString();
-          const stratName = trade.strategyName ? ` | ${trade.strategyName}` : '';
+          const subaccountLabel = (trade.exchange === '01_exchange') ? ` [Sub #${trade.subaccountIndex ?? 0}]` : '';
+          const stratName = trade.strategyName ? ` | ${trade.strategyName}${subaccountLabel}` : '';
 
           item.innerHTML = `
             <div>

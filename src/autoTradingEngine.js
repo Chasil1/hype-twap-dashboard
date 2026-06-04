@@ -78,14 +78,20 @@ async function close01Position(pos, config, logMsg) {
     await user.updateAccountId();
     await user.fetchInfo();
 
+    const subaccountIndex = parseInt(pos.subaccountIndex ?? config.subaccountIndex ?? 0, 10);
+    const accountId = user.accountIds[subaccountIndex] || user.accountIds[0];
+    if (!accountId) {
+      throw new Error('No subaccount ID resolved for 01 Exchange.');
+    }
+
     // 1. Cancel open limit orders
-    const openOrders = user.orders["HYPEUSD"] || [];
+    const openOrders = user.orders[accountId] || [];
     for (const order of pos.limitOrders) {
       if (!order.filled && order.orderId) {
         const isOpen = openOrders.some(o => o.orderId.toString() === order.orderId.toString());
         if (isOpen) {
           try {
-            await user.cancelOrder(BigInt(order.orderId));
+            await user.cancelOrder(BigInt(order.orderId), accountId);
             logMsg(`🤖 [CANCEL] Canceled open limit order ${order.orderId} on 01 Exchange before closing.`);
           } catch (e) {
             console.error(`Failed to cancel order ${order.orderId}:`, e.message);
@@ -103,13 +109,14 @@ async function close01Position(pos, config, logMsg) {
       const side = pos.direction === 'long' ? Side.Ask : Side.Bid; // opposite side
       const size = parseFloat(pos.qty.toFixed(market.sizeDecimals));
 
-      logMsg(`🤖 [EXITING] Placing market order to close position of size ${size} on 01 Exchange.`);
+      logMsg(`🤖 [EXITING] Placing market order to close position of size ${size} on 01 Exchange (subaccount index: ${subaccountIndex}).`);
       const closeResult = await user.placeOrder({
         marketId: market.marketId,
         side,
         fillMode: FillMode.FillOrKill, // FOK is standard for market order on 01 Exchange
         isReduceOnly: true,
-        size
+        size,
+        accountId
       });
       logMsg(`🤖 [EXITED] Market order placed on 01 Exchange. Action ID: ${closeResult.actionId}`);
     }
@@ -269,6 +276,7 @@ export class AutoTradingEngine {
               id: positionId,
               strategyId: strategy.id,
               strategyName: strategy.name,
+              subaccountIndex: strategy.subaccountIndex ?? 0,
               alertId: alert.id,
               alertName: alert.name,
               timestamp: latestSnapshot.timestamp,
@@ -293,19 +301,26 @@ export class AutoTradingEngine {
                 if (!market) throw new Error('HYPEUSD market not found on 01 Exchange');
                 const marketId = market.marketId;
 
+                const subaccountIndex = parseInt(strategy.subaccountIndex ?? 0, 10);
+                const accountId = user.accountIds[subaccountIndex] || user.accountIds[0];
+                if (!accountId) {
+                  throw new Error('No subaccount ID resolved for 01 Exchange.');
+                }
+
                 for (const order of newPosition.limitOrders) {
                   const side = crossoverDirection === 'long' ? Side.Bid : Side.Ask;
                   const size = parseFloat(order.qty.toFixed(market.sizeDecimals));
                   const price = parseFloat(order.limitPrice.toFixed(market.priceDecimals));
                   
-                  logMsg(`🤖 [PLACE ORDER] Placing order: ${side.toUpperCase()} size=${size} price=$${price} on 01 Exchange...`);
+                  logMsg(`🤖 [PLACE ORDER] Placing order: ${side.toUpperCase()} size=${size} price=$${price} on 01 Exchange (subaccount index: ${subaccountIndex})...`);
                   const res = await user.placeOrder({
                     marketId,
                     side,
                     fillMode: FillMode.Limit,
                     isReduceOnly: false,
                     size,
-                    price
+                    price,
+                    accountId
                   });
                   order.orderId = res.orderId.toString();
                   order.actionId = res.actionId.toString();
@@ -361,7 +376,9 @@ export class AutoTradingEngine {
       if (pos.exchange === '01_exchange') {
         try {
           const user = await this.getCachedUser(currentStrategyConfig);
-          const openOrders = user.orders["HYPEUSD"] || [];
+          const subaccountIndex = parseInt(pos.subaccountIndex ?? currentStrategyConfig.subaccountIndex ?? 0, 10);
+          const accountId = user.accountIds[subaccountIndex] || user.accountIds[0];
+          const openOrders = accountId ? (user.orders[accountId] || []) : [];
           
           for (const order of pos.limitOrders) {
             if (!order.filled && order.orderId) {

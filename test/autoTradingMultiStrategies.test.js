@@ -127,3 +127,14 @@ test('resolveStrategyCredentials maps walletId to credentials correctly', () => 
   const resolvedD = resolveStrategyCredentials(stratD, wallets);
   assert.equal(resolvedD.wallet, undefined);
 });
+
+test('resolveStrategyCredentials preserves subaccountIndex', () => {
+  const wallets = [
+    { id: 'w1', name: 'Solana 1', exchangeType: 'hl_solana', address: 'addr_sol1', privateKey: 'pk_sol1' }
+  ];
+  const strat = { id: 's1', name: 'Strat Sub', walletId: 'w1', subaccountIndex: 2 };
+  const resolved = resolveStrategyCredentials(strat, wallets);
+  assert.equal(resolved.wallet, 'addr_sol1');
+  assert.equal(resolved.privateKey, 'pk_sol1');
+  assert.equal(resolved.subaccountIndex, 2);
+});
