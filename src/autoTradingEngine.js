@@ -34,6 +34,7 @@ async function get01User(config) {
   const user = await createNordUserHelper(nord, config.wallet, config.privateKey);
   
   await user.updateAccountId();
+  await user.refreshSession();
   await user.fetchInfo();
   return { nord, user };
 }
@@ -55,6 +56,7 @@ async function close01Position(pos, config, logMsg) {
     const user = await createNordUserHelper(nord, config.wallet, config.privateKey);
     
     await user.updateAccountId();
+    await user.refreshSession();
     await user.fetchInfo();
 
     const subaccountIndex = parseInt(pos.subaccountIndex ?? config.subaccountIndex ?? 0, 10);
