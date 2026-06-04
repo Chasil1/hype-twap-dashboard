@@ -5189,7 +5189,8 @@ async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
         const opt = document.createElement('option');
         opt.value = sub.index;
         const shortId = sub.id ? (sub.id.slice(0, 6) + '...' + sub.id.slice(-4)) : '';
-        opt.textContent = `Subaccount #${sub.index} (${shortId})`;
+        const balanceStr = (sub.balance !== undefined) ? ` — $${sub.balance.toFixed(2)} USDC` : '';
+        opt.textContent = `Subaccount #${sub.index} (${shortId})${balanceStr}`;
         if (sub.index === parseInt(selectedSubaccountIndex, 10)) {
           opt.selected = true;
         }

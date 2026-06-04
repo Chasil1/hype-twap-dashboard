@@ -601,7 +601,6 @@ app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
 
     // Initialize Nord connection
     const isTestnet = testnet === 'true';
-    const solanaUrl = isTestnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
     const webServerUrl = isTestnet ? 'https://zo-devnet.n1.xyz' : 'https://zo-mainnet.n1.xyz';
     const appKey = 'zoau54n5U24GHNKqyoziVaVxgsiQYnPMx33fKmLLCT5';
 
@@ -628,22 +627,53 @@ app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
       }
     };
 
-    const connection = new Connection(solanaUrl);
-    const nord = await Nord.new({
-      app: appKey,
-      solanaConnection: connection,
-      webServerUrl,
-    });
+    const urls = isTestnet 
+      ? ['https://api.devnet.solana.com'] 
+      : [
+          'https://api.mainnet-beta.solana.com',
+          'https://rpc.ankr.com/solana',
+          'https://solana-mainnet.g.allnodes.com'
+        ];
+
+    let connection;
+    let nord;
+    let lastError;
+
+    for (const url of urls) {
+      try {
+        connection = new Connection(url, 'confirmed');
+        nord = await Nord.new({
+          app: appKey,
+          solanaConnection: connection,
+          webServerUrl,
+        });
+        break; // Success
+      } catch (e) {
+        console.warn(`Failed to connect to Solana RPC ${url}:`, e.message);
+        lastError = e;
+      }
+    }
+
+    if (!nord) {
+      throw new Error(`Failed to connect to any Solana RPC endpoint. Last error: ${lastError?.message}`);
+    }
 
     const parsedKey = parsePrivateKeyLocal(privateKey);
     const user = NordUser.fromPrivateKey(nord, parsedKey);
     
     await user.updateAccountId();
+    await user.fetchInfo();
     
-    const subaccounts = (user.accountIds || []).map((id, index) => ({
-      index,
-      id
-    }));
+    const subaccounts = (user.accountIds || []).map((id, index) => {
+      const balances = user.balances[id] || [];
+      const usdcBalanceObj = balances.find(b => b.symbol === 'USDC' || b.symbol === 'USDT' || b.symbol === 'USDC.e');
+      const balance = usdcBalanceObj ? parseFloat(usdcBalanceObj.balance) : 0;
+      return {
+        index,
+        id,
+        balance
+      };
+    });
 
     res.json({ subaccounts });
   } catch (err) {
