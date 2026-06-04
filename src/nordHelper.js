@@ -3,6 +3,16 @@ import { NordUser, makeWalletSignFn } from "@n1xyz/nord-ts";
 import bs58 from "bs58";
 import * as ed25519 from "@noble/ed25519";
 
+if (typeof Uint8Array.prototype.toHex !== 'function') {
+  Uint8Array.prototype.toHex = function () {
+    let hex = '';
+    for (let i = 0; i < this.length; i++) {
+      hex += this[i].toString(16).padStart(2, '0');
+    }
+    return hex;
+  };
+}
+
 export function parsePrivateKeyLocal(input) {
   const trimmed = input.trim();
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
