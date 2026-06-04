@@ -1887,6 +1887,7 @@ async function handleCreateAlert(e) {
 
 async function logoutTelegram() {
   try {
+    localStorage.setItem('tg_logged_out', 'true');
     const res = await fetch('/api/auth/logout', { method: 'POST' });
     if (res.ok) {
       await checkAuthState();
@@ -1911,6 +1912,7 @@ async function checkAuthState() {
     if (data.user) {
       isAuthenticated = true;
       currentUser = data.user;
+      localStorage.removeItem('tg_logged_out');
       if (authBar) {
         authBar.innerHTML = `<span>Logged in as <strong>${data.user.first_name}</strong></span> <button id="logoutBtn" class="logout-btn" type="button">Logout</button>`;
         document.getElementById('logoutBtn').addEventListener('click', logoutTelegram);
@@ -1967,15 +1969,30 @@ async function checkAuthState() {
       const loginContainer = document.getElementById('telegram-login-container');
       if (loginContainer) {
         if (data.botUsername) {
-          loginContainer.innerHTML = '';
-          const script = document.createElement('script');
-          script.async = true;
-          script.src = 'https://telegram.org/js/telegram-widget.js?22';
-          script.setAttribute('data-telegram-login', data.botUsername);
-          script.setAttribute('data-size', 'medium');
-          script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-          script.setAttribute('data-request-access', 'write');
-          loginContainer.appendChild(script);
+          if (localStorage.getItem('tg_logged_out') === 'true') {
+            const lang = localStorage.getItem('hype_twap_lang') || 'en';
+            const btnText = lang === 'en' ? 'Log in with Telegram' : 'Войти через Telegram';
+            loginContainer.innerHTML = `<button id="customTgLoginBtn" class="action-btn" style="gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg> <span style="vertical-align:middle;">${btnText}</span></button>`;
+            document.getElementById('customTgLoginBtn').addEventListener('click', () => {
+              const confirmMsg = lang === 'en'
+                ? "Confirm login to the platform using Telegram?"
+                : "Подтвердить вход на платформу с помощью Telegram?";
+              if (confirm(confirmMsg)) {
+                localStorage.removeItem('tg_logged_out');
+                checkAuthState();
+              }
+            });
+          } else {
+            loginContainer.innerHTML = '';
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.setAttribute('data-telegram-login', data.botUsername);
+            script.setAttribute('data-size', 'medium');
+            script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+            script.setAttribute('data-request-access', 'write');
+            loginContainer.appendChild(script);
+          }
         } else {
           loginContainer.innerHTML = '<span style="color: var(--red); font-size: 11px;">Telegram Bot token not configured on server. Set token in Settings or env.</span>';
         }
@@ -1997,6 +2014,7 @@ window.onTelegramAuth = async function(user) {
       body: JSON.stringify(user)
     });
     if (res.ok) {
+      localStorage.removeItem('tg_logged_out');
       await checkAuthState();
       window.location.reload();
     } else {
@@ -2465,6 +2483,13 @@ function updateAuthPlaceholderTranslations(lang) {
         <li>${t.domainMatches}</li>
       </ul>
     `;
+  }
+
+  // Dynamic update for custom login button
+  const customTgLoginBtn = document.getElementById('customTgLoginBtn');
+  if (customTgLoginBtn) {
+    const btnText = lang === 'en' ? 'Log in with Telegram' : 'Войти через Telegram';
+    customTgLoginBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg> <span style="vertical-align:middle;">${btnText}</span>`;
   }
 }
 
