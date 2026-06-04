@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { Nord, NordUser, Side, FillMode } from "@n1xyz/nord-ts";
 import { Connection } from "@solana/web3.js";
 import { createNordUserHelper } from "./nordHelper.js";
+import { HibachiCcxtAdapter } from "./hibachiCcxtAdapter.js";
 
 export function resolveStrategyCredentials(strategy, wallets = []) {
   if (!strategy) return null;
@@ -13,6 +14,7 @@ export function resolveStrategyCredentials(strategy, wallets = []) {
       clone.privateKey = wallet.privateKey || '';
       clone.apiKey = wallet.apiKey || '';
       clone.apiSecret = wallet.apiSecret || '';
+      clone.accountId = wallet.accountId || '';
     }
   }
   return clone;
@@ -109,9 +111,10 @@ async function close01Position(pos, config, logMsg) {
 }
 
 export class AutoTradingEngine {
-  constructor({ autoTradeStore, configStore }) {
+  constructor({ autoTradeStore, configStore, hibachiAdapter = new HibachiCcxtAdapter() }) {
     this.autoTradeStore = autoTradeStore;
     this.configStore = configStore;
+    this.hibachiAdapter = hibachiAdapter;
     this.lastCheckedTimestamp = null;
     this.cachedUser = null;
     this.cachedUserConfigHash = null;
@@ -317,6 +320,18 @@ export class AutoTradingEngine {
                 logMsg(`⚠️ [ERROR] Failed to open position on 01 Exchange: ${detailedMessage}`);
                 console.error(err);
               }
+            } else if (newPosition.exchange === 'hibachi') {
+              try {
+                logMsg(`🤖 [OPENING] Connecting to Hibachi via CCXT to place limit order grid...`);
+                await this.hibachiAdapter.placeLimitGrid(newPosition, strategy);
+                state.activePositions.push(newPosition);
+                logMsg(`🤖 [OPEN] Live Hibachi order grid placed successfully! Account ID: ${strategy.accountId || strategy.subaccountIndex || 'default'}, Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+                stateChanged = true;
+              } catch (err) {
+                const detailedMessage = err.cause ? `${err.message} (Cause: ${err.cause.message})` : err.message;
+                logMsg(`⚠️ [ERROR] Failed to open position on Hibachi: ${detailedMessage}`);
+                console.error(err);
+              }
             } else {
               state.activePositions.push(newPosition);
               logMsg(`🤖 [OPEN] Live order grid initialized on crossover! Exchange: ${newPosition.exchange.toUpperCase()}, Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
@@ -388,6 +403,22 @@ export class AutoTradingEngine {
           }
         } catch (err) {
           console.error('Error updating 01 Exchange position status:', err);
+        }
+      } else if (pos.exchange === 'hibachi') {
+        try {
+          const changed = await this.hibachiAdapter.syncFills(pos, currentStrategyConfig, latestSnapshot.timestamp);
+          if (changed) {
+            stateChanged = true;
+            const latestFilled = pos.filledPositions.at(-1);
+            if (latestFilled) {
+              const fillPrice = latestFilled.fillPrice ?? latestFilled.limitPrice;
+              logMsg(`🤖 [FILL] Hibachi order filled for leg ${latestFilled.index} at $${Number(fillPrice).toFixed(4)}. Position Size: ${pos.qty.toFixed(4)}, Avg Price: $${pos.avgPrice.toFixed(4)}`);
+            }
+          }
+        } catch (err) {
+          console.error('Error updating Hibachi position status:', err);
+          const detailedMessage = err.cause ? `${err.message} (Cause: ${err.cause.message})` : err.message;
+          logMsg(`⚠️ [ERROR] Failed to sync Hibachi orders: ${detailedMessage}`);
         }
       } else {
         for (const order of pos.limitOrders) {
@@ -528,6 +559,8 @@ export class AutoTradingEngine {
         if (exitTriggered) {
           if (pos.exchange === '01_exchange') {
             await close01Position(pos, currentStrategyConfig, logMsg);
+          } else if (pos.exchange === 'hibachi') {
+            await this.hibachiAdapter.closePosition(pos, currentStrategyConfig);
           }
           // Close position
           const profit = isShort 
@@ -566,6 +599,8 @@ export class AutoTradingEngine {
         if (cancelTriggered) {
           if (pos.exchange === '01_exchange') {
             await close01Position(pos, currentStrategyConfig, logMsg);
+          } else if (pos.exchange === 'hibachi') {
+            await this.hibachiAdapter.cancelOpenOrders(pos, currentStrategyConfig);
           }
           pos.status = 'canceled';
           state.activePositions = state.activePositions.filter(p => p.id !== pos.id);
@@ -603,6 +638,8 @@ export class AutoTradingEngine {
         state.logs.unshift(`[${timeStr}] [${strategyName}] ${text}`);
         this.sendTelegramMessage(`[${strategyName}] ${text}`).catch(err => console.error('Telegram autotrade send failed:', err));
       });
+    } else if (pos.exchange === 'hibachi') {
+      await this.hibachiAdapter.closePosition(pos, currentStrategyConfig);
     }
 
     const isShort = (pos.direction === 'short');

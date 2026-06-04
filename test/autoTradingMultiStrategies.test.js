@@ -101,7 +101,8 @@ test('AutoTradeStore handles clean multi-strategies config read/write', async ()
 test('resolveStrategyCredentials maps walletId to credentials correctly', () => {
   const wallets = [
     { id: 'w1', name: 'Solana 1', exchangeType: 'hl_solana', address: 'addr_sol1', privateKey: 'pk_sol1' },
-    { id: 'w2', name: 'Bybit 1', exchangeType: 'bybit_api', apiKey: 'key_bb1', apiSecret: 'sec_bb1' }
+    { id: 'w2', name: 'Bybit 1', exchangeType: 'bybit_api', apiKey: 'key_bb1', apiSecret: 'sec_bb1' },
+    { id: 'w3', name: 'Hibachi Sub 42', exchangeType: 'hibachi_ccxt', apiKey: 'key_hib', accountId: '42', privateKey: 'pk_hib' }
   ];
 
   // Scenario A: Strategy has walletId pointing to Solana wallet
@@ -126,6 +127,14 @@ test('resolveStrategyCredentials maps walletId to credentials correctly', () => 
   const stratD = { id: 's4', name: 'Strat D', walletId: 'non-existent' };
   const resolvedD = resolveStrategyCredentials(stratD, wallets);
   assert.equal(resolvedD.wallet, undefined);
+
+  // Scenario E: Strategy has walletId pointing to Hibachi account credentials
+  const stratE = { id: 's5', name: 'Strat E', walletId: 'w3', subaccountIndex: 42 };
+  const resolvedE = resolveStrategyCredentials(stratE, wallets);
+  assert.equal(resolvedE.apiKey, 'key_hib');
+  assert.equal(resolvedE.accountId, '42');
+  assert.equal(resolvedE.privateKey, 'pk_hib');
+  assert.equal(resolvedE.subaccountIndex, 42);
 });
 
 test('resolveStrategyCredentials preserves subaccountIndex', () => {

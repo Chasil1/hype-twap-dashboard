@@ -517,6 +517,7 @@
                 <select id="walletExchangeSelect" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;">
                   <option value="hl_solana" selected>Solana Key (01 Exchange / Hyperliquid)</option>
                   <option value="bybit_api">Bybit API Keys</option>
+                  <option value="hibachi_ccxt">Hibachi.xyz (CCXT)</option>
                 </select>
               </div>
 
@@ -524,15 +525,19 @@
               <div id="walletCredsBlock">
                 <div class="form-group" id="walletGroupAddress" style="margin-bottom: 8px;">
                   <label for="walletAddressInput" id="lblWalletAddress">Wallet Address</label>
-                  <input type="text" id="walletAddressInput" placeholder="e.g. 0x... or Solana Address" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                  <input type="text" id="walletAddressInput" placeholder="Solana address (base58)" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
                 </div>
                 <div class="form-group" id="walletGroupPrivateKey" style="margin-bottom: 8px;">
                   <label for="walletPrivateKeyInput" id="lblWalletPrivateKey">Private Key</label>
-                  <input type="password" id="walletPrivateKeyInput" placeholder="Secret private key..." style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                  <input type="password" id="walletPrivateKeyInput" placeholder="Solana secret key (base58 or JSON array)" style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
                 </div>
                 <div class="form-group hidden" id="walletGroupApiKey" style="margin-bottom: 8px;">
                   <label for="walletApiKeyInput" id="lblWalletApiKey">API Key</label>
                   <input type="text" id="walletApiKeyInput" placeholder="API Key..." style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
+                </div>
+                <div class="form-group hidden" id="walletGroupAccountId" style="margin-bottom: 8px;">
+                  <label for="walletAccountIdInput" id="lblWalletAccountId">Account ID</label>
+                  <input type="text" id="walletAccountIdInput" placeholder="Hibachi account ID..." style="width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); color: var(--fg); padding: 6px 10px; border-radius: 4px;"/>
                 </div>
                 <div class="form-group hidden" id="walletGroupApiSecret" style="margin-bottom: 8px;">
                   <label for="walletApiSecretInput" id="lblWalletApiSecret">API Secret</label>
@@ -574,6 +579,7 @@
                     <option value="hl" selected>Hyperliquid Only</option>
                     <option value="bybit">Bybit Only</option>
                     <option value="01_exchange">01 Exchange (Solana)</option>
+                    <option value="hibachi">Hibachi.xyz (CCXT)</option>
                   </select>
                 </div>
                 <div class="form-group" style="display: flex; align-items: end; padding-bottom: 6px;">

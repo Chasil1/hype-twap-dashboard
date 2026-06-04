@@ -4322,17 +4322,31 @@ function initAutoTradingConfigurator() {
     const groupAddress = document.getElementById('walletGroupAddress');
     const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
     const groupApiKey = document.getElementById('walletGroupApiKey');
+    const groupAccountId = document.getElementById('walletGroupAccountId');
     const groupApiSecret = document.getElementById('walletGroupApiSecret');
+    const walletAddressInput = document.getElementById('walletAddressInput');
+    const walletPrivateKeyInput = document.getElementById('walletPrivateKeyInput');
 
     if (exchangeType === 'hl_solana') {
       groupAddress.classList.remove('hidden');
       groupPrivateKey.classList.remove('hidden');
       groupApiKey.classList.add('hidden');
+      if (groupAccountId) groupAccountId.classList.add('hidden');
       groupApiSecret.classList.add('hidden');
+      if (walletAddressInput) walletAddressInput.placeholder = 'Solana address (base58)';
+      if (walletPrivateKeyInput) walletPrivateKeyInput.placeholder = 'Solana secret key (base58 or JSON array)';
+    } else if (exchangeType === 'hibachi_ccxt') {
+      groupAddress.classList.add('hidden');
+      groupPrivateKey.classList.remove('hidden');
+      groupApiKey.classList.remove('hidden');
+      if (groupAccountId) groupAccountId.classList.remove('hidden');
+      groupApiSecret.classList.add('hidden');
+      if (walletPrivateKeyInput) walletPrivateKeyInput.placeholder = 'Hibachi private key...';
     } else {
       groupAddress.classList.add('hidden');
       groupPrivateKey.classList.add('hidden');
       groupApiKey.classList.remove('hidden');
+      if (groupAccountId) groupAccountId.classList.add('hidden');
       groupApiSecret.classList.remove('hidden');
     }
   };
@@ -4350,6 +4364,8 @@ function initAutoTradingConfigurator() {
       document.getElementById('walletAddressInput').value = '';
       document.getElementById('walletPrivateKeyInput').value = '';
       document.getElementById('walletApiKeyInput').value = '';
+      const walletAccountIdInput = document.getElementById('walletAccountIdInput');
+      if (walletAccountIdInput) walletAccountIdInput.value = '';
       document.getElementById('walletApiSecretInput').value = '';
       walletExchangeSelect.value = 'hl_solana';
       updateWalletExchangeFields();
@@ -4416,7 +4432,7 @@ function initAutoTradingConfigurator() {
   const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
   const updateExchangeFields = () => {
     if (autoTradeExchange && autoTradeSubaccountGroup) {
-      if (autoTradeExchange.value === '01_exchange') {
+      if (autoTradeExchange.value === '01_exchange' || autoTradeExchange.value === 'hibachi') {
         autoTradeSubaccountGroup.classList.remove('hidden');
         updateSubaccountDropdown();
       } else {
@@ -4699,9 +4715,9 @@ function renderStrategiesList() {
     const item = document.createElement('div');
     item.className = 'alert-item';
 
-    const exchangeName = strategy.exchange === 'hl' ? 'Hyperliquid' : (strategy.exchange === 'bybit' ? 'Bybit' : '01 Exchange');
+    const exchangeName = strategy.exchange === 'hl' ? 'Hyperliquid' : (strategy.exchange === 'bybit' ? 'Bybit' : (strategy.exchange === 'hibachi' ? 'Hibachi' : '01 Exchange'));
     const netType = strategy.testnet ? '(Testnet)' : '(Mainnet)';
-    const subaccountSuffix = strategy.exchange === '01_exchange' ? ` [Sub #${strategy.subaccountIndex ?? 0}]` : '';
+    const subaccountSuffix = (strategy.exchange === '01_exchange' || strategy.exchange === 'hibachi') ? ` [Sub #${strategy.subaccountIndex ?? 0}]` : '';
     const amountStr = strategy.tradeAmount ? `$${strategy.tradeAmount}` : 'Grid';
     
     // Find alert name
@@ -4797,7 +4813,7 @@ function startEditStrategy(strategy) {
   const subaccountIndexVal = strategy.subaccountIndex || 0;
   const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
   if (autoTradeSubaccountGroup) {
-    if (strategy.exchange === '01_exchange') {
+    if (strategy.exchange === '01_exchange' || strategy.exchange === 'hibachi') {
       autoTradeSubaccountGroup.classList.remove('hidden');
       updateSubaccountDropdown(subaccountIndexVal);
     } else {
@@ -4969,7 +4985,7 @@ function renderWalletsList() {
     const item = document.createElement('div');
     item.className = 'alert-item';
 
-    const exchangeTypeStr = wallet.exchangeType === 'hl_solana' ? 'Solana (Hyperliquid/01)' : 'Bybit API Keys';
+    const exchangeTypeStr = wallet.exchangeType === 'hl_solana' ? 'Solana (Hyperliquid/01)' : (wallet.exchangeType === 'hibachi_ccxt' ? 'Hibachi.xyz (CCXT)' : 'Bybit API Keys');
     
     // Mask private keys / secrets for safety
     let keyInfo = '';
@@ -4977,6 +4993,8 @@ function renderWalletsList() {
       const addr = wallet.address || '';
       const displayAddr = addr.length > 10 ? (addr.substring(0, 6) + '...' + addr.substring(addr.length - 4)) : addr;
       keyInfo = `${lang === 'en' ? 'Address' : 'Адрес'}: ${displayAddr}`;
+    } else if (wallet.exchangeType === 'hibachi_ccxt') {
+      keyInfo = `Account ID: ${wallet.accountId || '-'}`;
     } else {
       const apiKey = wallet.apiKey || '';
       const displayKey = apiKey.length > 8 ? (apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4)) : apiKey;
@@ -5032,22 +5050,33 @@ function startEditWallet(wallet) {
   const groupAddress = document.getElementById('walletGroupAddress');
   const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
   const groupApiKey = document.getElementById('walletGroupApiKey');
+  const groupAccountId = document.getElementById('walletGroupAccountId');
   const groupApiSecret = document.getElementById('walletGroupApiSecret');
   if (exchangeType === 'hl_solana') {
     groupAddress.classList.remove('hidden');
     groupPrivateKey.classList.remove('hidden');
     groupApiKey.classList.add('hidden');
+    if (groupAccountId) groupAccountId.classList.add('hidden');
+    groupApiSecret.classList.add('hidden');
+  } else if (exchangeType === 'hibachi_ccxt') {
+    groupAddress.classList.add('hidden');
+    groupPrivateKey.classList.remove('hidden');
+    groupApiKey.classList.remove('hidden');
+    if (groupAccountId) groupAccountId.classList.remove('hidden');
     groupApiSecret.classList.add('hidden');
   } else {
     groupAddress.classList.add('hidden');
     groupPrivateKey.classList.add('hidden');
     groupApiKey.classList.remove('hidden');
+    if (groupAccountId) groupAccountId.classList.add('hidden');
     groupApiSecret.classList.remove('hidden');
   }
 
   document.getElementById('walletAddressInput').value = wallet.address || '';
   document.getElementById('walletPrivateKeyInput').value = wallet.privateKey || '';
   document.getElementById('walletApiKeyInput').value = wallet.apiKey || '';
+  const walletAccountIdInput = document.getElementById('walletAccountIdInput');
+  if (walletAccountIdInput) walletAccountIdInput.value = wallet.accountId || '';
   document.getElementById('walletApiSecretInput').value = wallet.apiSecret || '';
 
   // Clear feedback
@@ -5078,11 +5107,25 @@ async function saveWallet(e) {
     const address = document.getElementById('walletAddressInput').value.trim();
     const privateKey = document.getElementById('walletPrivateKeyInput').value.trim();
     const apiKey = document.getElementById('walletApiKeyInput').value.trim();
+    const accountId = document.getElementById('walletAccountIdInput')?.value.trim() || '';
     const apiSecret = document.getElementById('walletApiSecretInput').value.trim();
 
     if (exchangeType === 'hl_solana') {
+      if (!address) {
+        throw new Error(currentLang === 'en' ? 'Solana wallet address is required.' : 'Solana wallet address is required.');
+      }
+      if (address.startsWith('0x')) {
+        throw new Error(currentLang === 'en' ? '01 Exchange requires a Solana wallet address, not an EVM 0x address.' : '01 Exchange requires a Solana wallet address, not an EVM 0x address.');
+      }
       if (!privateKey) {
         throw new Error(currentLang === 'en' ? 'Private Key is required.' : 'Приватный ключ обязателен.');
+      }
+      if (privateKey.startsWith('0x')) {
+        throw new Error(currentLang === 'en' ? '01 Exchange trading requires a Solana private key. EVM private keys are not supported.' : '01 Exchange trading requires a Solana private key. EVM private keys are not supported.');
+      }
+    } else if (exchangeType === 'hibachi_ccxt') {
+      if (!apiKey || !accountId || !privateKey) {
+        throw new Error(currentLang === 'en' ? 'Hibachi API Key, Account ID, and Private Key are required.' : 'Для Hibachi нужны API Key, Account ID и Private Key.');
       }
     } else {
       if (!apiKey || !apiSecret) {
@@ -5099,6 +5142,7 @@ async function saveWallet(e) {
       address,
       privateKey,
       apiKey,
+      accountId,
       apiSecret
     };
 
@@ -5145,7 +5189,7 @@ function populateStrategyWalletSelect() {
   currentWallets.forEach(wallet => {
     const opt = document.createElement('option');
     opt.value = wallet.id;
-    const typeLabel = wallet.exchangeType === 'hl_solana' ? 'Solana' : 'Bybit';
+    const typeLabel = wallet.exchangeType === 'hl_solana' ? 'Solana' : (wallet.exchangeType === 'hibachi_ccxt' ? 'Hibachi' : 'Bybit');
     opt.textContent = `${wallet.name} (${typeLabel})`;
     if (wallet.id === currentVal) {
       opt.selected = true;
@@ -5165,7 +5209,7 @@ async function updateSubaccountDropdown(selectedSubaccountIndex = 0) {
 
   if (!select) return;
 
-  if (exchange !== '01_exchange' || !walletId) {
+  if ((exchange !== '01_exchange' && exchange !== 'hibachi') || !walletId) {
     select.innerHTML = '<option value="0">Default (Subaccount #0)</option>';
     select.value = "0";
     return;
@@ -5298,7 +5342,7 @@ async function refreshAutoTradeStatus() {
               walletLabel = ` (${wallet.name})`;
             }
           }
-          const subaccountLabel = (pos.exchange === '01_exchange') ? ` [Sub #${pos.subaccountIndex ?? 0}]` : '';
+          const subaccountLabel = (pos.exchange === '01_exchange' || pos.exchange === 'hibachi') ? ` [Sub #${pos.subaccountIndex ?? 0}]` : '';
           const displayName = `HYPE<br/><span style="font-size: 9px; color: var(--muted);">${pos.strategyName || 'Strategy'}${subaccountLabel}${walletLabel}</span>`;
 
           const tr = document.createElement('tr');
@@ -5359,7 +5403,7 @@ async function refreshAutoTradeStatus() {
           const pnlSign = profit >= 0 ? '+' : '';
 
           const timeStr = new Date(trade.exitTimestamp || trade.timestamp).toLocaleTimeString();
-          const subaccountLabel = (trade.exchange === '01_exchange') ? ` [Sub #${trade.subaccountIndex ?? 0}]` : '';
+          const subaccountLabel = (trade.exchange === '01_exchange' || trade.exchange === 'hibachi') ? ` [Sub #${trade.subaccountIndex ?? 0}]` : '';
           const stratName = trade.strategyName ? ` | ${trade.strategyName}${subaccountLabel}` : '';
 
           item.innerHTML = `

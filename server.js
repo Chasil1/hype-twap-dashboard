@@ -11,6 +11,7 @@ import { TwapCache } from './src/twapCache.js';
 import { AlertEngine } from './src/alertEngine.js';
 import { AutoTradingEngine } from './src/autoTradingEngine.js';
 import { createNordUserHelper } from './src/nordHelper.js';
+import { HibachiCcxtAdapter } from './src/hibachiCcxtAdapter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,7 @@ const autoTradeStore = new AutoTradeStore(
 );
 const alertEngine = new AlertEngine({ alertsStore, configStore });
 const autoTradingEngine = new AutoTradingEngine({ autoTradeStore, configStore });
+const hibachiAdapter = new HibachiCcxtAdapter();
 
 // Parse cookies helper
 function parseCookies(cookieHeader) {
@@ -597,6 +599,26 @@ app.get('/api/autotrade/subaccounts', restrictToOwner, async (req, res) => {
     const privateKey = wallet.privateKey;
     if (!privateKey) {
       res.status(400).json({ error: 'Selected wallet does not have a private key' });
+      return;
+    }
+
+    if (wallet.exchangeType === 'hibachi_ccxt') {
+      if (!wallet.apiKey || !wallet.accountId || !wallet.privateKey) {
+        res.status(400).json({ error: 'Hibachi API key, account ID, and private key are required.' });
+        return;
+      }
+
+      const subaccounts = await hibachiAdapter.fetchSubaccounts({
+        apiKey: wallet.apiKey,
+        accountId: wallet.accountId,
+        privateKey: wallet.privateKey
+      });
+      res.json({ subaccounts });
+      return;
+    }
+
+    if (wallet.exchangeType !== 'hl_solana') {
+      res.json({ subaccounts: [] });
       return;
     }
 
