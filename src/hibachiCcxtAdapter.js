@@ -1,6 +1,7 @@
 import ccxt from 'ccxt';
 
 export const HIBACHI_SYMBOL = 'HYPE/USDT:USDT';
+const HIBACHI_PRICE_TICK_SIZE = 0.0001;
 
 export function resolveHibachiAccountId(config = {}) {
   if (config.accountId !== undefined && config.accountId !== null && String(config.accountId).trim()) {
@@ -66,6 +67,10 @@ function recalculatePositionFromFills(position) {
   position.avgPrice = totalQty > 0 ? totalCost / totalQty : 0;
 }
 
+function roundToTick(value, tickSize) {
+  return Math.round((Number(value) + Number.EPSILON) / tickSize) * tickSize;
+}
+
 export class HibachiCcxtAdapter {
   constructor({ exchangeFactory = createHibachiCcxtExchange, symbol = HIBACHI_SYMBOL } = {}) {
     this.exchangeFactory = exchangeFactory;
@@ -88,10 +93,11 @@ export class HibachiCcxtAdapter {
   }
 
   toPrice(exchange, price) {
+    let precisePrice = price;
     if (typeof exchange.priceToPrecision === 'function') {
-      return Number(exchange.priceToPrecision(this.symbol, price));
+      precisePrice = exchange.priceToPrecision(this.symbol, price);
     }
-    return Number(price);
+    return Number(roundToTick(precisePrice, HIBACHI_PRICE_TICK_SIZE).toFixed(4));
   }
 
   async placeLimitGrid(position, config) {

@@ -11,7 +11,7 @@ import {
 } from '../src/hibachiCcxtAdapter.js';
 
 class FakeHibachiExchange {
-  constructor({ openOrderIds = [], orderDetails = {}, balance = {}, positions = [] } = {}) {
+  constructor({ openOrderIds = [], orderDetails = {}, balance = {}, positions = [], pricePrecisionMode = 'twoDecimals' } = {}) {
     this.marketsLoaded = false;
     this.createdOrders = [];
     this.canceledOrders = [];
@@ -19,6 +19,7 @@ class FakeHibachiExchange {
     this.orderDetails = orderDetails;
     this.balance = balance;
     this.positions = positions;
+    this.pricePrecisionMode = pricePrecisionMode;
   }
 
   async loadMarkets() {
@@ -30,6 +31,9 @@ class FakeHibachiExchange {
   }
 
   priceToPrecision(_symbol, price) {
+    if (this.pricePrecisionMode === 'passthrough') {
+      return String(price);
+    }
     return Number(price).toFixed(2);
   }
 
@@ -109,6 +113,21 @@ test('HibachiCcxtAdapter places a reduce-disabled limit grid using CCXT unified 
   assert.equal(fake.createdOrders[0].params.reduceOnly, false);
   assert.equal(position.limitOrders[0].orderId, 'order-1');
   assert.equal(position.limitOrders[1].orderId, 'order-2');
+});
+
+test('HibachiCcxtAdapter rounds limit prices to Hibachi 0.0001 tick size', async () => {
+  const fake = new FakeHibachiExchange({ pricePrecisionMode: 'passthrough' });
+  const adapter = new HibachiCcxtAdapter({ exchangeFactory: () => fake });
+  const position = {
+    direction: 'long',
+    limitOrders: [
+      { index: 1, qty: 1, limitPrice: 65.06422 }
+    ]
+  };
+
+  await adapter.placeLimitGrid(position, { apiKey: 'api', accountId: '42', privateKey: 'pk' });
+
+  assert.equal(fake.createdOrders[0].price, 65.0642);
 });
 
 test('HibachiCcxtAdapter marks a limit leg filled when it disappears from open orders', async () => {
