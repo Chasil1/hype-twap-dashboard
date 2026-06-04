@@ -2036,6 +2036,9 @@ function initAlertConfigurator() {
   
   // Initialize Backtester & Simulation panel
   initBacktestConfigurator();
+  
+  // Initialize Auto Trading panel
+  initAutoTradingConfigurator();
 }
 
 // Startup Execution
@@ -2159,7 +2162,42 @@ const TRANSLATIONS = {
     upsideProfitRun: "Upside Profit Run",
     maximum: "Maximum",
     average: "Average",
-    median: "Median"
+    median: "Median",
+    
+    // Auto Trading translations
+    autoTradeTab: "Auto Trading",
+    autoTradeEnabledLabel: "Live Auto Trading Status",
+    autoTradeExchangeLabel: "Exchange Source",
+    autoTradeTestnetLabel: "Sandbox / Testnet",
+    autoTradeWalletLabel: "Wallet Address",
+    autoTradePrivateKeyLabel: "Private Key",
+    autoTradeApiKeyLabel: "API Key",
+    autoTradeApiSecretLabel: "API Secret",
+    autoTradeAlertLabel: "Trigger Alert",
+    autoTradeDirectionLabel: "Signal Direction",
+    autoTradeOrderCountLabel: "Number of Limit Orders",
+    autoTradeAmountLabel: "Sum per Trade (USD)",
+    autoTradeTpModeLabel: "Take Profit Mode",
+    autoTradeTpPercentLabel: "Take Profit (%)",
+    autoTradeTpAnchorLabel: "TP Anchor Price",
+    autoTradeTpCloseLabel: "Take Profit Exit Signal",
+    autoTradeSlModeLabel: "Stop Loss Mode",
+    autoTradeSlPercentLabel: "Stop Loss (%)",
+    autoTradeSlCloseLabel: "Stop Loss Exit Signal",
+    saveConfigStartBotLabel: "Save Config & Start Bot",
+    titleAutoTradeStatusLabel: "Bot Status",
+    titleAutoTradePositionsLabel: "Active Positions",
+    thAutotradeAssetLabel: "Asset",
+    thAutotradeSideLabel: "Dir",
+    thAutotradeSizeLabel: "Size",
+    thAutotradeEntryLabel: "Entry",
+    thAutotradeMarkLabel: "Mark",
+    thAutotradePnlLabel: "PnL",
+    thAutotradeActionsLabel: "Action",
+    tdAutotradeNoPositionsLabel: "No active positions.",
+    titleAutoTradeLogsLabel: "Recent Trade Logs",
+    titleAutoTradeHistoryLabel: "Recent Trade History",
+    pAutotradeNoHistoryLabel: "No completed trades yet."
   },
   ru: {
     separateWindow: "Отдельное окно",
@@ -2259,7 +2297,42 @@ const TRANSLATIONS = {
     upsideProfitRun: "Рост цены вверх после сигнала",
     maximum: "Максимум",
     average: "Среднее",
-    median: "Медиана"
+    median: "Медиана",
+    
+    // Auto Trading translations
+    autoTradeTab: "Авто-торговля",
+    autoTradeEnabledLabel: "Статус авто-торговли",
+    autoTradeExchangeLabel: "Биржа",
+    autoTradeTestnetLabel: "Песочница / Тестнет",
+    autoTradeWalletLabel: "Адрес кошелька",
+    autoTradePrivateKeyLabel: "Приватный ключ",
+    autoTradeApiKeyLabel: "API Ключ",
+    autoTradeApiSecretLabel: "API Секрет",
+    autoTradeAlertLabel: "Сигнальный алерт",
+    autoTradeDirectionLabel: "Направление сигнала",
+    autoTradeOrderCountLabel: "Количество лимитных ордеров",
+    autoTradeAmountLabel: "Сумма на сделку (USD)",
+    autoTradeTpModeLabel: "Режим Тейк Профита",
+    autoTradeTpPercentLabel: "Тейк профит (%)",
+    autoTradeTpAnchorLabel: "База для Тейк Профита",
+    autoTradeTpCloseLabel: "Сигнал для закрытия по Тейк Профиту",
+    autoTradeSlModeLabel: "Режим Стоп Лосса",
+    autoTradeSlPercentLabel: "Стоп Лосс (%)",
+    autoTradeSlCloseLabel: "Сигнал для закрытия по Стоп Лоссу",
+    saveConfigStartBotLabel: "Сохранить конфиг и запустить",
+    titleAutoTradeStatusLabel: "Статус бота",
+    titleAutoTradePositionsLabel: "Активные позиции",
+    thAutotradeAssetLabel: "Актив",
+    thAutotradeSideLabel: "Направление",
+    thAutotradeSizeLabel: "Размер",
+    thAutotradeEntryLabel: "Вход",
+    thAutotradeMarkLabel: "Маркировка",
+    thAutotradePnlLabel: "Прибыль",
+    thAutotradeActionsLabel: "Действие",
+    tdAutotradeNoPositionsLabel: "Нет активных позиций.",
+    titleAutoTradeLogsLabel: "Логи торговли",
+    titleAutoTradeHistoryLabel: "История сделок",
+    pAutotradeNoHistoryLabel: "Нет совершенных сделок."
   }
 };
 
@@ -2709,13 +2782,144 @@ function applyLanguage(lang) {
   const lblMetricsStatNetProfit = document.getElementById('lblMetricsStatNetProfit');
   if (lblMetricsStatNetProfit) lblMetricsStatNetProfit.textContent = t.totalNetProfit;
 
+  // Auto Trading tab translations
+  const tabAutoTrading = document.getElementById('tabAutoTrading');
+  if (tabAutoTrading) tabAutoTrading.textContent = t.autoTradeTab;
+
+  const lblAutoTradeEnabled = document.getElementById('lblAutoTradeEnabled');
+  if (lblAutoTradeEnabled) lblAutoTradeEnabled.textContent = t.autoTradeEnabledLabel;
+
+  const lblAutoTradeExchange = document.getElementById('lblAutoTradeExchange');
+  if (lblAutoTradeExchange) lblAutoTradeExchange.textContent = t.autoTradeExchangeLabel;
+
+  const lblAutoTradeTestnet = document.getElementById('lblAutoTradeTestnet');
+  if (lblAutoTradeTestnet) lblAutoTradeTestnet.textContent = t.autoTradeTestnetLabel;
+
+  const lblAutoTradeWallet = document.getElementById('lblAutoTradeWallet');
+  if (lblAutoTradeWallet) lblAutoTradeWallet.textContent = t.autoTradeWalletLabel;
+
+  const lblAutoTradePrivateKey = document.getElementById('lblAutoTradePrivateKey');
+  if (lblAutoTradePrivateKey) lblAutoTradePrivateKey.textContent = t.autoTradePrivateKeyLabel;
+
+  const lblAutoTradeApiKey = document.getElementById('lblAutoTradeApiKey');
+  if (lblAutoTradeApiKey) lblAutoTradeApiKey.textContent = t.autoTradeApiKeyLabel;
+
+  const lblAutoTradeApiSecret = document.getElementById('lblAutoTradeApiSecret');
+  if (lblAutoTradeApiSecret) lblAutoTradeApiSecret.textContent = t.autoTradeApiSecretLabel;
+
+  const lblAutoTradeAlert = document.getElementById('lblAutoTradeAlert');
+  if (lblAutoTradeAlert) lblAutoTradeAlert.textContent = t.autoTradeAlertLabel;
+
+  const lblAutoTradeDirection = document.getElementById('lblAutoTradeDirection');
+  if (lblAutoTradeDirection) lblAutoTradeDirection.textContent = t.autoTradeDirectionLabel;
+
+  const autoTradeDirection = document.getElementById('autoTradeDirection');
+  if (autoTradeDirection) {
+    autoTradeDirection.options[0].textContent = lang === 'en' ? 'Auto (Crossover Badge)' : 'Авто (из пересечения)';
+    autoTradeDirection.options[1].textContent = lang === 'en' ? 'Force Long' : 'Только Лонг';
+    autoTradeDirection.options[2].textContent = lang === 'en' ? 'Force Short' : 'Только Шорт';
+  }
+
+  const lblAutoTradeOrderCount = document.getElementById('lblAutoTradeOrderCount');
+  if (lblAutoTradeOrderCount) lblAutoTradeOrderCount.textContent = t.autoTradeOrderCountLabel;
+
+  const lblAutoTradeAmount = document.getElementById('lblAutoTradeAmount');
+  if (lblAutoTradeAmount) lblAutoTradeAmount.textContent = t.autoTradeAmountLabel;
+
+  // Leg labels
+  const autoLegRows = document.querySelectorAll('.auto-leg-row');
+  autoLegRows.forEach(row => {
+    const legNum = row.dataset.leg;
+    const offsetLbl = row.querySelector(`.lblLegOffset${legNum}`);
+    if (offsetLbl) offsetLbl.textContent = lang === 'en' ? `Order ${legNum} Offset (%)` : `Ордер ${legNum} Отклонение (%)`;
+    const amountLbl = row.querySelector(`.lblLegAmount${legNum}`);
+    if (amountLbl) amountLbl.textContent = lang === 'en' ? `Order ${legNum} Amount (USD)` : `Ордер ${legNum} Сумма (USD)`;
+  });
+
+  const lblAutoTradeTpMode = document.getElementById('lblAutoTradeTpMode');
+  if (lblAutoTradeTpMode) lblAutoTradeTpMode.textContent = t.autoTradeTpModeLabel;
+
+  const autoTradeTpMode = document.getElementById('autoTradeTpMode');
+  if (autoTradeTpMode) {
+    autoTradeTpMode.options[0].textContent = lang === 'en' ? 'Percent Offset' : 'Процентное отклонение';
+    autoTradeTpMode.options[1].textContent = lang === 'en' ? 'Metric Crossover (Next Signal)' : 'Пересечение показателей (след. сигнал)';
+  }
+
+  const lblAutoTradeTpPercent = document.getElementById('lblAutoTradeTpPercent');
+  if (lblAutoTradeTpPercent) lblAutoTradeTpPercent.textContent = t.autoTradeTpPercentLabel;
+
+  const lblAutoTradeTpAnchor = document.getElementById('lblAutoTradeTpAnchor');
+  if (lblAutoTradeTpAnchor) lblAutoTradeTpAnchor.textContent = t.autoTradeTpAnchorLabel;
+
+  const autoTradeTpAnchor = document.getElementById('autoTradeTpAnchor');
+  if (autoTradeTpAnchor) {
+    autoTradeTpAnchor.options[0].textContent = lang === 'en' ? 'Average Entry Price' : 'Средняя цена входа';
+    autoTradeTpAnchor.options[1].textContent = lang === 'en' ? 'Order 1 Price' : 'Цена 1-го ордера';
+    autoTradeTpAnchor.options[2].textContent = lang === 'en' ? 'Order 2 Price' : 'Цена 2-го ордера';
+    autoTradeTpAnchor.options[3].textContent = lang === 'en' ? 'Order 3 Price' : 'Цена 3-го ордера';
+  }
+
+  const lblAutoTradeTpClose = document.getElementById('lblAutoTradeTpClose');
+  if (lblAutoTradeTpClose) lblAutoTradeTpClose.textContent = t.autoTradeTpCloseLabel;
+
+  const lblAutoTradeSlMode = document.getElementById('lblAutoTradeSlMode');
+  if (lblAutoTradeSlMode) lblAutoTradeSlMode.textContent = t.autoTradeSlModeLabel;
+
+  const autoTradeSlMode = document.getElementById('autoTradeSlMode');
+  if (autoTradeSlMode) {
+    autoTradeSlMode.options[0].textContent = lang === 'en' ? 'None' : 'Нет';
+    autoTradeSlMode.options[1].textContent = lang === 'en' ? 'Percent Offset' : 'Процентное отклонение';
+    autoTradeSlMode.options[2].textContent = lang === 'en' ? 'Metric Crossover (Next Signal)' : 'Пересечение показателей (след. сигнал)';
+  }
+
+  const lblAutoTradeSlPercent = document.getElementById('lblAutoTradeSlPercent');
+  if (lblAutoTradeSlPercent) lblAutoTradeSlPercent.textContent = t.autoTradeSlPercentLabel;
+
+  const lblAutoTradeSlClose = document.getElementById('lblAutoTradeSlClose');
+  if (lblAutoTradeSlClose) lblAutoTradeSlClose.textContent = t.autoTradeSlCloseLabel;
+
+  const btnSaveAutoTrade = document.getElementById('btnSaveAutoTrade');
+  if (btnSaveAutoTrade) btnSaveAutoTrade.textContent = t.saveConfigStartBotLabel;
+
+  const titleAutoTradePositions = document.getElementById('titleAutoTradePositions');
+  if (titleAutoTradePositions) titleAutoTradePositions.textContent = t.titleAutoTradePositionsLabel;
+
+  const thAutotradeAsset = document.getElementById('thAutotradeAsset');
+  if (thAutotradeAsset) thAutotradeAsset.textContent = t.thAutotradeAssetLabel;
+  const thAutotradeSide = document.getElementById('thAutotradeSide');
+  if (thAutotradeSide) thAutotradeSide.textContent = t.thAutotradeSideLabel;
+  const thAutotradeSize = document.getElementById('thAutotradeSize');
+  if (thAutotradeSize) thAutotradeSize.textContent = t.thAutotradeSizeLabel;
+  const thAutotradeEntry = document.getElementById('thAutotradeEntry');
+  if (thAutotradeEntry) thAutotradeEntry.textContent = t.thAutotradeEntryLabel;
+  const thAutotradeMark = document.getElementById('thAutotradeMark');
+  if (thAutotradeMark) thAutotradeMark.textContent = t.thAutotradeMarkLabel;
+  const thAutotradePnl = document.getElementById('thAutotradePnl');
+  if (thAutotradePnl) thAutotradePnl.textContent = t.thAutotradePnlLabel;
+  const thAutotradeActions = document.getElementById('thAutotradeActions');
+  if (thAutotradeActions) thAutotradeActions.textContent = t.thAutotradeActionsLabel;
+
+  const tdAutotradeNoPositions = document.getElementById('tdAutotradeNoPositions');
+  if (tdAutotradeNoPositions) tdAutotradeNoPositions.textContent = t.tdAutotradeNoPositionsLabel;
+
+  const titleAutoTradeLogs = document.getElementById('titleAutoTradeLogs');
+  if (titleAutoTradeLogs) titleAutoTradeLogs.textContent = t.titleAutoTradeLogsLabel;
+
+  const titleAutoTradeHistory = document.getElementById('titleAutoTradeHistory');
+  if (titleAutoTradeHistory) titleAutoTradeHistory.textContent = t.titleAutoTradeHistoryLabel;
+
+  const pAutotradeNoHistory = document.getElementById('pAutotradeNoHistory');
+  if (pAutotradeNoHistory) pAutotradeNoHistory.textContent = t.pAutotradeNoHistoryLabel;
+
+  populateAutoTradeCloseAlertSelect();
+
   // Re-render cached list of alerts in correct language
   if (cachedAlerts.length > 0) {
     renderAlertsList(cachedAlerts);
   }
 }
 
-function createExitsConditionRow(containerId) {
+function createExitsConditionRow(containerId, data = null) {
   const lang = localStorage.getItem('hype_twap_lang') || 'en';
   const t = TRANSLATIONS[lang];
   const container = document.getElementById(containerId);
@@ -2795,6 +2999,23 @@ function createExitsConditionRow(containerId) {
       valueInput.required = false;
     }
   });
+
+  if (data) {
+    leftSelect.value = data.field1;
+    row.querySelector('.operator-select').value = data.operator;
+    compareTypeSelect.value = data.compareType;
+    if (data.compareType === 'value') {
+      valueInput.value = data.value;
+      valueGroup.classList.remove('hidden');
+      metricGroup.classList.add('hidden');
+      valueInput.required = true;
+    } else {
+      rightSelect.value = data.field2;
+      valueGroup.classList.add('hidden');
+      metricGroup.classList.remove('hidden');
+      valueInput.required = false;
+    }
+  }
 
   container.appendChild(row);
 }
@@ -3956,6 +4177,549 @@ function renderMetricsResults(results) {
   
   priceSeries.setMarkers(results.markers);
 }
+
+// --- Live Auto Trading Configurators and Handlers ---
+
+let autoTradeStatusIntervalId = null;
+
+function initAutoTradingConfigurator() {
+  const tabAutoTrading = document.getElementById('tabAutoTrading');
+  const tabContentAutoTrading = document.getElementById('tabContentAutoTrading');
+  const autoTradingForm = document.getElementById('autoTradingForm');
+  const autoTradeExchange = document.getElementById('autoTradeExchange');
+  const autoTradeOrderCount = document.getElementById('autoTradeOrderCount');
+  const autoTradeTpMode = document.getElementById('autoTradeTpMode');
+  const autoTradeSlMode = document.getElementById('autoTradeSlMode');
+  
+  const autoTradeTpCloseSelect = document.getElementById('autoTradeTpCloseSelect');
+  const autoTradeTpCloseCustomContainer = document.getElementById('autoTradeTpCloseCustomContainer');
+  const autoTradeSlCloseSelect = document.getElementById('autoTradeSlCloseSelect');
+  const autoTradeSlCloseCustomContainer = document.getElementById('autoTradeSlCloseCustomContainer');
+
+  // Exchange credentials toggling
+  const groupAutoTradeWallet = document.getElementById('groupAutoTradeWallet');
+  const groupAutoTradePrivateKey = document.getElementById('groupAutoTradePrivateKey');
+  const groupAutoTradeApiKey = document.getElementById('groupAutoTradeApiKey');
+  const groupAutoTradeApiSecret = document.getElementById('groupAutoTradeApiSecret');
+
+  const updateExchangeFields = () => {
+    const exchange = autoTradeExchange.value;
+    if (exchange === 'hl') {
+      groupAutoTradeWallet.classList.remove('hidden');
+      groupAutoTradePrivateKey.classList.remove('hidden');
+      groupAutoTradeApiKey.classList.add('hidden');
+      groupAutoTradeApiSecret.classList.add('hidden');
+    } else {
+      // bybit or variational
+      groupAutoTradeWallet.classList.add('hidden');
+      groupAutoTradePrivateKey.classList.add('hidden');
+      groupAutoTradeApiKey.classList.remove('hidden');
+      groupAutoTradeApiSecret.classList.remove('hidden');
+    }
+  };
+
+  if (autoTradeExchange) {
+    autoTradeExchange.addEventListener('change', updateExchangeFields);
+  }
+
+  // TP/SL toggling
+  const autoTradeTpPercentGroup = document.getElementById('autoTradeTpPercentGroup');
+  const autoTradeTpCloseGroup = document.getElementById('autoTradeTpCloseGroup');
+  const autoTradeSlPercentGroup = document.getElementById('autoTradeSlPercentGroup');
+  const autoTradeSlCloseGroup = document.getElementById('autoTradeSlCloseGroup');
+
+  const updateExitFields = () => {
+    if (autoTradeTpMode) {
+      if (autoTradeTpMode.value === 'percent') {
+        if (autoTradeTpPercentGroup) autoTradeTpPercentGroup.classList.remove('hidden');
+        if (autoTradeTpCloseGroup) autoTradeTpCloseGroup.classList.add('hidden');
+      } else {
+        if (autoTradeTpPercentGroup) autoTradeTpPercentGroup.classList.add('hidden');
+        if (autoTradeTpCloseGroup) autoTradeTpCloseGroup.classList.remove('hidden');
+      }
+    }
+
+    if (autoTradeSlMode) {
+      if (autoTradeSlMode.value === 'none') {
+        if (autoTradeSlPercentGroup) autoTradeSlPercentGroup.classList.add('hidden');
+        if (autoTradeSlCloseGroup) autoTradeSlCloseGroup.classList.add('hidden');
+      } else if (autoTradeSlMode.value === 'percent') {
+        if (autoTradeSlPercentGroup) autoTradeSlPercentGroup.classList.remove('hidden');
+        if (autoTradeSlCloseGroup) autoTradeSlCloseGroup.classList.add('hidden');
+      } else {
+        if (autoTradeSlPercentGroup) autoTradeSlPercentGroup.classList.add('hidden');
+        if (autoTradeSlCloseGroup) autoTradeSlCloseGroup.classList.remove('hidden');
+      }
+    }
+  };
+
+  if (autoTradeTpMode) autoTradeTpMode.addEventListener('change', updateExitFields);
+  if (autoTradeSlMode) autoTradeSlMode.addEventListener('change', updateExitFields);
+
+  // Custom Exits toggles
+  if (autoTradeTpCloseSelect) {
+    autoTradeTpCloseSelect.addEventListener('change', () => {
+      if (autoTradeTpCloseSelect.value === 'custom') {
+        if (autoTradeTpCloseCustomContainer) {
+          autoTradeTpCloseCustomContainer.classList.remove('hidden');
+          if (autoTradeTpCloseCustomContainer.children.length === 0) {
+            createExitsConditionRow('autoTradeTpCloseCustomContainer');
+          }
+        }
+      } else {
+        if (autoTradeTpCloseCustomContainer) autoTradeTpCloseCustomContainer.classList.add('hidden');
+      }
+    });
+  }
+
+  if (autoTradeSlCloseSelect) {
+    autoTradeSlCloseSelect.addEventListener('change', () => {
+      if (autoTradeSlCloseSelect.value === 'custom') {
+        if (autoTradeSlCloseCustomContainer) {
+          autoTradeSlCloseCustomContainer.classList.remove('hidden');
+          if (autoTradeSlCloseCustomContainer.children.length === 0) {
+            createExitsConditionRow('autoTradeSlCloseCustomContainer');
+          }
+        }
+      } else {
+        if (autoTradeSlCloseCustomContainer) autoTradeSlCloseCustomContainer.classList.add('hidden');
+      }
+    });
+  }
+
+  // Limit Order leg visibility
+  if (autoTradeOrderCount) {
+    autoTradeOrderCount.addEventListener('change', () => {
+      const count = parseInt(autoTradeOrderCount.value) || 3;
+      const legRows = document.querySelectorAll('.auto-leg-row');
+      legRows.forEach(row => {
+        const legNum = parseInt(row.dataset.leg);
+        if (legNum <= count) {
+          row.style.display = 'grid';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  // Tab switching
+  if (tabAutoTrading) {
+    tabAutoTrading.addEventListener('click', () => {
+      tabAutoTrading.classList.add('active');
+      alertElements.tabActiveAlerts.classList.remove('active');
+      alertElements.tabCreateAlert.classList.remove('active');
+      if (alertElements.tabBacktest) alertElements.tabBacktest.classList.remove('active');
+
+      if (tabContentAutoTrading) tabContentAutoTrading.classList.remove('hidden');
+      alertElements.tabContentList.classList.add('hidden');
+      alertElements.tabContentForm.classList.add('hidden');
+      if (alertElements.tabContentBacktest) alertElements.tabContentBacktest.classList.add('hidden');
+
+      populateAutoTradeAlertSelect();
+      populateAutoTradeCloseAlertSelect();
+      loadAutoTradeConfig();
+
+      // Trigger field update visibility state
+      updateExchangeFields();
+      updateExitFields();
+      if (autoTradeOrderCount) autoTradeOrderCount.dispatchEvent(new Event('change'));
+
+      // Start Polling Status
+      if (!autoTradeStatusIntervalId) {
+        refreshAutoTradeStatus();
+        autoTradeStatusIntervalId = setInterval(refreshAutoTradeStatus, 3000);
+      }
+    });
+  }
+
+  // Clear interval when switching tabs away from Auto Trading
+  const otherTabs = [alertElements.tabActiveAlerts, alertElements.tabCreateAlert, alertElements.tabBacktest];
+  otherTabs.forEach(tab => {
+    if (tab) {
+      tab.addEventListener('click', () => {
+        if (autoTradeStatusIntervalId) {
+          clearInterval(autoTradeStatusIntervalId);
+          autoTradeStatusIntervalId = null;
+        }
+      });
+    }
+  });
+
+  if (autoTradingForm) {
+    autoTradingForm.addEventListener('submit', saveAutoTradeConfig);
+  }
+}
+
+function populateAutoTradeAlertSelect() {
+  const select = document.getElementById('autoTradeAlertSelect');
+  if (!select) return;
+  
+  const currentVal = select.value;
+  select.innerHTML = '';
+  
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.disabled = true;
+  defaultOpt.selected = !currentVal;
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  defaultOpt.textContent = currentLang === 'en' ? 'Select Alert...' : 'Выберите алерт...';
+  select.appendChild(defaultOpt);
+  
+  cachedAlerts.forEach(alert => {
+    const opt = document.createElement('option');
+    opt.value = alert.id;
+    opt.textContent = `${alert.name} (${alert.timeframe || '1m'})`;
+    if (alert.id === currentVal) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+}
+
+function populateAutoTradeCloseAlertSelect() {
+  const tpSelect = document.getElementById('autoTradeTpCloseSelect');
+  const slSelect = document.getElementById('autoTradeSlCloseSelect');
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  
+  const populate = (select) => {
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '';
+    
+    const sameOpt = document.createElement('option');
+    sameOpt.value = 'same';
+    sameOpt.textContent = currentLang === 'en' ? 'Same as Signal Alert' : 'По умолчанию (текущий)';
+    sameOpt.selected = !currentVal || currentVal === 'same';
+    select.appendChild(sameOpt);
+    
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = currentLang === 'en' ? 'Custom Condition...' : 'Своё условие...';
+    customOpt.selected = currentVal === 'custom';
+    select.appendChild(customOpt);
+    
+    cachedAlerts.forEach(alert => {
+      const opt = document.createElement('option');
+      opt.value = alert.id;
+      opt.textContent = `${alert.name} (${alert.timeframe || '1m'})`;
+      if (alert.id === currentVal) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  };
+
+  populate(tpSelect);
+  populate(slSelect);
+}
+
+async function loadAutoTradeConfig() {
+  try {
+    const response = await fetch('/api/autotrade/config');
+    if (!response.ok) return;
+    const config = await response.json();
+    if (!config) return;
+
+    if (config.enabled !== undefined) {
+      document.getElementById('autoTradeEnabled').checked = !!config.enabled;
+    }
+    if (config.exchange) {
+      document.getElementById('autoTradeExchange').value = config.exchange;
+      document.getElementById('autoTradeExchange').dispatchEvent(new Event('change'));
+    }
+    if (config.testnet !== undefined) {
+      document.getElementById('autoTradeTestnet').checked = !!config.testnet;
+    }
+    if (config.wallet) {
+      document.getElementById('autoTradeWallet').value = config.wallet;
+    }
+    if (config.privateKey) {
+      document.getElementById('autoTradePrivateKey').value = config.privateKey;
+    }
+    if (config.apiKey) {
+      document.getElementById('autoTradeApiKey').value = config.apiKey;
+    }
+    if (config.apiSecret) {
+      document.getElementById('autoTradeApiSecret').value = config.apiSecret;
+    }
+    if (config.alertId) {
+      document.getElementById('autoTradeAlertSelect').value = config.alertId;
+    }
+    if (config.direction) {
+      document.getElementById('autoTradeDirection').value = config.direction;
+    }
+    if (config.orderCount) {
+      document.getElementById('autoTradeOrderCount').value = config.orderCount;
+      document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
+    }
+    if (config.tradeAmount) {
+      document.getElementById('autoTradeAmount').value = config.tradeAmount;
+    }
+
+    // Grid leg inputs
+    for (let i = 1; i <= 3; i++) {
+      if (config[`legOffset${i}`] !== undefined) {
+        document.getElementById(`autoTradeOffset${i}`).value = config[`legOffset${i}`];
+      }
+      if (config[`legAmount${i}`] !== undefined) {
+        document.getElementById(`autoTradeAmount${i}`).value = config[`legAmount${i}`];
+      }
+    }
+
+    // Exits config
+    if (config.tpMode) {
+      document.getElementById('autoTradeTpMode').value = config.tpMode;
+      document.getElementById('autoTradeTpMode').dispatchEvent(new Event('change'));
+    }
+    if (config.tpPercent !== undefined) {
+      document.getElementById('autoTradeTpPercent').value = config.tpPercent;
+    }
+    if (config.tpAnchor) {
+      document.getElementById('autoTradeTpAnchor').value = config.tpAnchor;
+    }
+    if (config.tpCloseSelect) {
+      document.getElementById('autoTradeTpCloseSelect').value = config.tpCloseSelect;
+      document.getElementById('autoTradeTpCloseSelect').dispatchEvent(new Event('change'));
+    }
+    if (config.tpCustomExpr) {
+      createExitsConditionRow('autoTradeTpCloseCustomContainer', config.tpCustomExpr);
+    }
+
+    if (config.slMode) {
+      document.getElementById('autoTradeSlMode').value = config.slMode;
+      document.getElementById('autoTradeSlMode').dispatchEvent(new Event('change'));
+    }
+    if (config.slPercent !== undefined) {
+      document.getElementById('autoTradeSlPercent').value = config.slPercent;
+    }
+    if (config.slCloseSelect) {
+      document.getElementById('autoTradeSlCloseSelect').value = config.slCloseSelect;
+      document.getElementById('autoTradeSlCloseSelect').dispatchEvent(new Event('change'));
+    }
+    if (config.slCustomExpr) {
+      createExitsConditionRow('autoTradeSlCloseCustomContainer', config.slCustomExpr);
+    }
+  } catch (err) {
+    console.error('Error loading auto-trading config:', err);
+  }
+}
+
+async function saveAutoTradeConfig(e) {
+  e.preventDefault();
+  const feedback = document.getElementById('autoTradeFeedback');
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  
+  feedback.className = 'feedback-msg';
+  feedback.textContent = currentLang === 'en' ? 'Saving configuration...' : 'Сохранение конфигурации...';
+
+  try {
+    const config = {
+      enabled: document.getElementById('autoTradeEnabled').checked,
+      exchange: document.getElementById('autoTradeExchange').value,
+      testnet: document.getElementById('autoTradeTestnet').checked,
+      wallet: document.getElementById('autoTradeWallet').value,
+      privateKey: document.getElementById('autoTradePrivateKey').value,
+      apiKey: document.getElementById('autoTradeApiKey').value,
+      apiSecret: document.getElementById('autoTradeApiSecret').value,
+      alertId: document.getElementById('autoTradeAlertSelect').value,
+      direction: document.getElementById('autoTradeDirection').value,
+      orderCount: parseInt(document.getElementById('autoTradeOrderCount').value) || 3,
+      tradeAmount: parseFloat(document.getElementById('autoTradeAmount').value) || null,
+      
+      legOffset1: parseFloat(document.getElementById('autoTradeOffset1').value),
+      legAmount1: parseFloat(document.getElementById('autoTradeAmount1').value),
+      legOffset2: parseFloat(document.getElementById('autoTradeOffset2').value),
+      legAmount2: parseFloat(document.getElementById('autoTradeAmount2').value),
+      legOffset3: parseFloat(document.getElementById('autoTradeOffset3').value),
+      legAmount3: parseFloat(document.getElementById('autoTradeAmount3').value),
+      
+      tpMode: document.getElementById('autoTradeTpMode').value,
+      tpPercent: parseFloat(document.getElementById('autoTradeTpPercent').value) || 1.5,
+      tpAnchor: document.getElementById('autoTradeTpAnchor').value,
+      tpCloseSelect: document.getElementById('autoTradeTpCloseSelect').value,
+      tpCustomExpr: getCustomExitCondition('autoTradeTpCloseCustomContainer'),
+      
+      slMode: document.getElementById('autoTradeSlMode').value,
+      slPercent: parseFloat(document.getElementById('autoTradeSlPercent').value) || 2.0,
+      slCloseSelect: document.getElementById('autoTradeSlCloseSelect').value,
+      slCustomExpr: getCustomExitCondition('autoTradeSlCloseCustomContainer')
+    };
+
+    if (!config.alertId) {
+      throw new Error(currentLang === 'en' ? 'Please select a trigger alert.' : 'Пожалуйста, выберите сигнальное оповещение.');
+    }
+
+    const response = await fetch('/api/autotrade/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(config)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to save: ${response.statusText}`);
+    }
+
+    feedback.className = 'feedback-msg success';
+    feedback.textContent = currentLang === 'en' ? 'Configuration saved successfully!' : 'Настройки авто-торговли сохранены!';
+  } catch (err) {
+    feedback.className = 'feedback-msg error';
+    feedback.textContent = err.message;
+    console.error('Error saving autotrade config:', err);
+  }
+}
+
+async function refreshAutoTradeStatus() {
+  try {
+    const response = await fetch('/api/autotrade/status');
+    if (!response.ok) return;
+    const data = await response.json();
+
+    const statusDot = document.getElementById('autoTradeStatusDot');
+    const statusText = document.getElementById('titleAutoTradeStatus');
+    const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+
+    if (statusDot && statusText) {
+      if (data.enabled) {
+        statusDot.style.background = '#35d083';
+        statusText.textContent = currentLang === 'en' ? 'Bot Active' : 'Бот запущен';
+      } else {
+        statusDot.style.background = 'var(--muted)';
+        statusText.textContent = currentLang === 'en' ? 'Bot Offline' : 'Бот выключен';
+      }
+    }
+
+    // 1. Render Active Positions
+    const positionsBody = document.getElementById('autoTradePositionsBody');
+    if (positionsBody) {
+      positionsBody.innerHTML = '';
+
+      if (!data.activePositions || data.activePositions.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="7" style="padding: 10px; text-align: center; color: var(--muted);">${currentLang === 'en' ? 'No active positions.' : 'Нет активных позиций.'}</td>`;
+        positionsBody.appendChild(tr);
+      } else {
+        data.activePositions.forEach(pos => {
+          const entryPrice = pos.avgPrice || 0;
+          const currentPrice = data.currentPrice || 0;
+          const qty = pos.qty || 0;
+          const direction = pos.direction || 'long';
+          const isShort = (direction === 'short');
+
+          let unrealizedPnl = 0;
+          if (qty > 0) {
+            unrealizedPnl = isShort ? qty * (entryPrice - currentPrice) : qty * (currentPrice - entryPrice);
+          }
+
+          const pnlStyle = unrealizedPnl >= 0 ? 'color: var(--green);' : 'color: var(--red);';
+          const pnlSign = unrealizedPnl >= 0 ? '+' : '';
+
+          const fillsCount = pos.filledPositions?.length || 0;
+          const limitCount = pos.limitOrders?.length || 0;
+
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid var(--line)';
+          tr.innerHTML = `
+            <td style="padding: 6px 8px; font-weight: bold;">HYPE</td>
+            <td style="padding: 6px 8px; text-transform: uppercase; color: ${isShort ? 'var(--red)' : 'var(--green)'};">${direction}</td>
+            <td style="padding: 6px 8px;">${qty.toFixed(4)} <span style="font-size: 9px; color: var(--muted);">(${fillsCount}/${limitCount} fills)</span></td>
+            <td style="padding: 6px 8px;">$${entryPrice.toFixed(4)}</td>
+            <td style="padding: 6px 8px;">$${currentPrice.toFixed(4)}</td>
+            <td style="padding: 6px 8px; font-weight: bold; ${pnlStyle}">${pnlSign}$${unrealizedPnl.toFixed(2)}</td>
+            <td style="padding: 6px 8px;">
+              <button type="button" class="action-btn" style="background: var(--red); padding: 2px 6px; font-size: 9px; border-radius: 4px;" onclick="window.manualCloseAutoTradePosition('${pos.id}')">${currentLang === 'en' ? 'Close' : 'Закрыть'}</button>
+            </td>
+          `;
+          positionsBody.appendChild(tr);
+        });
+      }
+    }
+
+    // 2. Render Trade Logs
+    const logsContainer = document.getElementById('autoTradeLogsContainer');
+    if (logsContainer) {
+      if (data.logs && data.logs.length > 0) {
+        logsContainer.textContent = data.logs.join('\n');
+      } else {
+        logsContainer.textContent = currentLang === 'en' ? 'No trade logs yet.' : 'Логов торговли нет.';
+      }
+    }
+
+    // 3. Render Trade History
+    const historyList = document.getElementById('autoTradeHistoryList');
+    if (historyList) {
+      historyList.innerHTML = '';
+
+      if (!data.tradeHistory || data.tradeHistory.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'placeholder-text';
+        p.style.fontSize = '11px';
+        p.style.color = 'var(--muted)';
+        p.textContent = currentLang === 'en' ? 'No completed trades yet.' : 'Нет совершенных сделок.';
+        historyList.appendChild(p);
+      } else {
+        data.tradeHistory.forEach(trade => {
+          const item = document.createElement('div');
+          item.style.background = 'rgba(15,19,23,0.3)';
+          item.style.border = '1px solid var(--line)';
+          item.style.borderRadius = '6px';
+          item.style.padding = '8px';
+          item.style.fontSize = '11px';
+          item.style.display = 'flex';
+          item.style.justifyContent = 'space-between';
+          item.style.alignItems = 'center';
+
+          const direction = trade.direction || 'long';
+          const profit = trade.profit || 0;
+          const pnlStyle = profit >= 0 ? 'color: var(--green);' : 'color: var(--red);';
+          const pnlSign = profit >= 0 ? '+' : '';
+
+          const timeStr = new Date(trade.exitTimestamp || trade.timestamp).toLocaleTimeString();
+
+          item.innerHTML = `
+            <div>
+              <strong>HYPE</strong> <span style="text-transform: uppercase; color: ${direction === 'short' ? 'var(--red)' : 'var(--green)'};">${direction}</span>
+              <span style="color: var(--muted); margin-left: 6px;">Qty: ${trade.qty?.toFixed(4)}</span>
+              <span style="color: var(--muted); margin-left: 6px;">Entry: $${trade.avgPrice?.toFixed(4)}</span>
+              <span style="color: var(--muted); margin-left: 6px;">Exit: $${trade.exitPrice?.toFixed(4)}</span>
+              <div style="font-size: 9px; color: var(--muted); margin-top: 2px;">Reason: ${trade.exitReason || 'Closed'} | Time: ${timeStr}</div>
+            </div>
+            <strong style="${pnlStyle}">${pnlSign}$${profit.toFixed(2)}</strong>
+          `;
+          historyList.appendChild(item);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error polling status:', err);
+  }
+}
+
+async function manualClosePosition(id) {
+  const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
+  try {
+    const response = await fetch('/api/autotrade/close', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id })
+    });
+    if (response.ok) {
+      refreshAutoTradeStatus();
+    } else {
+      const err = await response.json();
+      alert((currentLang === 'en' ? 'Close failed: ' : 'Закрытие не удалось: ') + (err.error || ''));
+    }
+  } catch (err) {
+    console.error('Error closing position:', err);
+  }
+}
+
+// Expose manual close to window context for table buttons onclick handler
+window.manualCloseAutoTradePosition = manualClosePosition;
 
 // Run startup
 startup();

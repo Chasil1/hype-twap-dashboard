@@ -3,3 +3,4 @@ data/
 dev-server.*.log
 .playwright-mcp/
 .superpowers/
+scratch/

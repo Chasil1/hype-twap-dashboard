@@ -74,7 +74,8 @@ export class Collector {
     twapFetcher = fetchHypurrscanTwaps,
     now = Date.now,
     intervalMs = DEFAULT_INTERVAL_MS,
-    alertEngine = null
+    alertEngine = null,
+    autoTradingEngine = null
   }) {
     this.store = store;
     this.scraper = scraper;
@@ -84,6 +85,7 @@ export class Collector {
     this.now = now;
     this.intervalMs = intervalMs;
     this.alertEngine = alertEngine;
+    this.autoTradingEngine = autoTradingEngine;
     this.timer = null;
     this.running = false;
     this.minuteBucket = null;
@@ -143,6 +145,16 @@ export class Collector {
       this.alertEngine.checkAlerts(this.state.snapshots).catch(err => {
         console.error('Error running alerts in minute flush:', err);
       });
+    }
+
+    if (this.autoTradingEngine && this.alertEngine) {
+      this.alertEngine.alertsStore.readAll()
+        .then(alerts => {
+          return this.autoTradingEngine.update(this.state.snapshots, alerts, this.alertEngine);
+        })
+        .catch(err => {
+          console.error('Error running auto trading bot in minute flush:', err);
+        });
     }
 
     return snapshot;

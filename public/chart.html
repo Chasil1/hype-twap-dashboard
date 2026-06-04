@@ -141,6 +141,7 @@
             <button id="tabActiveAlerts" class="tab-btn active" type="button">Active Alerts (<span id="alertsCount">0</span>)</button>
             <button id="tabCreateAlert" class="tab-btn" type="button">Create Alert</button>
             <button id="tabBacktest" class="tab-btn" type="button">Backtest & Sim</button>
+            <button id="tabAutoTrading" class="tab-btn" type="button">Auto Trading</button>
           </div>
 
           <!-- Placeholder when not logged in -->
@@ -471,6 +472,243 @@
                     <span class="label" style="font-size: 9px;" id="lblMetricsStatNetProfit">Net Profit</span>
                     <strong style="font-size: 16px;" id="metricsStatNetProfit">$0.00</strong>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Auto Trading -->
+          <div id="tabContentAutoTrading" class="tab-content hidden">
+            <form id="autoTradingForm" class="alert-form">
+              <!-- Enabled State -->
+              <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(53, 208, 131, 0.1); padding: 10px 12px; border-radius: 6px; border: 1px solid rgba(53, 208, 131, 0.2); margin-bottom: 12px;">
+                <label for="autoTradeEnabled" id="lblAutoTradeEnabled" style="font-weight: bold; margin-bottom: 0;">Live Auto Trading Status</label>
+                <label class="switch">
+                  <input type="checkbox" id="autoTradeEnabled"/>
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Exchange Config -->
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                  <label for="autoTradeExchange" id="lblAutoTradeExchange">Exchange Source</label>
+                  <select id="autoTradeExchange">
+                    <option value="hl" selected>Hyperliquid Only</option>
+                    <option value="bybit">Bybit Only</option>
+                    <option value="variational">Variational (Mock)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="display: flex; align-items: end; padding-bottom: 6px;">
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                    <input type="checkbox" id="autoTradeTestnet" checked/>
+                    <span id="lblAutoTradeTestnet">Sandbox / Testnet</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Credentials Block -->
+              <div id="autoTradeCredsBlock" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
+                <div class="form-group" id="groupAutoTradeWallet" style="margin-bottom: 8px;">
+                  <label for="autoTradeWallet" id="lblAutoTradeWallet">Wallet Address</label>
+                  <input type="text" id="autoTradeWallet" placeholder="e.g. 0x..."/>
+                </div>
+                <div class="form-group" id="groupAutoTradePrivateKey" style="margin-bottom: 8px;">
+                  <label for="autoTradePrivateKey" id="lblAutoTradePrivateKey">Private Key</label>
+                  <input type="password" id="autoTradePrivateKey" placeholder="Secret private key..."/>
+                </div>
+                <div class="form-group hidden" id="groupAutoTradeApiKey" style="margin-bottom: 8px;">
+                  <label for="autoTradeApiKey" id="lblAutoTradeApiKey">API Key</label>
+                  <input type="text" id="autoTradeApiKey" placeholder="API Key..."/>
+                </div>
+                <div class="form-group hidden" id="groupAutoTradeApiSecret" style="margin-bottom: 8px;">
+                  <label for="autoTradeApiSecret" id="lblAutoTradeApiSecret">API Secret</label>
+                  <input type="password" id="autoTradeApiSecret" placeholder="API Secret..."/>
+                </div>
+              </div>
+
+              <!-- Strategy Configuration -->
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                  <label for="autoTradeAlertSelect" id="lblAutoTradeAlert">Trigger Alert</label>
+                  <select id="autoTradeAlertSelect" required>
+                    <option value="" disabled selected>Select Alert...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="autoTradeDirection" id="lblAutoTradeDirection">Signal Direction</label>
+                  <select id="autoTradeDirection">
+                    <option value="auto" selected>Auto (Crossover Badge)</option>
+                    <option value="long">Force Long</option>
+                    <option value="short">Force Short</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                  <label for="autoTradeOrderCount" id="lblAutoTradeOrderCount">Number of Limit Orders</label>
+                  <select id="autoTradeOrderCount">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="autoTradeAmount" id="lblAutoTradeAmount">Sum per Trade (USD)</label>
+                  <input type="number" id="autoTradeAmount" min="0" value="60"/>
+                </div>
+              </div>
+
+              <!-- Grid orders settings -->
+              <div id="autoTradeGridSettings" style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
+                <div id="autoTradeLegsContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Leg 1 -->
+                  <div class="auto-leg-row" data-leg="1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegOffset1">Order 1 Offset (%)</label>
+                      <input type="number" id="autoTradeOffset1" step="0.01" value="-0.3"/>
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegAmount1">Order 1 Amount (USD)</label>
+                      <input type="number" id="autoTradeAmount1" step="0.1" value="10"/>
+                    </div>
+                  </div>
+                  <!-- Leg 2 -->
+                  <div class="auto-leg-row" data-leg="2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegOffset2">Order 2 Offset (%)</label>
+                      <input type="number" id="autoTradeOffset2" step="0.01" value="-1.0"/>
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegAmount2">Order 2 Amount (USD)</label>
+                      <input type="number" id="autoTradeAmount2" step="0.1" value="20"/>
+                    </div>
+                  </div>
+                  <!-- Leg 3 -->
+                  <div class="auto-leg-row" data-leg="3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegOffset3">Order 3 Offset (%)</label>
+                      <input type="number" id="autoTradeOffset3" step="0.01" value="-2.0"/>
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 11px;" class="lblLegAmount3">Order 3 Amount (USD)</label>
+                      <input type="number" id="autoTradeAmount3" step="0.1" value="30"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TP / SL Configuration -->
+              <div style="margin-bottom: 12px; background: rgba(38,49,55,0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--line);">
+                <!-- Take Profit Options -->
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label for="autoTradeTpMode" id="lblAutoTradeTpMode">Take Profit Mode</label>
+                  <select id="autoTradeTpMode" required>
+                    <option value="percent" selected>Percent Offset</option>
+                    <option value="metric">Metric Crossover (Next Signal)</option>
+                  </select>
+                </div>
+
+                <div id="autoTradeTpPercentGroup" class="form-row-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                  <div class="form-group">
+                    <label for="autoTradeTpPercent" id="lblAutoTradeTpPercent">Take Profit (%)</label>
+                    <input type="number" id="autoTradeTpPercent" step="0.01" value="1.5"/>
+                  </div>
+                  <div class="form-group">
+                    <label for="autoTradeTpAnchor" id="lblAutoTradeTpAnchor">TP Anchor Price</label>
+                    <select id="autoTradeTpAnchor">
+                      <option value="avg" selected>Average Entry Price</option>
+                      <option value="order1">Order 1 Price</option>
+                      <option value="order2">Order 2 Price</option>
+                      <option value="order3">Order 3 Price</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- TP Close Alert selection -->
+                <div id="autoTradeTpCloseGroup" class="form-group hidden" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="autoTradeTpCloseSelect" id="lblAutoTradeTpClose">Take Profit Exit Signal</label>
+                  <select id="autoTradeTpCloseSelect" required style="margin-bottom: 8px;">
+                    <option value="same" selected>Same as Signal Alert</option>
+                    <option value="custom">Custom Condition...</option>
+                  </select>
+                  <div id="autoTradeTpCloseCustomContainer" class="hidden"></div>
+                </div>
+
+                <!-- Stop Loss Options -->
+                <div class="form-group" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="autoTradeSlMode" id="lblAutoTradeSlMode">Stop Loss Mode</label>
+                  <select id="autoTradeSlMode" required>
+                    <option value="none" selected>None</option>
+                    <option value="percent">Percent Offset</option>
+                    <option value="metric">Metric Crossover (Next Signal)</option>
+                  </select>
+                </div>
+
+                <div id="autoTradeSlPercentGroup" class="form-group hidden" style="margin-bottom: 12px;">
+                  <label for="autoTradeSlPercent" id="lblAutoTradeSlPercent">Stop Loss (%)</label>
+                  <input type="number" id="autoTradeSlPercent" step="0.01" value="2.0"/>
+                </div>
+
+                <!-- SL Close Alert selection -->
+                <div id="autoTradeSlCloseGroup" class="form-group hidden" style="margin-bottom: 12px; border-top: 1px dashed var(--line); padding-top: 12px;">
+                  <label for="autoTradeSlCloseSelect" id="lblAutoTradeSlClose">Stop Loss Exit Signal</label>
+                  <select id="autoTradeSlCloseSelect" required style="margin-bottom: 8px;">
+                    <option value="same" selected>Same as Signal Alert</option>
+                    <option value="custom">Custom Condition...</option>
+                  </select>
+                  <div id="autoTradeSlCloseCustomContainer" class="hidden"></div>
+                </div>
+              </div>
+
+              <button type="submit" class="action-btn create-btn" id="btnSaveAutoTrade">Save Config & Start Bot</button>
+              <div id="autoTradeFeedback" class="feedback-msg"></div>
+            </form>
+
+            <!-- Live Trade Status Block -->
+            <div id="autoTradeLiveBlock" style="margin-top: 16px;">
+              <h3 style="margin-bottom: 12px; color: var(--amber); display: flex; align-items: center; gap: 8px;">
+                <span id="autoTradeStatusDot" style="width: 10px; height: 10px; background: var(--muted); border-radius: 50%; display: inline-block;"></span>
+                <span id="titleAutoTradeStatus">Bot Offline</span>
+              </h3>
+              
+              <!-- Active Positions -->
+              <div class="metrics-section" style="margin-bottom: 16px;">
+                <h4 id="titleAutoTradePositions">Active Positions</h4>
+                <div style="overflow-x: auto; background: rgba(15,19,23,0.4); border: 1px solid var(--line); border-radius: 6px;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+                    <thead>
+                      <tr style="border-bottom: 1px solid var(--line); background: rgba(0,0,0,0.2);">
+                        <th style="padding: 6px 8px;" id="thAutotradeAsset">Asset</th>
+                        <th style="padding: 6px 8px;" id="thAutotradeSide">Dir</th>
+                        <th style="padding: 6px 8px;" id="thAutotradeSize">Size</th>
+                        <th style="padding: 6px 8px;" id="thAutotradeEntry">Entry</th>
+                        <th style="padding: 6px 8px;" id="thAutotradeMark">Mark</th>
+                        <th style="padding: 6px 8px;" id="thAutotradePnl">PnL</th>
+                        <th style="padding: 6px 8px;" id="thAutotradeActions">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="autoTradePositionsBody">
+                      <tr>
+                        <td colspan="7" style="padding: 10px; text-align: center; color: var(--muted);" id="tdAutotradeNoPositions">No active positions.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Console logs panel -->
+              <div class="metrics-section" style="margin-bottom: 16px;">
+                <h4 id="titleAutoTradeLogs">Recent Trade Logs</h4>
+                <div id="autoTradeLogsContainer" style="height: 180px; overflow-y: auto; background: #07090b; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font-family: monospace; font-size: 10px; line-height: 1.4; color: #35d083; white-space: pre-wrap;">🤖 Logs initialized. Enabled Live Bot to start receiving price feeds...</div>
+              </div>
+
+              <!-- History list -->
+              <div class="metrics-section">
+                <h4 id="titleAutoTradeHistory">Recent Trade History</h4>
+                <div id="autoTradeHistoryList" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                  <p class="placeholder-text" style="font-size: 11px; color: var(--muted);" id="pAutotradeNoHistory">No completed trades yet.</p>
                 </div>
               </div>
             </div>

@@ -568,3 +568,50 @@ export class PresetsStore {
     }
   }
 }
+
+export class AutoTradeStore {
+  constructor(configPath, statePath) {
+    this.configPath = configPath;
+    this.statePath = statePath;
+  }
+
+  async getConfig() {
+    try {
+      const raw = await readFile(this.configPath, 'utf8');
+      return JSON.parse(raw);
+    } catch (error) {
+      if (error.code === 'ENOENT') return {};
+      throw error;
+    }
+  }
+
+  async saveConfig(config) {
+    const directory = path.dirname(this.configPath);
+    await mkdir(directory, { recursive: true });
+    await writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf8');
+    return true;
+  }
+
+  async getState() {
+    try {
+      const raw = await readFile(this.statePath, 'utf8');
+      return JSON.parse(raw);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return {
+          activePositions: [],
+          logs: [],
+          tradeHistory: []
+        };
+      }
+      throw error;
+    }
+  }
+
+  async saveState(state) {
+    const directory = path.dirname(this.statePath);
+    await mkdir(directory, { recursive: true });
+    await writeFile(this.statePath, JSON.stringify(state, null, 2), 'utf8');
+    return true;
+  }
+}

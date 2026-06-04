@@ -6,9 +6,10 @@ import crypto from 'crypto';
 import { Collector } from './src/collector.js';
 import { aggregateSnapshots, TIMEFRAMES } from './src/aggregateSnapshots.js';
 import { HlEcoScraper } from './src/hlEcoScraper.js';
-import { SnapshotStore, AlertsStore, ConfigStore, PresetsStore } from './src/store.js';
+import { SnapshotStore, AlertsStore, ConfigStore, PresetsStore, AutoTradeStore } from './src/store.js';
 import { TwapCache } from './src/twapCache.js';
 import { AlertEngine } from './src/alertEngine.js';
+import { AutoTradingEngine } from './src/autoTradingEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +22,12 @@ const store = new SnapshotStore(SNAPSHOT_FILE);
 const alertsStore = new AlertsStore(process.env.ALERTS_FILE ?? path.join(__dirname, 'data', 'alerts.json'));
 const configStore = new ConfigStore(process.env.CONFIG_FILE ?? path.join(__dirname, 'data', 'config.json'));
 const presetsStore = new PresetsStore(process.env.PRESETS_FILE ?? path.join(__dirname, 'data', 'presets.json'));
+const autoTradeStore = new AutoTradeStore(
+  path.join(__dirname, 'data', 'autotrade_config.json'),
+  path.join(__dirname, 'data', 'autotrade_state.json')
+);
 const alertEngine = new AlertEngine({ alertsStore, configStore });
+const autoTradingEngine = new AutoTradingEngine({ autoTradeStore, configStore });
 
 // Parse cookies helper
 function parseCookies(cookieHeader) {
@@ -133,7 +139,8 @@ const collector = new Collector({
   scraper,
   twapCache,
   intervalMs: SNAPSHOT_INTERVAL_MS,
-  alertEngine
+  alertEngine,
+  autoTradingEngine
 });
 
 app.use('/api/ingest-hl-eco', express.text({ type: '*/*', limit: '1mb' }));
@@ -507,6 +514,64 @@ app.post('/api/alerts/test', express.json(), async (req, res) => {
       throw new Error(`Telegram error: ${response.status} - ${errText}`);
     }
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Auto-Trading API ---
+
+app.get('/api/autotrade/config', async (req, res) => {
+  try {
+    const config = await autoTradeStore.getConfig();
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/autotrade/config', express.json(), async (req, res) => {
+  try {
+    await autoTradeStore.saveConfig(req.body);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/autotrade/status', async (req, res) => {
+  try {
+    const config = await autoTradeStore.getConfig();
+    const state = await autoTradeStore.getState();
+    const snapshots = collector.state.snapshots;
+    const currentPrice = snapshots.length > 0 ? snapshots.at(-1).price : 0;
+    res.json({
+      enabled: !!(config && config.enabled),
+      currentPrice,
+      activePositions: state.activePositions || [],
+      logs: state.logs || [],
+      tradeHistory: state.tradeHistory || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/autotrade/close', express.json(), async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) {
+      res.status(400).json({ error: 'Position ID is required' });
+      return;
+    }
+    const snapshots = collector.state.snapshots;
+    const currentPrice = snapshots.length > 0 ? snapshots.at(-1).price : 0;
+    const success = await autoTradingEngine.closePosition(id, currentPrice);
+    if (success) {
+      res.json({ ok: true });
+    } else {
+      res.status(404).json({ error: 'Active position not found' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
