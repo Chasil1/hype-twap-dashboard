@@ -564,7 +564,8 @@ app.get('/api/autotrade/status', restrictToOwner, async (req, res) => {
     const snapshots = collector.state.snapshots;
     const currentPrice = snapshots.length > 0 ? snapshots.at(-1).price : 0;
     res.json({
-      enabled: !!(config && config.enabled),
+      enabled: !!(config && config.strategies && config.strategies.some(s => s.enabled)),
+      strategies: config.strategies || [],
       currentPrice,
       activePositions: state.activePositions || [],
       logs: state.logs || [],

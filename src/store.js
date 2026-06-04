@@ -578,9 +578,44 @@ export class AutoTradeStore {
   async getConfig() {
     try {
       const raw = await readFile(this.configPath, 'utf8');
-      return JSON.parse(raw);
+      const data = JSON.parse(raw);
+      if (data && !data.strategies && data.alertId) {
+        // Migrate old single-strategy config to multiple strategies
+        const defaultStrategy = {
+          id: 'default_strategy',
+          name: 'Default Strategy',
+          enabled: !!data.enabled,
+          exchange: data.exchange || 'hl',
+          testnet: data.testnet !== false,
+          wallet: data.wallet || '',
+          privateKey: data.privateKey || '',
+          apiKey: data.apiKey || '',
+          apiSecret: data.apiSecret || '',
+          alertId: data.alertId || '',
+          direction: data.direction || 'auto',
+          orderCount: data.orderCount || 3,
+          tradeAmount: data.tradeAmount || 60,
+          legOffset1: data.legOffset1 ?? -0.3,
+          legAmount1: data.legAmount1 ?? 10,
+          legOffset2: data.legOffset2 ?? -1.0,
+          legAmount2: data.legAmount2 ?? 20,
+          legOffset3: data.legOffset3 ?? -2.0,
+          legAmount3: data.legAmount3 ?? 30,
+          tpMode: data.tpMode || 'percent',
+          tpPercent: data.tpPercent ?? 1.5,
+          tpAnchor: data.tpAnchor || 'avg',
+          tpCloseSelect: data.tpCloseSelect || 'same',
+          tpCustomExpr: data.tpCustomExpr || null,
+          slMode: data.slMode || 'percent',
+          slPercent: data.slPercent ?? 2.0,
+          slCloseSelect: data.slCloseSelect || 'same',
+          slCustomExpr: data.slCustomExpr || null
+        };
+        return { strategies: [defaultStrategy] };
+      }
+      return data && data.strategies ? data : { strategies: [] };
     } catch (error) {
-      if (error.code === 'ENOENT') return {};
+      if (error.code === 'ENOENT') return { strategies: [] };
       throw error;
     }
   }

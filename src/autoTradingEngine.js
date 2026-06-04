@@ -133,7 +133,7 @@ export class AutoTradingEngine {
 
   async update(snapshots, alertsList, alertEngineInstance) {
     const config = await this.autoTradeStore.getConfig();
-    if (!config || !config.enabled || !config.alertId) {
+    if (!config || !config.strategies || config.strategies.length === 0) {
       return;
     }
 
@@ -154,164 +154,185 @@ export class AutoTradingEngine {
     state.logs = state.logs || [];
     state.tradeHistory = state.tradeHistory || [];
 
-    const logMsg = (text) => {
+    let stateChanged = false;
+
+    const logMsgForStrategy = (strategyName, text) => {
       const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const fullText = `[${timeStr}] ${text}`;
+      const fullText = `[${timeStr}] [${strategyName}] ${text}`;
       console.log(`[AutoTradingBot] ${fullText}`);
       state.logs.unshift(fullText);
       if (state.logs.length > 200) {
         state.logs = state.logs.slice(0, 200);
       }
-      this.sendTelegramMessage(text).catch(err => console.error('Telegram autotrade send failed:', err));
+      this.sendTelegramMessage(`[${strategyName}] ${text}`).catch(err => console.error('Telegram autotrade send failed:', err));
     };
 
-    const alert = alertsList.find(a => a.id === config.alertId);
-    if (!alert) {
-      // Configured alert no longer exists
-      return;
-    }
+    // 1. Process each strategy for opening new positions
+    for (const strategy of config.strategies) {
+      if (!strategy.enabled) continue;
 
-    // 1. Evaluate Trigger Crossover
-    const isTriggered = alertEngineInstance.evaluate(latestSnapshot, alert.expression);
-    let triggerOccurred = false;
-    let crossoverDirection = 'long';
+      const alert = alertsList.find(a => a.id === strategy.alertId);
+      if (!alert) continue;
 
-    if (isTriggered && prevSnapshot) {
-      const directionOverride = config.direction || 'auto';
-      const trendMode = (directionOverride !== 'auto') ? directionOverride : (alert.trend_mode || 'none');
-      crossoverDirection = trendMode === 'short' ? 'short' : 'long';
+      const isTriggered = alertEngineInstance.evaluate(latestSnapshot, alert.expression);
+      let triggerOccurred = false;
+      let crossoverDirection = 'long';
 
-      if (trendMode === 'long' || trendMode === 'short') {
-        const wasTriggeredPrev = alertEngineInstance.evaluate(prevSnapshot, alert.expression);
-        if (!wasTriggeredPrev) {
-          const lastCrossoverPrice = alert.last_crossover_price;
-          const currentPrice = latestSnapshot.price;
+      if (isTriggered && prevSnapshot) {
+        const directionOverride = strategy.direction || 'auto';
+        const trendMode = (directionOverride !== 'auto') ? directionOverride : (alert.trend_mode || 'none');
+        crossoverDirection = trendMode === 'short' ? 'short' : 'long';
 
-          if (trendMode === 'long') {
-            if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice > lastCrossoverPrice) {
-              triggerOccurred = true;
-            }
-          } else if (trendMode === 'short') {
-            if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice < lastCrossoverPrice) {
-              triggerOccurred = true;
+        if (trendMode === 'long' || trendMode === 'short') {
+          const wasTriggeredPrev = alertEngineInstance.evaluate(prevSnapshot, alert.expression);
+          if (!wasTriggeredPrev) {
+            const lastCrossoverPrice = alert.last_crossover_price;
+            const currentPrice = latestSnapshot.price;
+
+            if (trendMode === 'long') {
+              if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice > lastCrossoverPrice) {
+                triggerOccurred = true;
+              }
+            } else if (trendMode === 'short') {
+              if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice < lastCrossoverPrice) {
+                triggerOccurred = true;
+              }
             }
           }
+        } else {
+          triggerOccurred = true;
         }
-      } else {
-        triggerOccurred = true;
       }
-    }
 
-    // 2. Open New Position if Crossover Occurs
-    if (triggerOccurred) {
-      const hasActive = state.activePositions.some(p => p.alertId === alert.id && p.status === 'active');
-      if (!hasActive) {
-        const triggerPrice = latestSnapshot.price;
-        const cooldownMinutes = Number(alert.frequency_minutes || 0);
-        const cooldownMs = cooldownMinutes * 60_000;
-        
-        let onCooldown = false;
-        if (state.tradeHistory.length > 0) {
-          const lastTrade = state.tradeHistory[0];
-          const lastTime = new Date(lastTrade.timestamp).getTime();
-          const currTime = new Date(latestSnapshot.timestamp).getTime();
-          if (currTime - lastTime < cooldownMs) {
-            onCooldown = true;
-          }
-        }
-
-        if (!onCooldown) {
-          // Open position
-          const positionId = crypto.randomUUID();
+      if (triggerOccurred) {
+        const hasActive = state.activePositions.some(p => p.strategyId === strategy.id && p.status === 'active');
+        if (!hasActive) {
+          const triggerPrice = latestSnapshot.price;
+          const cooldownMinutes = Number(alert.frequency_minutes || 0);
+          const cooldownMs = cooldownMinutes * 60_000;
           
-          // Generate order grid
-          const count = Number(config.orderCount || 3);
-          const limitOrders = [];
-          
-          for (let index = 1; index <= count; index++) {
-            const legOffset = parseFloat(config[`legOffset${index}`] ?? (index === 1 ? -0.3 : index === 2 ? -1.0 : -2.0));
-            const legAmount = parseFloat(config[`legAmount${index}`] ?? (index === 1 ? 10 : index === 2 ? 20 : 30));
-            
-            let finalAmount = legAmount;
-            if (config.tradeAmount) {
-              finalAmount = parseFloat(config.tradeAmount) / count;
+          let onCooldown = false;
+          const strategyHistory = state.tradeHistory.filter(h => h.strategyId === strategy.id);
+          if (strategyHistory.length > 0) {
+            const lastTrade = strategyHistory[0];
+            const lastTime = new Date(lastTrade.timestamp).getTime();
+            const currTime = new Date(latestSnapshot.timestamp).getTime();
+            if (currTime - lastTime < cooldownMs) {
+              onCooldown = true;
             }
-            
-            const limitPrice = triggerPrice * (1 + legOffset / 100);
-            const qty = finalAmount / limitPrice;
-            
-            limitOrders.push({
-              index,
-              limitPrice,
-              amount: finalAmount,
-              qty,
-              filled: false,
-              filledAt: null
-            });
           }
 
-          const newPosition = {
-            id: positionId,
-            alertId: alert.id,
-            alertName: alert.name,
-            timestamp: latestSnapshot.timestamp,
-            triggerPrice,
-            direction: crossoverDirection,
-            qty: 0,
-            avgPrice: 0,
-            filledPositions: [],
-            limitOrders,
-            status: 'active',
-            exchange: config.exchange || 'hl'
-          };
-
-          if (newPosition.exchange === '01_exchange') {
-            try {
-              logMsg(`🤖 [OPENING] Connecting to 01 Exchange to place limit order grid...`);
-              const { nord, user } = await get01User(config);
-              const info = await nord.getInfo();
-              const market = info.markets.find(m => m.symbol === 'HYPEUSD');
-              if (!market) throw new Error('HYPEUSD market not found on 01 Exchange');
-              const marketId = market.marketId;
-
-              for (const order of newPosition.limitOrders) {
-                const side = crossoverDirection === 'long' ? Side.Bid : Side.Ask;
-                const size = parseFloat(order.qty.toFixed(market.sizeDecimals));
-                const price = parseFloat(order.limitPrice.toFixed(market.priceDecimals));
-                
-                logMsg(`🤖 [PLACE ORDER] Placing order: ${side.toUpperCase()} size=${size} price=$${price} on 01 Exchange...`);
-                const res = await user.placeOrder({
-                  marketId,
-                  side,
-                  fillMode: FillMode.Limit,
-                  isReduceOnly: false,
-                  size,
-                  price
-                });
-                order.orderId = res.orderId.toString();
-                order.actionId = res.actionId.toString();
-                logMsg(`🤖 [PLACED] Order ID: ${order.orderId} (Action ID: ${order.actionId})`);
+          if (!onCooldown) {
+            const positionId = crypto.randomUUID();
+            const count = Number(strategy.orderCount || 3);
+            const limitOrders = [];
+            
+            for (let index = 1; index <= count; index++) {
+              const legOffset = parseFloat(strategy[`legOffset${index}`] ?? (index === 1 ? -0.3 : index === 2 ? -1.0 : -2.0));
+              const legAmount = parseFloat(strategy[`legAmount${index}`] ?? (index === 1 ? 10 : index === 2 ? 20 : 30));
+              
+              let finalAmount = legAmount;
+              if (strategy.tradeAmount) {
+                finalAmount = parseFloat(strategy.tradeAmount) / count;
               }
               
-              state.activePositions.push(newPosition);
-              logMsg(`🤖 [OPEN] Live 01 Exchange order grid placed successfully! Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
-            } catch (err) {
-              logMsg(`⚠️ [ERROR] Failed to open position on 01 Exchange: ${err.message}`);
-              console.error(err);
-              return;
+              const limitPrice = triggerPrice * (1 + legOffset / 100);
+              const qty = finalAmount / limitPrice;
+              
+              limitOrders.push({
+                index,
+                limitPrice,
+                amount: finalAmount,
+                qty,
+                filled: false,
+                filledAt: null
+              });
             }
-          } else {
-            state.activePositions.push(newPosition);
-            logMsg(`🤖 [OPEN] Live order grid initialized on crossover! Exchange: ${newPosition.exchange.toUpperCase()}, Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+
+            const newPosition = {
+              id: positionId,
+              strategyId: strategy.id,
+              strategyName: strategy.name,
+              alertId: alert.id,
+              alertName: alert.name,
+              timestamp: latestSnapshot.timestamp,
+              triggerPrice,
+              direction: crossoverDirection,
+              qty: 0,
+              avgPrice: 0,
+              filledPositions: [],
+              limitOrders,
+              status: 'active',
+              exchange: strategy.exchange || 'hl'
+            };
+
+            const logMsg = (text) => logMsgForStrategy(strategy.name, text);
+
+            if (newPosition.exchange === '01_exchange') {
+              try {
+                logMsg(`🤖 [OPENING] Connecting to 01 Exchange to place limit order grid...`);
+                const { nord, user } = await get01User(strategy);
+                const info = await nord.getInfo();
+                const market = info.markets.find(m => m.symbol === 'HYPEUSD');
+                if (!market) throw new Error('HYPEUSD market not found on 01 Exchange');
+                const marketId = market.marketId;
+
+                for (const order of newPosition.limitOrders) {
+                  const side = crossoverDirection === 'long' ? Side.Bid : Side.Ask;
+                  const size = parseFloat(order.qty.toFixed(market.sizeDecimals));
+                  const price = parseFloat(order.limitPrice.toFixed(market.priceDecimals));
+                  
+                  logMsg(`🤖 [PLACE ORDER] Placing order: ${side.toUpperCase()} size=${size} price=$${price} on 01 Exchange...`);
+                  const res = await user.placeOrder({
+                    marketId,
+                    side,
+                    fillMode: FillMode.Limit,
+                    isReduceOnly: false,
+                    size,
+                    price
+                  });
+                  order.orderId = res.orderId.toString();
+                  order.actionId = res.actionId.toString();
+                  logMsg(`🤖 [PLACED] Order ID: ${order.orderId} (Action ID: ${order.actionId})`);
+                }
+                
+                state.activePositions.push(newPosition);
+                logMsg(`🤖 [OPEN] Live 01 Exchange order grid placed successfully! Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+                stateChanged = true;
+              } catch (err) {
+                logMsg(`⚠️ [ERROR] Failed to open position on 01 Exchange: ${err.message}`);
+                console.error(err);
+              }
+            } else {
+              state.activePositions.push(newPosition);
+              logMsg(`🤖 [OPEN] Live order grid initialized on crossover! Exchange: ${newPosition.exchange.toUpperCase()}, Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+              stateChanged = true;
+            }
           }
         }
       }
     }
 
-    // 3. Update Existing Active Positions
+    // 2. Update Existing Active Positions
     const activePositions = state.activePositions.filter(p => p.status === 'active');
     for (const pos of activePositions) {
-      let stateChanged = false;
+      const strategy = config.strategies.find(s => s.id === pos.strategyId);
+      const strategyName = pos.strategyName || 'Unknown Strategy';
+      const logMsg = (text) => logMsgForStrategy(strategyName, text);
+
+      const currentStrategyConfig = strategy || {
+        exchange: pos.exchange,
+        wallet: config.wallet,
+        privateKey: config.privateKey,
+        apiKey: config.apiKey,
+        apiSecret: config.apiSecret,
+        tpMode: 'percent',
+        tpPercent: 1.5,
+        tpAnchor: 'avg',
+        slMode: 'percent',
+        slPercent: 2.0
+      };
+
       const triggerPrice = pos.triggerPrice;
       const isShort = (pos.direction === 'short');
       
@@ -322,7 +343,7 @@ export class AutoTradingEngine {
       // check limit orders
       if (pos.exchange === '01_exchange') {
         try {
-          const user = await this.getCachedUser(config);
+          const user = await this.getCachedUser(currentStrategyConfig);
           const openOrders = user.orders["HYPEUSD"] || [];
           
           for (const order of pos.limitOrders) {
@@ -385,9 +406,9 @@ export class AutoTradingEngine {
 
       if (pos.filledPositions.length > 0) {
         // Exits logic
-        const tpPercent = parseFloat(config.tpPercent || 1.5);
-        const slPercent = parseFloat(config.slPercent || 2.0);
-        const tpAnchor = config.tpAnchor || 'avg';
+        const tpPercent = parseFloat(currentStrategyConfig.tpPercent || 1.5);
+        const slPercent = parseFloat(currentStrategyConfig.slPercent || 2.0);
+        const tpAnchor = currentStrategyConfig.tpAnchor || 'avg';
         
         let tpAnchorPrice = pos.avgPrice;
         if (tpAnchor === 'order1' && pos.limitOrders[0]?.filled) tpAnchorPrice = pos.limitOrders[0].limitPrice;
@@ -407,7 +428,7 @@ export class AutoTradingEngine {
         let exitReason = '';
 
         // Check TP Percent
-        if (config.tpMode === 'percent') {
+        if (currentStrategyConfig.tpMode === 'percent') {
           if (isShort) {
             if (sLow <= tpPrice) {
               exitTriggered = true;
@@ -424,7 +445,7 @@ export class AutoTradingEngine {
         }
 
         // Check SL Percent
-        if (!exitTriggered && config.slMode === 'percent') {
+        if (!exitTriggered && currentStrategyConfig.slMode === 'percent') {
           if (isShort) {
             if (sHigh >= slPrice) {
               exitTriggered = true;
@@ -442,13 +463,16 @@ export class AutoTradingEngine {
 
         // Check Metric crossover exits
         if (!exitTriggered) {
-          if (config.tpMode === 'metric') {
-            const exitAlertId = config.tpCloseSelect || 'same';
+          if (currentStrategyConfig.tpMode === 'metric') {
+            const exitAlertId = currentStrategyConfig.tpCloseSelect || 'same';
             let triggeredExit = false;
             if (exitAlertId === 'same') {
-              triggeredExit = isTriggered;
-            } else if (exitAlertId === 'custom' && config.tpCustomExpr) {
-              triggeredExit = alertEngineInstance.evaluate(latestSnapshot, config.tpCustomExpr);
+              const strategyAlert = alertsList.find(a => a.id === currentStrategyConfig.alertId);
+              if (strategyAlert) {
+                triggeredExit = alertEngineInstance.evaluate(latestSnapshot, strategyAlert.expression);
+              }
+            } else if (exitAlertId === 'custom' && currentStrategyConfig.tpCustomExpr) {
+              triggeredExit = alertEngineInstance.evaluate(latestSnapshot, currentStrategyConfig.tpCustomExpr);
             } else {
               const ea = alertsList.find(a => a.id === exitAlertId);
               if (ea) triggeredExit = alertEngineInstance.evaluate(latestSnapshot, ea.expression);
@@ -462,13 +486,16 @@ export class AutoTradingEngine {
           }
         }
 
-        if (!exitTriggered && config.slMode === 'metric') {
-          const exitAlertId = config.slCloseSelect || 'same';
+        if (!exitTriggered && currentStrategyConfig.slMode === 'metric') {
+          const exitAlertId = currentStrategyConfig.slCloseSelect || 'same';
           let triggeredExit = false;
           if (exitAlertId === 'same') {
-            triggeredExit = isTriggered;
-          } else if (exitAlertId === 'custom' && config.slCustomExpr) {
-            triggeredExit = alertEngineInstance.evaluate(latestSnapshot, config.slCustomExpr);
+            const strategyAlert = alertsList.find(a => a.id === currentStrategyConfig.alertId);
+            if (strategyAlert) {
+              triggeredExit = alertEngineInstance.evaluate(latestSnapshot, strategyAlert.expression);
+            }
+          } else if (exitAlertId === 'custom' && currentStrategyConfig.slCustomExpr) {
+            triggeredExit = alertEngineInstance.evaluate(latestSnapshot, currentStrategyConfig.slCustomExpr);
           } else {
             const ea = alertsList.find(a => a.id === exitAlertId);
             if (ea) triggeredExit = alertEngineInstance.evaluate(latestSnapshot, ea.expression);
@@ -483,7 +510,7 @@ export class AutoTradingEngine {
 
         if (exitTriggered) {
           if (pos.exchange === '01_exchange') {
-            await close01Position(pos, config, logMsg);
+            await close01Position(pos, currentStrategyConfig, logMsg);
           }
           // Close position
           const profit = isShort 
@@ -507,7 +534,7 @@ export class AutoTradingEngine {
         }
       } else {
         // No filled orders yet. Check TP cancel threshold
-        const tpPercent = parseFloat(config.tpPercent || 1.5);
+        const tpPercent = parseFloat(currentStrategyConfig.tpPercent || 1.5);
         const cancelPrice = isShort 
           ? triggerPrice * (1 - tpPercent / 100)
           : triggerPrice * (1 + tpPercent / 100);
@@ -521,7 +548,7 @@ export class AutoTradingEngine {
 
         if (cancelTriggered) {
           if (pos.exchange === '01_exchange') {
-            await close01Position(pos, config, logMsg);
+            await close01Position(pos, currentStrategyConfig, logMsg);
           }
           pos.status = 'canceled';
           state.activePositions = state.activePositions.filter(p => p.id !== pos.id);
@@ -540,12 +567,23 @@ export class AutoTradingEngine {
     if (posIndex === -1) return false;
 
     const pos = state.activePositions[posIndex];
+    const config = await this.autoTradeStore.getConfig();
+    const strategy = config.strategies.find(s => s.id === pos.strategyId);
+    const currentStrategyConfig = strategy || {
+      exchange: pos.exchange,
+      wallet: config.wallet,
+      privateKey: config.privateKey,
+      apiKey: config.apiKey,
+      apiSecret: config.apiSecret
+    };
+
+    const strategyName = pos.strategyName || 'Unknown Strategy';
+
     if (pos.exchange === '01_exchange') {
-      const config = await this.autoTradeStore.getConfig();
-      await close01Position(pos, config, (text) => {
+      await close01Position(pos, currentStrategyConfig, (text) => {
         const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-        state.logs.unshift(`[${timeStr}] ${text}`);
-        this.sendTelegramMessage(text).catch(err => console.error('Telegram autotrade send failed:', err));
+        state.logs.unshift(`[${timeStr}] [${strategyName}] ${text}`);
+        this.sendTelegramMessage(`[${strategyName}] ${text}`).catch(err => console.error('Telegram autotrade send failed:', err));
       });
     }
 
@@ -566,7 +604,7 @@ export class AutoTradingEngine {
     state.activePositions.splice(posIndex, 1);
 
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const fullText = `[${timeStr}] 🤖 [MANUAL CLOSE] Live position force-closed manually at $${actualPrice.toFixed(4)}. Realized PnL: $${profit.toFixed(2)}`;
+    const fullText = `[${timeStr}] [${strategyName}] 🤖 [MANUAL CLOSE] Live position force-closed manually at $${actualPrice.toFixed(4)}. Realized PnL: $${profit.toFixed(2)}`;
     state.logs.unshift(fullText);
 
     await this.autoTradeStore.saveState(state);

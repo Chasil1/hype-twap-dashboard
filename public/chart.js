@@ -2197,7 +2197,7 @@ const TRANSLATIONS = {
     
     // Auto Trading translations
     autoTradeTab: "Auto Trading",
-    autoTradeEnabledLabel: "Live Auto Trading Status",
+    autoTradeEnabledLabel: "Strategy Status (Active)",
     autoTradeExchangeLabel: "Exchange Source",
     autoTradeTestnetLabel: "Sandbox / Testnet",
     autoTradeWalletLabel: "Wallet Address",
@@ -2215,7 +2215,11 @@ const TRANSLATIONS = {
     autoTradeSlModeLabel: "Stop Loss Mode",
     autoTradeSlPercentLabel: "Stop Loss (%)",
     autoTradeSlCloseLabel: "Stop Loss Exit Signal",
-    saveConfigStartBotLabel: "Save Config & Start Bot",
+    saveConfigStartBotLabel: "Save Strategy",
+    configuredStrategies: "Configured Trading Strategies",
+    createStrategy: "➕ Create Strategy",
+    strategyName: "Strategy Name",
+    btnCancel: "Cancel",
     titleAutoTradeStatusLabel: "Bot Status",
     titleAutoTradePositionsLabel: "Active Positions",
     thAutotradeAssetLabel: "Asset",
@@ -2332,7 +2336,7 @@ const TRANSLATIONS = {
     
     // Auto Trading translations
     autoTradeTab: "Авто-торговля",
-    autoTradeEnabledLabel: "Статус авто-торговли",
+    autoTradeEnabledLabel: "Статус стратегии (Активна)",
     autoTradeExchangeLabel: "Биржа",
     autoTradeTestnetLabel: "Песочница / Тестнет",
     autoTradeWalletLabel: "Адрес кошелька",
@@ -2350,7 +2354,11 @@ const TRANSLATIONS = {
     autoTradeSlModeLabel: "Режим Стоп Лосса",
     autoTradeSlPercentLabel: "Стоп Лосс (%)",
     autoTradeSlCloseLabel: "Сигнал для закрытия по Стоп Лоссу",
-    saveConfigStartBotLabel: "Сохранить конфиг и запустить",
+    saveConfigStartBotLabel: "Сохранить стратегию",
+    configuredStrategies: "Настроенные торговые стратегии",
+    createStrategy: "➕ Создать стратегию",
+    strategyName: "Название стратегии",
+    btnCancel: "Отмена",
     titleAutoTradeStatusLabel: "Статус бота",
     titleAutoTradePositionsLabel: "Активные позиции",
     thAutotradeAssetLabel: "Актив",
@@ -2915,6 +2923,18 @@ function applyLanguage(lang) {
 
   const lblAutoTradeSlClose = document.getElementById('lblAutoTradeSlClose');
   if (lblAutoTradeSlClose) lblAutoTradeSlClose.textContent = t.autoTradeSlCloseLabel;
+
+  const lblConfiguredStrategies = document.getElementById('lblConfiguredStrategies');
+  if (lblConfiguredStrategies) lblConfiguredStrategies.textContent = t.configuredStrategies;
+
+  const createStrategyBtn = document.getElementById('createStrategyBtn');
+  if (createStrategyBtn) createStrategyBtn.textContent = t.createStrategy;
+
+  const lblStrategyName = document.getElementById('lblStrategyName');
+  if (lblStrategyName) lblStrategyName.textContent = t.strategyName;
+
+  const btnCancelAutoTrade = document.getElementById('btnCancelAutoTrade');
+  if (btnCancelAutoTrade) btnCancelAutoTrade.textContent = t.btnCancel;
 
   const btnSaveAutoTrade = document.getElementById('btnSaveAutoTrade');
   if (btnSaveAutoTrade) btnSaveAutoTrade.textContent = t.saveConfigStartBotLabel;
@@ -4219,6 +4239,8 @@ function renderMetricsResults(results) {
 // --- Live Auto Trading Configurators and Handlers ---
 
 let autoTradeStatusIntervalId = null;
+let currentStrategies = [];
+let editingStrategyId = null;
 
 function initAutoTradingConfigurator() {
   const tabAutoTrading = document.getElementById('tabAutoTrading');
@@ -4384,8 +4406,76 @@ function initAutoTradingConfigurator() {
     }
   });
 
+  // Create Strategy Button
+  const createStrategyBtn = document.getElementById('createStrategyBtn');
+  if (createStrategyBtn) {
+    createStrategyBtn.addEventListener('click', () => {
+      editingStrategyId = null;
+      resetStrategyForm();
+      const lang = localStorage.getItem('hype_twap_lang') || 'en';
+      const formTitle = document.getElementById('strategyFormTitle');
+      if (formTitle) formTitle.textContent = lang === 'en' ? 'Create Strategy' : 'Создать стратегию';
+      autoTradingForm.classList.remove('hidden');
+    });
+  }
+
+  // Cancel Button
+  const btnCancelAutoTrade = document.getElementById('btnCancelAutoTrade');
+  if (btnCancelAutoTrade) {
+    btnCancelAutoTrade.addEventListener('click', () => {
+      autoTradingForm.classList.add('hidden');
+      editingStrategyId = null;
+    });
+  }
+
   if (autoTradingForm) {
     autoTradingForm.addEventListener('submit', saveAutoTradeConfig);
+  }
+}
+
+function resetStrategyForm() {
+  document.getElementById('strategyNameInput').value = '';
+  document.getElementById('autoTradeEnabled').checked = true;
+  document.getElementById('autoTradeExchange').value = 'hl';
+  document.getElementById('autoTradeExchange').dispatchEvent(new Event('change'));
+  document.getElementById('autoTradeTestnet').checked = true;
+  document.getElementById('autoTradeWallet').value = '';
+  document.getElementById('autoTradePrivateKey').value = '';
+  document.getElementById('autoTradeApiKey').value = '';
+  document.getElementById('autoTradeApiSecret').value = '';
+  document.getElementById('autoTradeAlertSelect').value = '';
+  document.getElementById('autoTradeDirection').value = 'auto';
+  document.getElementById('autoTradeOrderCount').value = '3';
+  document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
+  document.getElementById('autoTradeAmount').value = '60';
+
+  // legs
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById(`autoTradeOffset${i}`).value = i === 1 ? '-0.3' : i === 2 ? '-1.0' : '-2.0';
+    document.getElementById(`autoTradeAmount${i}`).value = i === 1 ? '10' : i === 2 ? '20' : '30';
+  }
+
+  document.getElementById('autoTradeTpMode').value = 'percent';
+  document.getElementById('autoTradeTpMode').dispatchEvent(new Event('change'));
+  document.getElementById('autoTradeTpPercent').value = '1.5';
+  document.getElementById('autoTradeTpAnchor').value = 'avg';
+  document.getElementById('autoTradeTpCloseSelect').value = 'same';
+  document.getElementById('autoTradeTpCloseSelect').dispatchEvent(new Event('change'));
+  const tpCustomContainer = document.getElementById('autoTradeTpCloseCustomContainer');
+  if (tpCustomContainer) tpCustomContainer.innerHTML = '';
+
+  document.getElementById('autoTradeSlMode').value = 'none';
+  document.getElementById('autoTradeSlMode').dispatchEvent(new Event('change'));
+  document.getElementById('autoTradeSlPercent').value = '2.0';
+  document.getElementById('autoTradeSlCloseSelect').value = 'same';
+  document.getElementById('autoTradeSlCloseSelect').dispatchEvent(new Event('change'));
+  const slCustomContainer = document.getElementById('autoTradeSlCloseCustomContainer');
+  if (slCustomContainer) slCustomContainer.innerHTML = '';
+
+  const feedback = document.getElementById('autoTradeFeedback');
+  if (feedback) {
+    feedback.textContent = '';
+    feedback.className = 'feedback-msg';
   }
 }
 
@@ -4459,88 +4549,194 @@ async function loadAutoTradeConfig() {
     const config = await response.json();
     if (!config) return;
 
-    if (config.enabled !== undefined) {
-      document.getElementById('autoTradeEnabled').checked = !!config.enabled;
-    }
-    if (config.exchange) {
-      document.getElementById('autoTradeExchange').value = config.exchange;
-      document.getElementById('autoTradeExchange').dispatchEvent(new Event('change'));
-    }
-    if (config.testnet !== undefined) {
-      document.getElementById('autoTradeTestnet').checked = !!config.testnet;
-    }
-    if (config.wallet) {
-      document.getElementById('autoTradeWallet').value = config.wallet;
-    }
-    if (config.privateKey) {
-      document.getElementById('autoTradePrivateKey').value = config.privateKey;
-    }
-    if (config.apiKey) {
-      document.getElementById('autoTradeApiKey').value = config.apiKey;
-    }
-    if (config.apiSecret) {
-      document.getElementById('autoTradeApiSecret').value = config.apiSecret;
-    }
-    if (config.alertId) {
-      document.getElementById('autoTradeAlertSelect').value = config.alertId;
-    }
-    if (config.direction) {
-      document.getElementById('autoTradeDirection').value = config.direction;
-    }
-    if (config.orderCount) {
-      document.getElementById('autoTradeOrderCount').value = config.orderCount;
-      document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
-    }
-    if (config.tradeAmount) {
-      document.getElementById('autoTradeAmount').value = config.tradeAmount;
-    }
-
-    // Grid leg inputs
-    for (let i = 1; i <= 3; i++) {
-      if (config[`legOffset${i}`] !== undefined) {
-        document.getElementById(`autoTradeOffset${i}`).value = config[`legOffset${i}`];
-      }
-      if (config[`legAmount${i}`] !== undefined) {
-        document.getElementById(`autoTradeAmount${i}`).value = config[`legAmount${i}`];
-      }
-    }
-
-    // Exits config
-    if (config.tpMode) {
-      document.getElementById('autoTradeTpMode').value = config.tpMode;
-      document.getElementById('autoTradeTpMode').dispatchEvent(new Event('change'));
-    }
-    if (config.tpPercent !== undefined) {
-      document.getElementById('autoTradeTpPercent').value = config.tpPercent;
-    }
-    if (config.tpAnchor) {
-      document.getElementById('autoTradeTpAnchor').value = config.tpAnchor;
-    }
-    if (config.tpCloseSelect) {
-      document.getElementById('autoTradeTpCloseSelect').value = config.tpCloseSelect;
-      document.getElementById('autoTradeTpCloseSelect').dispatchEvent(new Event('change'));
-    }
-    if (config.tpCustomExpr) {
-      createExitsConditionRow('autoTradeTpCloseCustomContainer', config.tpCustomExpr);
-    }
-
-    if (config.slMode) {
-      document.getElementById('autoTradeSlMode').value = config.slMode;
-      document.getElementById('autoTradeSlMode').dispatchEvent(new Event('change'));
-    }
-    if (config.slPercent !== undefined) {
-      document.getElementById('autoTradeSlPercent').value = config.slPercent;
-    }
-    if (config.slCloseSelect) {
-      document.getElementById('autoTradeSlCloseSelect').value = config.slCloseSelect;
-      document.getElementById('autoTradeSlCloseSelect').dispatchEvent(new Event('change'));
-    }
-    if (config.slCustomExpr) {
-      createExitsConditionRow('autoTradeSlCloseCustomContainer', config.slCustomExpr);
-    }
+    currentStrategies = config.strategies || [];
+    renderStrategiesList();
   } catch (err) {
     console.error('Error loading auto-trading config:', err);
   }
+}
+
+function renderStrategiesList() {
+  const container = document.getElementById('strategiesList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+
+  if (currentStrategies.length === 0) {
+    container.innerHTML = `<p class="placeholder-text">${lang === 'en' ? 'No strategies configured yet.' : 'Стратегии не настроены.'}</p>`;
+    return;
+  }
+
+  currentStrategies.forEach(strategy => {
+    const item = document.createElement('div');
+    item.className = 'alert-item';
+
+    const exchangeName = strategy.exchange === 'hl' ? 'Hyperliquid' : (strategy.exchange === 'bybit' ? 'Bybit' : '01 Exchange');
+    const netType = strategy.testnet ? '(Testnet)' : '(Mainnet)';
+    const amountStr = strategy.tradeAmount ? `$${strategy.tradeAmount}` : 'Grid';
+    
+    // Find alert name
+    let alertName = '';
+    const alert = cachedAlerts.find(a => a.id === strategy.alertId);
+    if (alert) {
+      alertName = `${alert.name} (${alert.timeframe || '1m'})`;
+    } else {
+      alertName = strategy.alertId ? `Alert ID: ${strategy.alertId}` : 'None';
+    }
+
+    const directionStr = strategy.direction === 'long' ? 'Force Long' : (strategy.direction === 'short' ? 'Force Short' : 'Auto');
+    const directionColor = strategy.direction === 'long' ? '#35d083' : (strategy.direction === 'short' ? '#ef5e5e' : 'var(--amber)');
+    const directionBadge = ` <span style="color: ${directionColor}; background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-left: 4px;">${directionStr}</span>`;
+
+    item.innerHTML = `
+      <div class="alert-info">
+        <span class="alert-title">${strategy.name || 'Unnamed Strategy'}${directionBadge}</span>
+        <span class="alert-rule">${exchangeName} ${netType} | ${lang === 'en' ? 'Trigger' : 'Триггер'}: ${alertName} | ${lang === 'en' ? 'Size' : 'Объем'}: ${amountStr}</span>
+      </div>
+      <div class="alert-actions">
+        <label class="switch">
+          <input type="checkbox" class="toggle-strategy-active" data-id="${strategy.id}" ${strategy.enabled ? 'checked' : ''}/>
+          <span class="slider"></span>
+        </label>
+        <button class="edit-strategy-btn" data-id="${strategy.id}" title="${lang === 'en' ? 'Edit Strategy' : 'Редактировать стратегию'}" type="button">✏️</button>
+        <button class="delete-strategy-btn" data-id="${strategy.id}" title="${lang === 'en' ? 'Delete Strategy' : 'Удалить стратегию'}" type="button">×</button>
+      </div>
+    `;
+
+    // Toggle active event listener
+    item.querySelector('.slider').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const checkbox = item.querySelector('.toggle-strategy-active');
+      const isEnabledNow = !checkbox.checked;
+      checkbox.checked = isEnabledNow;
+      
+      // Update local strategy
+      strategy.enabled = isEnabledNow;
+      await saveAllStrategiesSilent();
+    });
+
+    // Edit event listener
+    item.querySelector('.edit-strategy-btn').addEventListener('click', () => {
+      startEditStrategy(strategy);
+    });
+
+    // Delete event listener
+    item.querySelector('.delete-strategy-btn').addEventListener('click', async () => {
+      const confirmMsg = lang === 'en' 
+        ? `Are you sure you want to delete strategy "${strategy.name}"?` 
+        : `Вы уверены, что хотите удалить стратегию "${strategy.name}"?`;
+      if (confirm(confirmMsg)) {
+        currentStrategies = currentStrategies.filter(s => s.id !== strategy.id);
+        await saveAllStrategiesSilent();
+      }
+    });
+
+    container.appendChild(item);
+  });
+}
+
+async function saveAllStrategiesSilent() {
+  try {
+    const response = await fetch('/api/autotrade/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ strategies: currentStrategies })
+    });
+    if (!response.ok) {
+      console.error('Failed to save config on change');
+    }
+    renderStrategiesList();
+  } catch (err) {
+    console.error('Error in saveAllStrategiesSilent:', err);
+  }
+}
+
+function startEditStrategy(strategy) {
+  editingStrategyId = strategy.id;
+  const form = document.getElementById('autoTradingForm');
+  if (!form) return;
+
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const formTitle = document.getElementById('strategyFormTitle');
+  if (formTitle) formTitle.textContent = lang === 'en' ? 'Edit Strategy' : 'Редактировать стратегию';
+
+  // Populate fields
+  document.getElementById('strategyNameInput').value = strategy.name || '';
+  document.getElementById('autoTradeEnabled').checked = !!strategy.enabled;
+  document.getElementById('autoTradeExchange').value = strategy.exchange || 'hl';
+  document.getElementById('autoTradeExchange').dispatchEvent(new Event('change'));
+  document.getElementById('autoTradeTestnet').checked = !!strategy.testnet;
+  document.getElementById('autoTradeWallet').value = strategy.wallet || '';
+  document.getElementById('autoTradePrivateKey').value = strategy.privateKey || '';
+  document.getElementById('autoTradeApiKey').value = strategy.apiKey || '';
+  document.getElementById('autoTradeApiSecret').value = strategy.apiSecret || '';
+  
+  document.getElementById('autoTradeAlertSelect').value = strategy.alertId || '';
+  document.getElementById('autoTradeDirection').value = strategy.direction || 'auto';
+  document.getElementById('autoTradeOrderCount').value = strategy.orderCount || '3';
+  document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
+  document.getElementById('autoTradeAmount').value = strategy.tradeAmount || '';
+
+  // Grid legs
+  for (let i = 1; i <= 3; i++) {
+    if (strategy[`legOffset${i}`] !== undefined) {
+      document.getElementById(`autoTradeOffset${i}`).value = strategy[`legOffset${i}`];
+    }
+    if (strategy[`legAmount${i}`] !== undefined) {
+      document.getElementById(`autoTradeAmount${i}`).value = strategy[`legAmount${i}`];
+    }
+  }
+
+  // Exits config
+  if (strategy.tpMode) {
+    document.getElementById('autoTradeTpMode').value = strategy.tpMode;
+    document.getElementById('autoTradeTpMode').dispatchEvent(new Event('change'));
+  }
+  if (strategy.tpPercent !== undefined) {
+    document.getElementById('autoTradeTpPercent').value = strategy.tpPercent;
+  }
+  if (strategy.tpAnchor) {
+    document.getElementById('autoTradeTpAnchor').value = strategy.tpAnchor;
+  }
+  if (strategy.tpCloseSelect) {
+    document.getElementById('autoTradeTpCloseSelect').value = strategy.tpCloseSelect;
+    document.getElementById('autoTradeTpCloseSelect').dispatchEvent(new Event('change'));
+  }
+  const tpCustomContainer = document.getElementById('autoTradeTpCloseCustomContainer');
+  if (tpCustomContainer) tpCustomContainer.innerHTML = '';
+  if (strategy.tpCustomExpr) {
+    createExitsConditionRow('autoTradeTpCloseCustomContainer', strategy.tpCustomExpr);
+  }
+
+  if (strategy.slMode) {
+    document.getElementById('autoTradeSlMode').value = strategy.slMode;
+    document.getElementById('autoTradeSlMode').dispatchEvent(new Event('change'));
+  }
+  if (strategy.slPercent !== undefined) {
+    document.getElementById('autoTradeSlPercent').value = strategy.slPercent;
+  }
+  if (strategy.slCloseSelect) {
+    document.getElementById('autoTradeSlCloseSelect').value = strategy.slCloseSelect;
+    document.getElementById('autoTradeSlCloseSelect').dispatchEvent(new Event('change'));
+  }
+  const slCustomContainer = document.getElementById('autoTradeSlCloseCustomContainer');
+  if (slCustomContainer) slCustomContainer.innerHTML = '';
+  if (strategy.slCustomExpr) {
+    createExitsConditionRow('autoTradeSlCloseCustomContainer', strategy.slCustomExpr);
+  }
+
+  // Clear feedback message
+  const feedback = document.getElementById('autoTradeFeedback');
+  if (feedback) {
+    feedback.textContent = '';
+    feedback.className = 'feedback-msg';
+  }
+
+  // Show form
+  form.classList.remove('hidden');
 }
 
 async function saveAutoTradeConfig(e) {
@@ -4549,10 +4745,21 @@ async function saveAutoTradeConfig(e) {
   const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
   
   feedback.className = 'feedback-msg';
-  feedback.textContent = currentLang === 'en' ? 'Saving configuration...' : 'Сохранение конфигурации...';
+  feedback.textContent = currentLang === 'en' ? 'Saving strategy...' : 'Сохранение стратегии...';
 
   try {
-    const config = {
+    const alertId = document.getElementById('autoTradeAlertSelect').value;
+    if (!alertId) {
+      throw new Error(currentLang === 'en' ? 'Please select a trigger alert.' : 'Пожалуйста, выберите сигнальное оповещение.');
+    }
+
+    const name = document.getElementById('strategyNameInput').value.trim() || 'Strategy';
+
+    const strategyId = editingStrategyId || crypto.randomUUID();
+
+    const strategy = {
+      id: strategyId,
+      name: name,
       enabled: document.getElementById('autoTradeEnabled').checked,
       exchange: document.getElementById('autoTradeExchange').value,
       testnet: document.getElementById('autoTradeTestnet').checked,
@@ -4560,7 +4767,7 @@ async function saveAutoTradeConfig(e) {
       privateKey: document.getElementById('autoTradePrivateKey').value,
       apiKey: document.getElementById('autoTradeApiKey').value,
       apiSecret: document.getElementById('autoTradeApiSecret').value,
-      alertId: document.getElementById('autoTradeAlertSelect').value,
+      alertId: alertId,
       direction: document.getElementById('autoTradeDirection').value,
       orderCount: parseInt(document.getElementById('autoTradeOrderCount').value) || 3,
       tradeAmount: parseFloat(document.getElementById('autoTradeAmount').value) || null,
@@ -4584,8 +4791,15 @@ async function saveAutoTradeConfig(e) {
       slCustomExpr: getCustomExitCondition('autoTradeSlCloseCustomContainer')
     };
 
-    if (!config.alertId) {
-      throw new Error(currentLang === 'en' ? 'Please select a trigger alert.' : 'Пожалуйста, выберите сигнальное оповещение.');
+    if (editingStrategyId) {
+      // Edit existing
+      const index = currentStrategies.findIndex(s => s.id === editingStrategyId);
+      if (index !== -1) {
+        currentStrategies[index] = strategy;
+      }
+    } else {
+      // Add new
+      currentStrategies.push(strategy);
     }
 
     const response = await fetch('/api/autotrade/config', {
@@ -4593,7 +4807,7 @@ async function saveAutoTradeConfig(e) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(config)
+      body: JSON.stringify({ strategies: currentStrategies })
     });
 
     if (!response.ok) {
@@ -4601,11 +4815,16 @@ async function saveAutoTradeConfig(e) {
     }
 
     feedback.className = 'feedback-msg success';
-    feedback.textContent = currentLang === 'en' ? 'Configuration saved successfully!' : 'Настройки авто-торговли сохранены!';
+    feedback.textContent = currentLang === 'en' ? 'Strategy saved successfully!' : 'Стратегия сохранена!';
+
+    // Hide form and reload config list
+    document.getElementById('autoTradingForm').classList.add('hidden');
+    editingStrategyId = null;
+    renderStrategiesList();
   } catch (err) {
     feedback.className = 'feedback-msg error';
     feedback.textContent = err.message;
-    console.error('Error saving autotrade config:', err);
+    console.error('Error saving strategy config:', err);
   }
 }
 
@@ -4656,11 +4875,14 @@ async function refreshAutoTradeStatus() {
 
           const fillsCount = pos.filledPositions?.length || 0;
           const limitCount = pos.limitOrders?.length || 0;
+          
+          // Display Strategy Name alongside Asset
+          const displayName = `HYPE<br/><span style="font-size: 9px; color: var(--muted);">${pos.strategyName || 'Strategy'}</span>`;
 
           const tr = document.createElement('tr');
           tr.style.borderBottom = '1px solid var(--line)';
           tr.innerHTML = `
-            <td style="padding: 6px 8px; font-weight: bold;">HYPE</td>
+            <td style="padding: 6px 8px; font-weight: bold; line-height: 1.2;">${displayName}</td>
             <td style="padding: 6px 8px; text-transform: uppercase; color: ${isShort ? 'var(--red)' : 'var(--green)'};">${direction}</td>
             <td style="padding: 6px 8px;">${qty.toFixed(4)} <span style="font-size: 9px; color: var(--muted);">(${fillsCount}/${limitCount} fills)</span></td>
             <td style="padding: 6px 8px;">$${entryPrice.toFixed(4)}</td>
@@ -4715,6 +4937,7 @@ async function refreshAutoTradeStatus() {
           const pnlSign = profit >= 0 ? '+' : '';
 
           const timeStr = new Date(trade.exitTimestamp || trade.timestamp).toLocaleTimeString();
+          const stratName = trade.strategyName ? ` | ${trade.strategyName}` : '';
 
           item.innerHTML = `
             <div>
@@ -4722,7 +4945,7 @@ async function refreshAutoTradeStatus() {
               <span style="color: var(--muted); margin-left: 6px;">Qty: ${trade.qty?.toFixed(4)}</span>
               <span style="color: var(--muted); margin-left: 6px;">Entry: $${trade.avgPrice?.toFixed(4)}</span>
               <span style="color: var(--muted); margin-left: 6px;">Exit: $${trade.exitPrice?.toFixed(4)}</span>
-              <div style="font-size: 9px; color: var(--muted); margin-top: 2px;">Reason: ${trade.exitReason || 'Closed'} | Time: ${timeStr}</div>
+              <div style="font-size: 9px; color: var(--muted); margin-top: 2px;">Reason: ${trade.exitReason || 'Closed'}${stratName} | Time: ${timeStr}</div>
             </div>
             <strong style="${pnlStyle}">${pnlSign}$${profit.toFixed(2)}</strong>
           `;
