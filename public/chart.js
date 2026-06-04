@@ -4204,13 +4204,13 @@ function initAutoTradingConfigurator() {
 
   const updateExchangeFields = () => {
     const exchange = autoTradeExchange.value;
-    if (exchange === 'hl') {
+    if (exchange === 'hl' || exchange === '01_exchange') {
       groupAutoTradeWallet.classList.remove('hidden');
       groupAutoTradePrivateKey.classList.remove('hidden');
       groupAutoTradeApiKey.classList.add('hidden');
       groupAutoTradeApiSecret.classList.add('hidden');
     } else {
-      // bybit or variational
+      // bybit
       groupAutoTradeWallet.classList.add('hidden');
       groupAutoTradePrivateKey.classList.add('hidden');
       groupAutoTradeApiKey.classList.remove('hidden');

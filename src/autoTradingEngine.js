@@ -1,10 +1,134 @@
 import crypto from 'node:crypto';
+import { Nord, NordUser, Side, FillMode } from "@n1xyz/nord-ts";
+import { Connection } from "@solana/web3.js";
+import bs58 from "bs58";
+
+function parsePrivateKey(input) {
+  const trimmed = input.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      return new Uint8Array(JSON.parse(trimmed));
+    } catch (e) {
+      throw new Error('Invalid JSON private key format');
+    }
+  }
+  try {
+    return bs58.decode(trimmed);
+  } catch (e) {
+    if (/^[0-9a-fA-F]+$/.test(trimmed)) {
+      return Buffer.from(trimmed, 'hex');
+    }
+    throw new Error('Unsupported private key encoding. Please use Base58 or JSON array.');
+  }
+}
+
+async function get01User(config) {
+  const isTestnet = !!config.testnet;
+  const solanaUrl = isTestnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
+  const webServerUrl = isTestnet ? 'https://zo-devnet.n1.xyz' : 'https://zo-mainnet.n1.xyz';
+  const appKey = 'zoau54n5U24GHNKqyoziVaVxgsiQYnPMx33fKmLLCT5';
+
+  const connection = new Connection(solanaUrl);
+  const nord = await Nord.new({
+    app: appKey,
+    solanaConnection: connection,
+    webServerUrl,
+  });
+
+  const parsedKey = parsePrivateKey(config.privateKey);
+  const user = NordUser.fromPrivateKey(nord, parsedKey);
+  
+  await user.updateAccountId();
+  await user.fetchInfo();
+  return { nord, user };
+}
+
+async function close01Position(pos, config, logMsg) {
+  try {
+    const isTestnet = !!config.testnet;
+    const solanaUrl = isTestnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com';
+    const webServerUrl = isTestnet ? 'https://zo-devnet.n1.xyz' : 'https://zo-mainnet.n1.xyz';
+    const appKey = 'zoau54n5U24GHNKqyoziVaVxgsiQYnPMx33fKmLLCT5';
+
+    const connection = new Connection(solanaUrl);
+    const nord = await Nord.new({
+      app: appKey,
+      solanaConnection: connection,
+      webServerUrl,
+    });
+
+    const parsedKey = parsePrivateKey(config.privateKey);
+    const user = NordUser.fromPrivateKey(nord, parsedKey);
+    
+    await user.updateAccountId();
+    await user.fetchInfo();
+
+    // 1. Cancel open limit orders
+    const openOrders = user.orders["HYPEUSD"] || [];
+    for (const order of pos.limitOrders) {
+      if (!order.filled && order.orderId) {
+        const isOpen = openOrders.some(o => o.orderId.toString() === order.orderId.toString());
+        if (isOpen) {
+          try {
+            await user.cancelOrder(BigInt(order.orderId));
+            logMsg(`🤖 [CANCEL] Canceled open limit order ${order.orderId} on 01 Exchange before closing.`);
+          } catch (e) {
+            console.error(`Failed to cancel order ${order.orderId}:`, e.message);
+          }
+        }
+      }
+    }
+
+    // 2. Place market close order
+    if (pos.qty > 0) {
+      const info = await nord.getInfo();
+      const market = info.markets.find(m => m.symbol === 'HYPEUSD');
+      if (!market) throw new Error('HYPEUSD market not found');
+      
+      const side = pos.direction === 'long' ? Side.Ask : Side.Bid; // opposite side
+      const size = parseFloat(pos.qty.toFixed(market.sizeDecimals));
+
+      logMsg(`🤖 [EXITING] Placing market order to close position of size ${size} on 01 Exchange.`);
+      const closeResult = await user.placeOrder({
+        marketId: market.marketId,
+        side,
+        fillMode: FillMode.FillOrKill, // FOK is standard for market order on 01 Exchange
+        isReduceOnly: true,
+        size
+      });
+      logMsg(`🤖 [EXITED] Market order placed on 01 Exchange. Action ID: ${closeResult.actionId}`);
+    }
+  } catch (err) {
+    console.error('Error closing 01 Exchange position:', err);
+    logMsg(`⚠️ [ERROR] Failed to close position on 01 Exchange: ${err.message}`);
+  }
+}
 
 export class AutoTradingEngine {
   constructor({ autoTradeStore, configStore }) {
     this.autoTradeStore = autoTradeStore;
     this.configStore = configStore;
     this.lastCheckedTimestamp = null;
+    this.cachedUser = null;
+    this.cachedUserConfigHash = null;
+  }
+
+  async getCachedUser(config) {
+    const configHash = `${config.exchange}-${config.testnet}-${config.privateKey}`;
+    if (this.cachedUser && this.cachedUserConfigHash === configHash) {
+      try {
+        await this.cachedUser.fetchInfo();
+        return this.cachedUser;
+      } catch (e) {
+        console.warn('Cached user fetchInfo failed, reinitializing...', e.message);
+        this.cachedUser = null;
+      }
+    }
+    
+    const { user } = await get01User(config);
+    this.cachedUser = user;
+    this.cachedUserConfigHash = configHash;
+    return user;
   }
 
   async update(snapshots, alertsList, alertEngineInstance) {
@@ -141,8 +265,45 @@ export class AutoTradingEngine {
             exchange: config.exchange || 'hl'
           };
 
-          state.activePositions.push(newPosition);
-          logMsg(`🤖 [OPEN] Live order grid initialized on crossover! Exchange: ${newPosition.exchange.toUpperCase()}, Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+          if (newPosition.exchange === '01_exchange') {
+            try {
+              logMsg(`🤖 [OPENING] Connecting to 01 Exchange to place limit order grid...`);
+              const { nord, user } = await get01User(config);
+              const info = await nord.getInfo();
+              const market = info.markets.find(m => m.symbol === 'HYPEUSD');
+              if (!market) throw new Error('HYPEUSD market not found on 01 Exchange');
+              const marketId = market.marketId;
+
+              for (const order of newPosition.limitOrders) {
+                const side = crossoverDirection === 'long' ? Side.Bid : Side.Ask;
+                const size = parseFloat(order.qty.toFixed(market.sizeDecimals));
+                const price = parseFloat(order.limitPrice.toFixed(market.priceDecimals));
+                
+                logMsg(`🤖 [PLACE ORDER] Placing order: ${side.toUpperCase()} size=${size} price=$${price} on 01 Exchange...`);
+                const res = await user.placeOrder({
+                  marketId,
+                  side,
+                  fillMode: FillMode.Limit,
+                  isReduceOnly: false,
+                  size,
+                  price
+                });
+                order.orderId = res.orderId.toString();
+                order.actionId = res.actionId.toString();
+                logMsg(`🤖 [PLACED] Order ID: ${order.orderId} (Action ID: ${order.actionId})`);
+              }
+              
+              state.activePositions.push(newPosition);
+              logMsg(`🤖 [OPEN] Live 01 Exchange order grid placed successfully! Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+            } catch (err) {
+              logMsg(`⚠️ [ERROR] Failed to open position on 01 Exchange: ${err.message}`);
+              console.error(err);
+              return;
+            }
+          } else {
+            state.activePositions.push(newPosition);
+            logMsg(`🤖 [OPEN] Live order grid initialized on crossover! Exchange: ${newPosition.exchange.toUpperCase()}, Direction: ${crossoverDirection.toUpperCase()}, Trigger Price: $${triggerPrice.toFixed(4)}`);
+          }
         }
       }
     }
@@ -159,32 +320,65 @@ export class AutoTradingEngine {
       const currentPrice = latestSnapshot.price;
 
       // check limit orders
-      for (const order of pos.limitOrders) {
-        if (!order.filled) {
-          let isFilled = false;
-          if (isShort) {
-            if (sHigh >= order.limitPrice) isFilled = true;
-          } else {
-            if (sLow <= order.limitPrice) isFilled = true;
+      if (pos.exchange === '01_exchange') {
+        try {
+          const user = await this.getCachedUser(config);
+          const openOrders = user.orders["HYPEUSD"] || [];
+          
+          for (const order of pos.limitOrders) {
+            if (!order.filled && order.orderId) {
+              const isStillOpen = openOrders.some(o => o.orderId.toString() === order.orderId.toString());
+              if (!isStillOpen) {
+                order.filled = true;
+                order.filledAt = latestSnapshot.timestamp;
+                pos.filledPositions.push(order);
+                
+                // Recalculate avgPrice and qty
+                let totalQty = 0;
+                let totalCost = 0;
+                pos.filledPositions.forEach(fp => {
+                  totalQty += fp.qty;
+                  totalCost += fp.qty * fp.limitPrice;
+                });
+                pos.qty = totalQty;
+                pos.avgPrice = totalCost / totalQty;
+                stateChanged = true;
+                
+                logMsg(`🤖 [FILL] 01 Exchange order filled for leg ${order.index} at limit $${order.limitPrice.toFixed(4)}. Position Size: ${pos.qty.toFixed(4)}, Avg Price: $${pos.avgPrice.toFixed(4)}`);
+              }
+            }
           }
+        } catch (err) {
+          console.error('Error updating 01 Exchange position status:', err);
+        }
+      } else {
+        for (const order of pos.limitOrders) {
+          if (!order.filled) {
+            let isFilled = false;
+            if (isShort) {
+              if (sHigh >= order.limitPrice) isFilled = true;
+            } else {
+              if (sLow <= order.limitPrice) isFilled = true;
+            }
 
-          if (isFilled) {
-            order.filled = true;
-            order.filledAt = latestSnapshot.timestamp;
-            pos.filledPositions.push(order);
-            
-            // Recalculate avgPrice and qty
-            let totalQty = 0;
-            let totalCost = 0;
-            pos.filledPositions.forEach(fp => {
-              totalQty += fp.qty;
-              totalCost += fp.qty * fp.limitPrice;
-            });
-            pos.qty = totalQty;
-            pos.avgPrice = totalCost / totalQty;
-            stateChanged = true;
-            
-            logMsg(`🤖 [FILL] Grid leg ${order.index} order filled at limit $${order.limitPrice.toFixed(4)}. Position Size: ${pos.qty.toFixed(4)}, Avg Price: $${pos.avgPrice.toFixed(4)}`);
+            if (isFilled) {
+              order.filled = true;
+              order.filledAt = latestSnapshot.timestamp;
+              pos.filledPositions.push(order);
+              
+              // Recalculate avgPrice and qty
+              let totalQty = 0;
+              let totalCost = 0;
+              pos.filledPositions.forEach(fp => {
+                totalQty += fp.qty;
+                totalCost += fp.qty * fp.limitPrice;
+              });
+              pos.qty = totalQty;
+              pos.avgPrice = totalCost / totalQty;
+              stateChanged = true;
+              
+              logMsg(`🤖 [FILL] Grid leg ${order.index} order filled at limit $${order.limitPrice.toFixed(4)}. Position Size: ${pos.qty.toFixed(4)}, Avg Price: $${pos.avgPrice.toFixed(4)}`);
+            }
           }
         }
       }
@@ -288,6 +482,9 @@ export class AutoTradingEngine {
         }
 
         if (exitTriggered) {
+          if (pos.exchange === '01_exchange') {
+            await close01Position(pos, config, logMsg);
+          }
           // Close position
           const profit = isShort 
             ? pos.qty * (pos.avgPrice - exitPrice)
@@ -323,6 +520,9 @@ export class AutoTradingEngine {
         }
 
         if (cancelTriggered) {
+          if (pos.exchange === '01_exchange') {
+            await close01Position(pos, config, logMsg);
+          }
           pos.status = 'canceled';
           state.activePositions = state.activePositions.filter(p => p.id !== pos.id);
           logMsg(`🤖 [CANCEL] Grid canceled without fills. Price reached TP threshold before any order was filled.`);
@@ -340,6 +540,15 @@ export class AutoTradingEngine {
     if (posIndex === -1) return false;
 
     const pos = state.activePositions[posIndex];
+    if (pos.exchange === '01_exchange') {
+      const config = await this.autoTradeStore.getConfig();
+      await close01Position(pos, config, (text) => {
+        const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        state.logs.unshift(`[${timeStr}] ${text}`);
+        this.sendTelegramMessage(text).catch(err => console.error('Telegram autotrade send failed:', err));
+      });
+    }
+
     const isShort = (pos.direction === 'short');
     const actualPrice = Number.isFinite(closePrice) ? closePrice : pos.triggerPrice;
     
