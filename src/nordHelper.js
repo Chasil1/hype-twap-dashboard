@@ -2,6 +2,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { NordUser, makeWalletSignFn } from "@n1xyz/nord-ts";
 import bs58 from "bs58";
 import * as ed25519 from "@noble/ed25519";
+import { ethers } from "ethers";
 
 if (typeof Uint8Array.prototype.toHex !== 'function') {
   Uint8Array.prototype.toHex = function () {
@@ -73,6 +74,15 @@ export async function createNordUserHelper(nord, walletAddress, privateKeyStr) {
     }
 
     const rawEvmKey = Buffer.from(cleanPrivateKey, 'hex');
+    try {
+      const derivedEvmWallet = new ethers.Wallet(rawEvmKey);
+      console.log(`[NordHelper] Initializing EVM Session.`);
+      console.log(`[NordHelper] Target Solana Address: ${walletAddress}`);
+      console.log(`[NordHelper] Derived EVM Address: ${derivedEvmWallet.address}`);
+    } catch (e) {
+      console.error("[NordHelper] Failed to derive EVM address from key:", e.message);
+    }
+
     const evmSignRaw = makeWalletSignFn(rawEvmKey);
     const signMessageFn = async (message) => {
       const hexSig = await evmSignRaw(message);
