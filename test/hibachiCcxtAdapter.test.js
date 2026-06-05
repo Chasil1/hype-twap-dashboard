@@ -75,8 +75,9 @@ test('resolveHibachiAccountId accepts explicit accountId before subaccountIndex'
 
 test('createHibachiCcxtExchange passes Hibachi credentials to CCXT constructor', () => {
   const created = [];
+  const privateKey = 'a'.repeat(44);
   const exchange = createHibachiCcxtExchange(
-    { apiKey: 'api', accountId: '42', privateKey: 'pk' },
+    { apiKey: 'api', accountId: '42', privateKey },
     function FakeCcxtHibachi(options) {
       created.push(options);
       this.options = options;
@@ -85,9 +86,42 @@ test('createHibachiCcxtExchange passes Hibachi credentials to CCXT constructor',
 
   assert.equal(exchange.options.apiKey, 'api');
   assert.equal(exchange.options.accountId, '42');
-  assert.equal(exchange.options.privateKey, 'pk');
+  assert.equal(exchange.options.privateKey, privateKey);
   assert.equal(exchange.options.enableRateLimit, true);
   assert.equal(created.length, 1);
+});
+
+test('createHibachiCcxtExchange accepts exchange-managed and trustless Hibachi signing keys', () => {
+  const managedKey = 'a'.repeat(44);
+  const trustlessKey = `0x${'1'.repeat(64)}`;
+
+  const managed = createHibachiCcxtExchange(
+    { apiKey: 'api', accountId: '42', privateKey: managedKey },
+    function FakeCcxtHibachi(options) {
+      this.options = options;
+    }
+  );
+  const trustless = createHibachiCcxtExchange(
+    { apiKey: 'api', accountId: '42', privateKey: trustlessKey },
+    function FakeCcxtHibachi(options) {
+      this.options = options;
+    }
+  );
+
+  assert.equal(managed.options.privateKey, managedKey);
+  assert.equal(trustless.options.privateKey, trustlessKey);
+});
+
+test('createHibachiCcxtExchange rejects unsupported Hibachi private key formats before signing', () => {
+  assert.throws(
+    () => createHibachiCcxtExchange(
+      { apiKey: 'api', accountId: '42', privateKey: 'not-a-hibachi-signing-key' },
+      function FakeCcxtHibachi(options) {
+        this.options = options;
+      }
+    ),
+    /Hibachi private key must be either/
+  );
 });
 
 test('HibachiCcxtAdapter places a reduce-disabled limit grid using CCXT unified orders', async () => {

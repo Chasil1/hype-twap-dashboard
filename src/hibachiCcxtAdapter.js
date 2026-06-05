@@ -2,6 +2,21 @@ import ccxt from 'ccxt';
 
 export const HIBACHI_SYMBOL = 'HYPE/USDT:USDT';
 const HIBACHI_PRICE_TICK_SIZE = 0.0001;
+const HIBACHI_MANAGED_PRIVATE_KEY_LENGTH = 44;
+const HIBACHI_TRUSTLESS_PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+
+export function validateHibachiPrivateKey(privateKey) {
+  const trimmed = String(privateKey || '').trim();
+  if (!trimmed) {
+    throw new Error('Hibachi private key is required.');
+  }
+  if (trimmed.length === HIBACHI_MANAGED_PRIVATE_KEY_LENGTH || HIBACHI_TRUSTLESS_PRIVATE_KEY_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+  throw new Error(
+    'Hibachi private key must be either a 44-character exchange-managed API signing key or a 0x-prefixed 64-hex trustless private key.'
+  );
+}
 
 export function resolveHibachiAccountId(config = {}) {
   if (config.accountId !== undefined && config.accountId !== null && String(config.accountId).trim()) {
@@ -21,14 +36,12 @@ export function createHibachiCcxtExchange(config = {}, CcxtHibachi = ccxt.hibach
   if (!accountId) {
     throw new Error('Hibachi account ID is required.');
   }
-  if (!config.privateKey) {
-    throw new Error('Hibachi private key is required.');
-  }
+  const privateKey = validateHibachiPrivateKey(config.privateKey);
 
   return new CcxtHibachi({
     apiKey: config.apiKey,
     accountId,
-    privateKey: config.privateKey,
+    privateKey,
     enableRateLimit: true
   });
 }

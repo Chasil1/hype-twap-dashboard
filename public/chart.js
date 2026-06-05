@@ -4298,6 +4298,60 @@ let currentStrategies = [];
 let editingStrategyId = null;
 let currentWallets = [];
 let editingWalletId = null;
+const HIBACHI_MANAGED_PRIVATE_KEY_LENGTH = 44;
+const HIBACHI_TRUSTLESS_PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+
+function isValidHibachiSigningKey(privateKey) {
+  const trimmed = String(privateKey || '').trim();
+  return trimmed.length === HIBACHI_MANAGED_PRIVATE_KEY_LENGTH || HIBACHI_TRUSTLESS_PRIVATE_KEY_PATTERN.test(trimmed);
+}
+
+function applyWalletExchangeFieldState(exchangeType) {
+  const groupAddress = document.getElementById('walletGroupAddress');
+  const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
+  const groupApiKey = document.getElementById('walletGroupApiKey');
+  const groupAccountId = document.getElementById('walletGroupAccountId');
+  const groupApiSecret = document.getElementById('walletGroupApiSecret');
+  const walletAddressInput = document.getElementById('walletAddressInput');
+  const walletPrivateKeyInput = document.getElementById('walletPrivateKeyInput');
+  const walletApiKeyInput = document.getElementById('walletApiKeyInput');
+  const walletAccountIdInput = document.getElementById('walletAccountIdInput');
+  const lblWalletPrivateKey = document.getElementById('lblWalletPrivateKey');
+  const lblWalletApiKey = document.getElementById('lblWalletApiKey');
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  if (lblWalletPrivateKey) lblWalletPrivateKey.textContent = t.walletPrivateKey;
+  if (lblWalletApiKey) lblWalletApiKey.textContent = t.walletApiKey;
+
+  if (exchangeType === 'hl_solana') {
+    if (groupAddress) groupAddress.classList.remove('hidden');
+    if (groupPrivateKey) groupPrivateKey.classList.remove('hidden');
+    if (groupApiKey) groupApiKey.classList.add('hidden');
+    if (groupAccountId) groupAccountId.classList.add('hidden');
+    if (groupApiSecret) groupApiSecret.classList.add('hidden');
+    if (walletAddressInput) walletAddressInput.placeholder = 'Solana address (base58)';
+    if (walletPrivateKeyInput) walletPrivateKeyInput.placeholder = 'Solana secret key (base58 or JSON array)';
+  } else if (exchangeType === 'hibachi_ccxt') {
+    if (groupAddress) groupAddress.classList.add('hidden');
+    if (groupPrivateKey) groupPrivateKey.classList.remove('hidden');
+    if (groupApiKey) groupApiKey.classList.remove('hidden');
+    if (groupAccountId) groupAccountId.classList.remove('hidden');
+    if (groupApiSecret) groupApiSecret.classList.add('hidden');
+    if (lblWalletPrivateKey) lblWalletPrivateKey.textContent = 'Hibachi API / Signing Private Key';
+    if (lblWalletApiKey) lblWalletApiKey.textContent = 'Hibachi API Key';
+    if (walletPrivateKeyInput) walletPrivateKeyInput.placeholder = '44-char API signing key or 0x trustless private key';
+    if (walletApiKeyInput) walletApiKeyInput.placeholder = 'Hibachi API key...';
+    if (walletAccountIdInput) walletAccountIdInput.placeholder = 'Hibachi account ID / subaccount...';
+  } else {
+    if (groupAddress) groupAddress.classList.add('hidden');
+    if (groupPrivateKey) groupPrivateKey.classList.add('hidden');
+    if (groupApiKey) groupApiKey.classList.remove('hidden');
+    if (groupAccountId) groupAccountId.classList.add('hidden');
+    if (groupApiSecret) groupApiSecret.classList.remove('hidden');
+    if (walletApiKeyInput) walletApiKeyInput.placeholder = 'API Key...';
+  }
+}
 
 function initAutoTradingConfigurator() {
   const tabAutoTrading = document.getElementById('tabAutoTrading');
@@ -4319,36 +4373,7 @@ function initAutoTradingConfigurator() {
 
   const updateWalletExchangeFields = () => {
     const exchangeType = walletExchangeSelect.value;
-    const groupAddress = document.getElementById('walletGroupAddress');
-    const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
-    const groupApiKey = document.getElementById('walletGroupApiKey');
-    const groupAccountId = document.getElementById('walletGroupAccountId');
-    const groupApiSecret = document.getElementById('walletGroupApiSecret');
-    const walletAddressInput = document.getElementById('walletAddressInput');
-    const walletPrivateKeyInput = document.getElementById('walletPrivateKeyInput');
-
-    if (exchangeType === 'hl_solana') {
-      groupAddress.classList.remove('hidden');
-      groupPrivateKey.classList.remove('hidden');
-      groupApiKey.classList.add('hidden');
-      if (groupAccountId) groupAccountId.classList.add('hidden');
-      groupApiSecret.classList.add('hidden');
-      if (walletAddressInput) walletAddressInput.placeholder = 'Solana address (base58)';
-      if (walletPrivateKeyInput) walletPrivateKeyInput.placeholder = 'Solana secret key (base58 or JSON array)';
-    } else if (exchangeType === 'hibachi_ccxt') {
-      groupAddress.classList.add('hidden');
-      groupPrivateKey.classList.remove('hidden');
-      groupApiKey.classList.remove('hidden');
-      if (groupAccountId) groupAccountId.classList.remove('hidden');
-      groupApiSecret.classList.add('hidden');
-      if (walletPrivateKeyInput) walletPrivateKeyInput.placeholder = 'Hibachi private key...';
-    } else {
-      groupAddress.classList.add('hidden');
-      groupPrivateKey.classList.add('hidden');
-      groupApiKey.classList.remove('hidden');
-      if (groupAccountId) groupAccountId.classList.add('hidden');
-      groupApiSecret.classList.remove('hidden');
-    }
+    applyWalletExchangeFieldState(exchangeType);
   };
 
   if (walletExchangeSelect) {
@@ -5047,30 +5072,7 @@ function startEditWallet(wallet) {
   
   // Trigger visibility toggles
   const exchangeType = wallet.exchangeType || 'hl_solana';
-  const groupAddress = document.getElementById('walletGroupAddress');
-  const groupPrivateKey = document.getElementById('walletGroupPrivateKey');
-  const groupApiKey = document.getElementById('walletGroupApiKey');
-  const groupAccountId = document.getElementById('walletGroupAccountId');
-  const groupApiSecret = document.getElementById('walletGroupApiSecret');
-  if (exchangeType === 'hl_solana') {
-    groupAddress.classList.remove('hidden');
-    groupPrivateKey.classList.remove('hidden');
-    groupApiKey.classList.add('hidden');
-    if (groupAccountId) groupAccountId.classList.add('hidden');
-    groupApiSecret.classList.add('hidden');
-  } else if (exchangeType === 'hibachi_ccxt') {
-    groupAddress.classList.add('hidden');
-    groupPrivateKey.classList.remove('hidden');
-    groupApiKey.classList.remove('hidden');
-    if (groupAccountId) groupAccountId.classList.remove('hidden');
-    groupApiSecret.classList.add('hidden');
-  } else {
-    groupAddress.classList.add('hidden');
-    groupPrivateKey.classList.add('hidden');
-    groupApiKey.classList.remove('hidden');
-    if (groupAccountId) groupAccountId.classList.add('hidden');
-    groupApiSecret.classList.remove('hidden');
-  }
+  applyWalletExchangeFieldState(exchangeType);
 
   document.getElementById('walletAddressInput').value = wallet.address || '';
   document.getElementById('walletPrivateKeyInput').value = wallet.privateKey || '';
@@ -5126,6 +5128,13 @@ async function saveWallet(e) {
     } else if (exchangeType === 'hibachi_ccxt') {
       if (!apiKey || !accountId || !privateKey) {
         throw new Error(currentLang === 'en' ? 'Hibachi API Key, Account ID, and Private Key are required.' : 'Для Hibachi нужны API Key, Account ID и Private Key.');
+      }
+      if (!isValidHibachiSigningKey(privateKey)) {
+        throw new Error(
+          currentLang === 'en'
+            ? 'Hibachi Private Key must be a 44-character API signing key or a 0x-prefixed 64-hex trustless private key.'
+            : 'Hibachi Private Key должен быть 44-символьным API signing key или 0x-prefixed 64-hex trustless private key.'
+        );
       }
     } else {
       if (!apiKey || !apiSecret) {
