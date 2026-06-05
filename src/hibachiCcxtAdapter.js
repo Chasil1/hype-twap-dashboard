@@ -88,13 +88,20 @@ export class HibachiCcxtAdapter {
   constructor({ exchangeFactory = createHibachiCcxtExchange, symbol = HIBACHI_SYMBOL } = {}) {
     this.exchangeFactory = exchangeFactory;
     this.symbol = symbol;
+    this.exchanges = new Map();
   }
 
   async getExchange(config) {
+    const key = `${config.apiKey}_${config.accountId || config.subaccountIndex}_${config.privateKey}`;
+    if (this.exchanges.has(key)) {
+      return this.exchanges.get(key);
+    }
+
     const exchange = this.exchangeFactory(config);
     if (typeof exchange.loadMarkets === 'function') {
       await exchange.loadMarkets();
     }
+    this.exchanges.set(key, exchange);
     return exchange;
   }
 
