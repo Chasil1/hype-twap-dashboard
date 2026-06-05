@@ -583,7 +583,7 @@ export class AutoTradingEngine {
           stateChanged = true;
         }
       } else {
-        // No filled orders yet. Check TP cancel threshold
+        // No filled orders yet. Check TP cancel threshold and timeout
         const tpPercent = parseFloat(currentStrategyConfig.tpPercent || 1.5);
         const cancelPrice = isShort 
           ? triggerPrice * (1 - tpPercent / 100)
@@ -596,7 +596,12 @@ export class AutoTradingEngine {
           if (sHigh >= cancelPrice) cancelTriggered = true;
         }
 
-        if (cancelTriggered) {
+        const cancelMins = parseFloat(currentStrategyConfig.unfilledCancelMinutes ?? 30);
+        const elapsedMs = new Date(latestSnapshot.timestamp).getTime() - new Date(pos.timestamp).getTime();
+        const elapsedMins = elapsedMs / (60 * 1000);
+        const timeoutTriggered = elapsedMins >= cancelMins;
+
+        if (cancelTriggered || timeoutTriggered) {
           if (pos.exchange === '01_exchange') {
             await close01Position(pos, currentStrategyConfig, logMsg);
           } else if (pos.exchange === 'hibachi') {
@@ -604,7 +609,12 @@ export class AutoTradingEngine {
           }
           pos.status = 'canceled';
           state.activePositions = state.activePositions.filter(p => p.id !== pos.id);
-          logMsg(`🤖 [CANCEL] Grid canceled without fills. Price reached TP threshold before any order was filled.`);
+          
+          if (timeoutTriggered) {
+            logMsg(`🤖 [CANCEL] Grid canceled without fills. Unfilled cancel timeout reached (${cancelMins} min).`);
+          } else {
+            logMsg(`🤖 [CANCEL] Grid canceled without fills. Price reached TP threshold before any order was filled.`);
+          }
           stateChanged = true;
         }
       }

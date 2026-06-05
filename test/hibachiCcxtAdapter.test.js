@@ -291,3 +291,88 @@ test('AutoTradingEngine opens Hibachi positions through the CCXT adapter', async
   assert.equal(state.activePositions[0].exchange, 'hibachi');
   assert.equal(state.activePositions[0].limitOrders[0].orderId, 'hib-order-1');
 });
+
+test('AutoTradingEngine cancels unfilled Hibachi position after unfilledCancelMinutes timeout', async () => {
+  const position = {
+    id: 'pos-1',
+    strategyId: 'strategy-hib',
+    strategyName: 'Hibachi Strategy',
+    subaccountIndex: 0,
+    alertId: 'alert-1',
+    alertName: 'Always',
+    timestamp: '2026-06-05T00:00:00.000Z',
+    triggerPrice: 100,
+    direction: 'long',
+    qty: 0,
+    avgPrice: 0,
+    filledPositions: [],
+    limitOrders: [{ orderId: 'hib-order-1', limitPrice: 99, qty: 0.1, filled: false }],
+    status: 'active',
+    exchange: 'hibachi'
+  };
+
+  const state = { activePositions: [position], logs: [], tradeHistory: [] };
+  const config = {
+    wallets: [
+      { id: 'wallet-hib', exchangeType: 'hibachi_ccxt', apiKey: 'api', accountId: '42', privateKey: 'pk' }
+    ],
+    strategies: [
+      {
+        id: 'strategy-hib',
+        name: 'Hibachi Strategy',
+        enabled: true,
+        exchange: 'hibachi',
+        walletId: 'wallet-hib',
+        alertId: 'alert-1',
+        direction: 'long',
+        orderCount: 1,
+        tradeAmount: 10,
+        legOffset1: -1,
+        legAmount1: 10,
+        tpMode: 'percent',
+        tpPercent: 1.5,
+        slMode: 'none',
+        unfilledCancelMinutes: 10
+      }
+    ]
+  };
+
+  let canceledOrders = [];
+  const engine = new AutoTradingEngine({
+    autoTradeStore: {
+      async getConfig() { return config; },
+      async getState() { return state; },
+      async saveState(nextState) { Object.assign(state, nextState); }
+    },
+    configStore: {
+      async get() { return null; }
+    },
+    hibachiAdapter: {
+      async cancelOpenOrders(pos) {
+        canceledOrders.push(pos.id);
+      },
+      async syncFills() {
+        return false;
+      }
+    }
+  });
+
+  // Snapshot 1: 5 minutes later -> no cancellation
+  await engine.update(
+    [{ timestamp: '2026-06-05T00:05:00.000Z', price: 100, high: 100, low: 100 }],
+    [],
+    {}
+  );
+  assert.equal(state.activePositions.length, 1);
+  assert.equal(canceledOrders.length, 0);
+
+  // Snapshot 2: 11 minutes later -> cancellation triggers!
+  await engine.update(
+    [{ timestamp: '2026-06-05T00:11:00.000Z', price: 100, high: 100, low: 100 }],
+    [],
+    {}
+  );
+  assert.equal(state.activePositions.length, 0);
+  assert.equal(canceledOrders.length, 1);
+  assert.ok(state.logs[0].includes('Unfilled cancel timeout reached'));
+});

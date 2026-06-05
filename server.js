@@ -560,15 +560,118 @@ app.post('/api/autotrade/config', express.json(), restrictToOwner, async (req, r
   }
 });
 
+const balanceCache = new Map(); // key -> { balance: number, timestamp: number, promise?: Promise }
+
+function triggerBackgroundBalanceFetch(wallet, subaccountIndex, testnet) {
+  const cacheKey = `${wallet.id}_${subaccountIndex}`;
+  const now = Date.now();
+  const cached = balanceCache.get(cacheKey);
+
+  if (cached && (now - cached.timestamp < 180_000 || cached.promise)) {
+    return; // Already fresh or fetching
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      let balance = 0;
+      if (wallet.exchangeType === 'hibachi_ccxt') {
+        const subaccounts = await hibachiAdapter.fetchSubaccounts({
+          apiKey: wallet.apiKey,
+          accountId: wallet.accountId || String(subaccountIndex),
+          privateKey: wallet.privateKey
+        });
+        if (subaccounts && subaccounts[0]) {
+          balance = subaccounts[0].balance;
+        }
+      } else if (wallet.exchangeType === 'hl_solana') {
+        // Initialize Nord connection
+        const isTestnet = testnet === true;
+        const webServerUrl = isTestnet ? 'https://zo-devnet.n1.xyz' : 'https://zo-mainnet.n1.xyz';
+        const appKey = 'zoau54n5U24GHNKqyoziVaVxgsiQYnPMx33fKmLLCT5';
+
+        const { Connection } = await import("@solana/web3.js");
+        const { Nord } = await import("@n1xyz/nord-ts");
+
+        const urls = isTestnet 
+          ? ['https://api.devnet.solana.com'] 
+          : [
+              'https://api.mainnet-beta.solana.com',
+              'https://rpc.ankr.com/solana',
+              'https://solana-mainnet.g.allnodes.com'
+            ];
+
+        let connection;
+        let nord;
+        for (const url of urls) {
+          try {
+            connection = new Connection(url, 'confirmed');
+            nord = await Nord.new({
+              app: appKey,
+              solanaConnection: connection,
+              webServerUrl,
+            });
+            break;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (nord) {
+          const user = await createNordUserHelper(nord, wallet.address, wallet.privateKey);
+          await user.updateAccountId();
+          await user.fetchInfo();
+          const subaccountId = user.accountIds[subaccountIndex || 0];
+          if (subaccountId) {
+            const balances = user.balances[subaccountId] || [];
+            const usdcBalanceObj = balances.find(b => b.symbol === 'USDC' || b.symbol === 'USDT' || b.symbol === 'USDC.e');
+            balance = usdcBalanceObj ? parseFloat(usdcBalanceObj.balance) : 0;
+          }
+        }
+      }
+      balanceCache.set(cacheKey, { balance, timestamp: Date.now(), promise: null });
+    } catch (err) {
+      console.error(`Error background-fetching balance for ${cacheKey}:`, err);
+      const prevBalance = cached ? cached.balance : 0;
+      balanceCache.set(cacheKey, { balance: prevBalance, timestamp: Date.now(), promise: null });
+    }
+  })();
+
+  if (!cached) {
+    balanceCache.set(cacheKey, { balance: 0, timestamp: 0, promise: fetchPromise });
+  } else {
+    cached.promise = fetchPromise;
+  }
+}
+
+function getCachedBalance(wallet, subaccountIndex, testnet) {
+  const cacheKey = `${wallet.id}_${subaccountIndex}`;
+  triggerBackgroundBalanceFetch(wallet, subaccountIndex, testnet);
+  return balanceCache.get(cacheKey)?.balance ?? 0;
+}
+
 app.get('/api/autotrade/status', restrictToOwner, async (req, res) => {
   try {
     const config = await autoTradeStore.getConfig();
     const state = await autoTradeStore.getState();
     const snapshots = collector.state.snapshots;
     const currentPrice = snapshots.length > 0 ? snapshots.at(-1).price : 0;
+
+    const strategiesWithBalances = (config.strategies || []).map(strat => {
+      const wallet = (config.wallets || []).find(w => w.id === strat.walletId);
+      let balance = 0;
+      if (wallet) {
+        const isTestnet = strat.testnet === true || String(strat.testnet).toLowerCase() === 'true';
+        balance = getCachedBalance(wallet, strat.subaccountIndex, isTestnet);
+      }
+      return {
+        ...strat,
+        balance
+      };
+    });
+
     res.json({
       enabled: !!(config && config.strategies && config.strategies.some(s => s.enabled)),
-      strategies: config.strategies || [],
+      strategies: strategiesWithBalances,
       wallets: config.wallets || [],
       currentPrice,
       activePositions: state.activePositions || [],

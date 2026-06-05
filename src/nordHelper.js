@@ -34,6 +34,21 @@ export function parsePrivateKeyLocal(input) {
 }
 
 export async function createNordUserHelper(nord, walletAddress, privateKeyStr) {
+  const trimmedAddress = walletAddress?.trim();
+  if (!trimmedAddress) {
+    throw new Error('Wallet address is required.');
+  }
+
+  let walletPubkey;
+  try {
+    walletPubkey = new PublicKey(trimmedAddress);
+  } catch (e) {
+    throw new Error('01 Exchange requires a Solana wallet address (base58 Ed25519 public key). EVM 0x addresses are not supported by this trading API.');
+  }
+
+  if (!privateKeyStr) {
+    throw new Error('Private key is required.');
+  }
   const trimmedKey = privateKeyStr.trim();
   let isEvm = false;
   let cleanPrivateKey = trimmedKey;
@@ -75,7 +90,7 @@ export async function createNordUserHelper(nord, walletAddress, privateKeyStr) {
 
     const rawEvmKey = Buffer.from(cleanPrivateKey, 'hex');
     try {
-      const derivedEvmWallet = new ethers.Wallet(rawEvmKey);
+      const derivedEvmWallet = new ethers.Wallet("0x" + cleanPrivateKey);
       console.log(`[NordHelper] Initializing EVM Session.`);
       console.log(`[NordHelper] Target Solana Address: ${walletAddress}`);
       console.log(`[NordHelper] Derived EVM Address: ${derivedEvmWallet.address}`);
@@ -99,7 +114,7 @@ export async function createNordUserHelper(nord, walletAddress, privateKeyStr) {
 
     return await NordUser.new({
       nord,
-      walletPubkey: new PublicKey(walletAddress),
+      walletPubkey: walletPubkey,
       sessionPubkey: sessionKey.publicKey.toBytes(),
       signMessageFn,
       signSessionFn,
@@ -114,6 +129,15 @@ export async function createNordUserHelper(nord, walletAddress, privateKeyStr) {
       keypair = Keypair.fromSecretKey(parsedKey);
     } else {
       throw new Error(`Invalid private key length: ${parsedKey.length} bytes (expected 32 or 64 bytes)`);
+    }
+
+    // Verify it matches the configured wallet address
+    const derivedAddress = keypair.publicKey.toBase58();
+    const configuredAddress = walletPubkey.toBase58();
+    if (derivedAddress !== configuredAddress) {
+      throw new Error(
+        `Solana private key does not match the configured wallet address. Expected ${configuredAddress}, derived ${derivedAddress}. 01 Exchange trading requires the Solana private key for the selected 01 Exchange wallet. EVM private keys are not supported.`
+      );
     }
 
     return NordUser.fromPrivateKey(nord, keypair.secretKey);

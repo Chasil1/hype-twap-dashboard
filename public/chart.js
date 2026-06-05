@@ -2216,6 +2216,7 @@ const TRANSLATIONS = {
     autoTradeSlPercentLabel: "Stop Loss (%)",
     autoTradeSlCloseLabel: "Stop Loss Exit Signal",
     autoTradeSubaccountIndexLabel: "Subaccount Index",
+    autoTradeUnfilledCancelMinutesLabel: "Cancel unfilled grid after, min",
     saveConfigStartBotLabel: "Save Strategy",
     configuredStrategies: "Configured Trading Strategies",
     createStrategy: "➕ Create Strategy",
@@ -2366,6 +2367,7 @@ const TRANSLATIONS = {
     autoTradeSlPercentLabel: "Стоп Лосс (%)",
     autoTradeSlCloseLabel: "Сигнал для закрытия по Стоп Лоссу",
     autoTradeSubaccountIndexLabel: "Индекс субаккаунта",
+    autoTradeUnfilledCancelMinutesLabel: "Отменить незаполненную сетку через, мин",
     saveConfigStartBotLabel: "Сохранить стратегию",
     configuredStrategies: "Настроенные торговые стратегии",
     createStrategy: "➕ Создать стратегию",
@@ -2906,6 +2908,9 @@ function applyLanguage(lang) {
     const amountLbl = row.querySelector(`.lblLegAmount${legNum}`);
     if (amountLbl) amountLbl.textContent = lang === 'en' ? `Order ${legNum} Amount (USD)` : `Ордер ${legNum} Сумма (USD)`;
   });
+
+  const lblAutoTradeUnfilledCancelMinutes = document.getElementById('lblAutoTradeUnfilledCancelMinutes');
+  if (lblAutoTradeUnfilledCancelMinutes) lblAutoTradeUnfilledCancelMinutes.textContent = t.autoTradeUnfilledCancelMinutesLabel;
 
   const lblAutoTradeTpMode = document.getElementById('lblAutoTradeTpMode');
   if (lblAutoTradeTpMode) lblAutoTradeTpMode.textContent = t.autoTradeTpModeLabel;
@@ -4298,6 +4303,9 @@ let currentStrategies = [];
 let editingStrategyId = null;
 let currentWallets = [];
 let editingWalletId = null;
+let lastTradeHistory = [];
+let lastActivePositions = [];
+let lastCurrentPrice = 0;
 const HIBACHI_MANAGED_PRIVATE_KEY_LENGTH = 44;
 const HIBACHI_TRUSTLESS_PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
@@ -4605,6 +4613,7 @@ function resetStrategyForm() {
   document.getElementById('autoTradeOrderCount').value = '3';
   document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
   document.getElementById('autoTradeAmount').value = '60';
+  document.getElementById('autoTradeUnfilledCancelMinutes').value = '30';
 
   document.getElementById('autoTradeSubaccountIndex').value = '0';
   const autoTradeSubaccountGroup = document.getElementById('autoTradeSubaccountGroup');
@@ -4765,10 +4774,54 @@ function renderStrategiesList() {
     const directionColor = strategy.direction === 'long' ? '#35d083' : (strategy.direction === 'short' ? '#ef5e5e' : 'var(--amber)');
     const directionBadge = ` <span style="color: ${directionColor}; background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-left: 4px;">${directionStr}</span>`;
 
+    // Compute strategy metrics
+    const balance = strategy.balance ?? 0;
+    
+    // Realized PnL
+    const completed = lastTradeHistory.filter(t => t.strategyId === strategy.id);
+    const realized = completed.reduce((sum, t) => sum + (t.profit || 0), 0);
+
+    // Unrealized PnL
+    const active = lastActivePositions.filter(p => p.strategyId === strategy.id);
+    let unrealized = 0;
+    active.forEach(p => {
+      const qty = p.qty || 0;
+      const avgPrice = p.avgPrice || 0;
+      if (qty > 0) {
+        const isShort = p.direction === 'short';
+        const diff = isShort ? (avgPrice - lastCurrentPrice) : (lastCurrentPrice - avgPrice);
+        unrealized += qty * diff;
+      }
+    });
+
+    const totalPnl = realized + unrealized;
+    const pnlSign = totalPnl >= 0 ? '+' : '';
+    const pnlStyle = totalPnl >= 0 ? 'color: var(--green);' : 'color: var(--red);';
+
+    // Winrate
+    const closedTrades = completed.filter(t => t.status === 'closed');
+    const winningTrades = closedTrades.filter(t => (t.profit || 0) > 0);
+    const winrate = closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0;
+
+    const balanceLbl = lang === 'en' ? 'Balance' : 'Баланс';
+    const pnlLbl = lang === 'en' ? 'PnL' : 'ПнЛ';
+    const winrateLbl = lang === 'en' ? 'Winrate' : 'Винрейт';
+
     item.innerHTML = `
-      <div class="alert-info">
+      <div class="alert-info" style="flex: 1; min-width: 0;">
         <span class="alert-title">${strategy.name || 'Unnamed Strategy'}${directionBadge}</span>
         <span class="alert-rule">${exchangeName}${subaccountSuffix} ${netType}${walletLabel} | ${lang === 'en' ? 'Trigger' : 'Триггер'}: ${alertName} | ${lang === 'en' ? 'Size' : 'Объем'}: ${amountStr}</span>
+        <div class="strategy-stats" style="margin-top: 8px; font-size: 11px; display: flex; flex-wrap: wrap; gap: 14px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08);">
+          <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--muted);">
+            💰 ${balanceLbl}: <strong style="color: var(--text); font-family: monospace;">$${balance.toFixed(2)}</strong>
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--muted);">
+            📈 ${pnlLbl}: <strong style="${pnlStyle} font-family: monospace;">${pnlSign}$${totalPnl.toFixed(2)}</strong>
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--muted);">
+            🎯 ${winrateLbl}: <strong style="color: var(--text); font-family: monospace;">${winrate.toFixed(1)}%</strong>
+          </span>
+        </div>
       </div>
       <div class="alert-actions">
         <label class="switch">
@@ -4852,6 +4905,7 @@ function startEditStrategy(strategy) {
   document.getElementById('autoTradeOrderCount').value = strategy.orderCount || '3';
   document.getElementById('autoTradeOrderCount').dispatchEvent(new Event('change'));
   document.getElementById('autoTradeAmount').value = strategy.tradeAmount || '';
+  document.getElementById('autoTradeUnfilledCancelMinutes').value = strategy.unfilledCancelMinutes ?? 30;
 
   // Grid legs
   for (let i = 1; i <= 3; i++) {
@@ -4946,6 +5000,7 @@ async function saveAutoTradeConfig(e) {
       direction: document.getElementById('autoTradeDirection').value,
       orderCount: parseInt(document.getElementById('autoTradeOrderCount').value) || 3,
       tradeAmount: parseFloat(document.getElementById('autoTradeAmount').value) || null,
+      unfilledCancelMinutes: parseFloat(document.getElementById('autoTradeUnfilledCancelMinutes').value) ?? 30,
       
       legOffset1: parseFloat(document.getElementById('autoTradeOffset1').value),
       legAmount1: parseFloat(document.getElementById('autoTradeAmount1').value),
@@ -5299,6 +5354,13 @@ async function refreshAutoTradeStatus() {
     const response = await fetch('/api/autotrade/status');
     if (!response.ok) return;
     const data = await response.json();
+
+    lastTradeHistory = data.tradeHistory || [];
+    lastActivePositions = data.activePositions || [];
+    lastCurrentPrice = data.currentPrice || 0;
+    currentStrategies = data.strategies || [];
+    currentWallets = data.wallets || [];
+    renderStrategiesList();
 
     const statusDot = document.getElementById('autoTradeStatusDot');
     const statusText = document.getElementById('titleAutoTradeStatus');
