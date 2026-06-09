@@ -839,6 +839,8 @@ const cancelSavePresetBtn = document.getElementById('cancelSavePresetBtn');
 const presetSelect = document.getElementById('presetSelect');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
 const savePresetBtn = document.getElementById('savePresetBtn');
+const sharePresetBtn = document.getElementById('sharePresetBtn');
+const presetFeedback = document.getElementById('presetFeedback');
 
 let activePresets = {};
 
@@ -994,6 +996,9 @@ function hideSaveModal() {
 
 // Preset Event Listeners
 savePresetBtn.addEventListener('click', showSaveModal);
+if (sharePresetBtn) {
+  sharePresetBtn.addEventListener('click', shareCurrentPreset);
+}
 cancelSavePresetBtn.addEventListener('click', hideSaveModal);
 
 confirmSavePresetBtn.addEventListener('click', () => {
@@ -1024,6 +1029,109 @@ deletePresetBtn.addEventListener('click', () => {
     presetSelect.value = '';
   }
 });
+
+// Share Preset & Timeframe implementation
+function shareCurrentPreset() {
+  const lang = localStorage.getItem('hype_twap_lang') || 'en';
+  const t = TRANSLATIONS[lang];
+
+  const panelsData = dynamicPanels.map((panel) => {
+    const metrics = Object.keys(panel.activeMetrics).map((metricKey) => {
+      const m = panel.activeMetrics[metricKey];
+      return { type: m.type, depth: m.depth };
+    });
+    return { metrics };
+  });
+
+  const presetData = {
+    exchange: exchangeSourceSelect.value,
+    timeframe: selectedTimeframe,
+    panels: panelsData
+  };
+
+  const jsonString = JSON.stringify(presetData);
+  const base64Data = btoa(unescape(encodeURIComponent(jsonString)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('share', base64Data);
+  const shareUrl = url.toString();
+
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    if (presetFeedback) {
+      showAlertFeedback(presetFeedback, t.linkCopied || 'Link copied to clipboard!', true);
+    } else {
+      alert(t.linkCopied || 'Link copied to clipboard!');
+    }
+  }).catch((err) => {
+    console.error('Failed to copy link:', err);
+    if (presetFeedback) {
+      showAlertFeedback(presetFeedback, lang === 'en' ? 'Failed to copy link.' : 'Не удалось скопировать ссылку.', false);
+    } else {
+      alert(lang === 'en' ? `Copy link manually: ${shareUrl}` : `Скопируйте ссылку вручную: ${shareUrl}`);
+    }
+  });
+}
+
+function applySharedPreset(preset) {
+  if (!preset) return;
+
+  // 1. Clear all existing panels
+  const panelIds = dynamicPanels.map(p => p.panelId);
+  panelIds.forEach(id => removePanel(id));
+
+  // 2. Set global exchange source
+  if (preset.exchange) {
+    exchangeSourceSelect.value = preset.exchange;
+  }
+
+  // 3. Set timeframe if stored in preset
+  if (preset.timeframe) {
+    selectedTimeframe = preset.timeframe;
+    timeframeButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.timeframe === selectedTimeframe);
+    });
+    refreshChart().catch(console.error);
+  }
+
+  // 4. Rebuild panels
+  if (preset.panels && Array.isArray(preset.panels)) {
+    preset.panels.forEach((panelData) => {
+      createNewPanel();
+      const newPanel = dynamicPanels[dynamicPanels.length - 1];
+      if (newPanel && panelData.metrics && Array.isArray(panelData.metrics)) {
+        panelData.metrics.forEach((metric) => {
+          addMetricToPanel(newPanel.panelId, metric.type, metric.depth);
+        });
+      }
+    });
+  }
+
+  updateAllSubcharts();
+  populateAllChartsData();
+}
+
+function checkAndLoadSharedPreset() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const shareData = urlParams.get('share');
+  if (shareData) {
+    try {
+      let base64 = shareData.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      const jsonString = decodeURIComponent(escape(atob(base64)));
+      const preset = JSON.parse(jsonString);
+      applySharedPreset(preset);
+      return true;
+    } catch (err) {
+      console.error('Failed to parse shared preset data:', err);
+    }
+  }
+  return false;
+}
 
 // ==========================================
 // CHART RULER TOOL IMPLEMENTATION
@@ -2193,7 +2301,11 @@ function startup() {
   const currentLang = localStorage.getItem('hype_twap_lang') || 'en';
   applyLanguage(currentLang);
 
-  refreshChart().catch(console.error);
+  // Check and load shared preset if present
+  const hasShared = checkAndLoadSharedPreset();
+  if (!hasShared) {
+    refreshChart().catch(console.error);
+  }
   setInterval(() => refreshChart().catch(console.error), 5000);
 }
 
@@ -2250,6 +2362,8 @@ const TRANSLATIONS = {
     includeTimeframe: "Include current timeframe",
     saveBtn: "Save",
     cancelBtn: "Cancel",
+    sharePreset: "Share",
+    linkCopied: "Link copied to clipboard!",
     
     authPlaceholder: "🔒 Log in with Telegram to configure bot settings and alerts:",
     dontSeeButton: "Don't see the button?",
@@ -2401,6 +2515,8 @@ const TRANSLATIONS = {
     includeTimeframe: "Включить текущий таймфрейм",
     saveBtn: "Сохранить",
     cancelBtn: "Отмена",
+    sharePreset: "Поделиться",
+    linkCopied: "Ссылка скопирована в буфер обмена!",
     
     authPlaceholder: "🔒 Войдите через Telegram для настройки бота и алертов:",
     dontSeeButton: "Не видите кнопку?",
@@ -2672,6 +2788,8 @@ function applyLanguage(lang) {
   if (savePresetBtn) savePresetBtn.textContent = t.saveCurrent;
   const deletePresetBtn = document.getElementById('deletePresetBtn');
   if (deletePresetBtn) deletePresetBtn.textContent = t.delete;
+  const sharePresetBtn = document.getElementById('sharePresetBtn');
+  if (sharePresetBtn) sharePresetBtn.textContent = t.sharePreset;
 
   // Chart headings
   const mainChartTitle = document.querySelector('#mainChartPanel .panel-head .label');
