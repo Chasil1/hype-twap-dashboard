@@ -1,6 +1,7 @@
 import { fetchHypePrice } from './hyperliquid.js';
 import { fetchHypurrscanTwaps } from './hypurrscan.js';
 import { fetchDepths } from './depths.js';
+import { computeCustomDiffs } from './aggregateSnapshots.js';
 
 const DEFAULT_INTERVAL_MS = 1_000;
 const TWAP_KEYS = ['twapNet1h', 'twapNet24h', 'twapBuy24h', 'twapSell24h', 'activeBuyCount', 'activeSellCount'];
@@ -120,12 +121,14 @@ export class Collector {
         roundMetric(average(samples.map((sample) => sample[key])))
       ])
     );
+    const customDiffs = computeCustomDiffs(averagedDepths);
     const snapshot = {
       timestamp: new Date(this.minuteBucket.minuteMs).toISOString(),
       price: roundMetric(average(samples.map((sample) => sample.price))),
       ...candle,
       ...averagedTwaps,
       ...averagedDepths,
+      ...customDiffs,
       twapModes: Object.fromEntries(
         TWAP_MODES.map((mode) => [
           mode,

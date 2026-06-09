@@ -277,7 +277,7 @@ function formatMetricValue(field, val) {
     return `$${val.toFixed(4)}`;
   }
 
-  if (field.startsWith('hl_') || field.startsWith('bybit_') || field.startsWith('twap')) {
+  if (field.startsWith('hl_') || field.startsWith('bybit_') || field.startsWith('twap') || field.startsWith('diff_')) {
     if (Math.abs(val) >= 1_000_000) {
       return `$${(val / 1_000_000).toFixed(2)}M`;
     }
@@ -309,6 +309,24 @@ function getMetricLabelsMap() {
     map[`bybit_bid_${suffix}`] = `Bybit Bid ${d}%`;
     map[`bybit_ask_${suffix}`] = `Bybit Ask ${d}%`;
   });
+
+  const customDiffKeys = {
+    diff_3B_8A: 'DIFF 3B-8A',
+    diff_8B_3A: 'DIFF 8B-3A',
+    diff_8A_3B: 'DIFF 8A-3B',
+    diff_8B_30A: 'DIFF 8B-30A',
+    diff_5B_15A: 'DIFF 5B-15A',
+    diff_15B_5A: 'DIFF 15B-5A',
+    diff_8B_15A: 'DIFF 8B-15A',
+    diff_15B_8A: 'DIFF 15B-8A',
+    diff_15B_30A: 'DIFF 15B-30A',
+    diff_30B_15A: 'DIFF 30B-15A',
+    diff_30_15: 'DIFF 30-15',
+    diff_30_8: 'DIFF 30-8',
+    diff_15_8: 'DIFF 15-8',
+    diff_8_5: 'DIFF 8-5'
+  };
+  Object.assign(map, customDiffKeys);
 
   return map;
 }

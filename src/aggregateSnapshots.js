@@ -22,6 +22,32 @@ const DEPTH_KEYS = DEPTHS.flatMap((d) => {
   ];
 });
 
+export function computeCustomDiffs(source) {
+  const diffs = {};
+  const val = (k) => (Number.isFinite(source[k]) ? source[k] : 0);
+
+  // Custom depth diffs (B vs A)
+  diffs.diff_3B_8A = val('hl_bid_3') - val('hl_ask_8');
+  diffs.diff_8B_3A = val('hl_bid_8') - val('hl_ask_3');
+  diffs.diff_8A_3B = val('hl_ask_8') - val('hl_bid_3');
+  diffs.diff_8B_30A = val('hl_bid_8') - val('hl_ask_30');
+  diffs.diff_5B_15A = val('hl_bid_5') - val('hl_ask_15');
+  diffs.diff_15B_5A = val('hl_bid_15') - val('hl_ask_5');
+  diffs.diff_8B_15A = val('hl_bid_8') - val('hl_ask_15');
+  diffs.diff_15B_8A = val('hl_bid_15') - val('hl_ask_8');
+  diffs.diff_15B_30A = val('hl_bid_15') - val('hl_ask_30');
+  diffs.diff_30B_15A = val('hl_bid_30') - val('hl_ask_15');
+
+  // Custom diff of diffs
+  const diffVal = (d) => val(`hl_bid_${d}`) - val(`hl_ask_${d}`);
+  diffs.diff_30_15 = diffVal('30') - diffVal('15');
+  diffs.diff_30_8 = diffVal('30') - diffVal('8');
+  diffs.diff_15_8 = diffVal('15') - diffVal('8');
+  diffs.diff_8_5 = diffVal('8') - diffVal('5');
+
+  return diffs;
+}
+
 function bucketStart(timestamp, timeframeMs) {
   return Math.floor(new Date(timestamp).getTime() / timeframeMs) * timeframeMs;
 }
@@ -116,6 +142,7 @@ export function aggregateSnapshots(snapshots, timeframe = '1m') {
       const depthAverages = Object.fromEntries(
         DEPTH_KEYS.map((key) => [key, average(bucket.depths[key])])
       );
+      const customDiffs = computeCustomDiffs(depthAverages);
       return {
         timestamp: bucket.timestamp,
         open: bucket.open,
@@ -130,7 +157,8 @@ export function aggregateSnapshots(snapshots, timeframe = '1m') {
         twapModes: Object.fromEntries(
           TWAP_MODES.map((mode) => [mode, averageTwapArrays(bucket.twapModes[mode])])
         ),
-        ...depthAverages
+        ...depthAverages,
+        ...customDiffs
       };
     });
 }

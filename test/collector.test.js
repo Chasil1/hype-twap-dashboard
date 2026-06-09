@@ -195,7 +195,7 @@ test('collector stores averaged minute snapshots from second-level samples', asy
   assert.equal(store.snapshots.length, 1);
   const cleanSnapshot = { ...store.snapshots[0] };
   for (const key of Object.keys(cleanSnapshot)) {
-    if (key.startsWith('hl_') || key.startsWith('bybit_')) {
+    if (key.startsWith('hl_') || key.startsWith('bybit_') || key.startsWith('diff_')) {
       delete cleanSnapshot[key];
     }
   }

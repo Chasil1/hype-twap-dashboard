@@ -71,7 +71,7 @@ test('aggregates minute snapshots into OHLC candles and averaged TWAP metrics', 
   const cleanResult = result.map(s => {
     const clean = { ...s };
     for (const key of Object.keys(clean)) {
-      if (key.startsWith('hl_') || key.startsWith('bybit_')) {
+      if (key.startsWith('hl_') || key.startsWith('bybit_') || key.startsWith('diff_')) {
         delete clean[key];
       }
     }
@@ -160,4 +160,30 @@ test('aggregates minute snapshots into OHLC candles and averaged TWAP metrics', 
 
 test('exports expected chart timeframes', () => {
   assert.deepEqual(Object.keys(TIMEFRAMES), ['1m', '5m', '15m', '1h', '4h', '1d']);
+});
+
+test('calculates custom DIFF metrics correctly', () => {
+  const snapshots = [
+    {
+      timestamp: '2026-05-29T10:00:00.000Z',
+      price: 10,
+      hl_bid_3: 100,
+      hl_ask_8: 40,
+      hl_bid_8: 80,
+      hl_ask_3: 20,
+      hl_bid_15: 150,
+      hl_ask_15: 50,
+      hl_bid_30: 300,
+      hl_ask_30: 100,
+      hl_bid_5: 50,
+      hl_ask_5: 10
+    }
+  ];
+
+  const result = aggregateSnapshots(snapshots, '1m');
+  assert.equal(result[0].diff_3B_8A, 60); // 100 - 40
+  assert.equal(result[0].diff_8B_3A, 60); // 80 - 20
+  assert.equal(result[0].diff_8A_3B, -60); // 40 - 100
+  assert.equal(result[0].diff_30_15, 100); // (300-100) - (150-50) = 200 - 100 = 100
+  assert.equal(result[0].diff_8_5, 0); // (80-40) - (50-10) = 40 - 40 = 0
 });
