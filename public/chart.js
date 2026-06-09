@@ -152,19 +152,28 @@ function handleCrosshairMove(srcChart, param) {
                       targetPrice = bucket[`bybit_${type}_${suffix}`] ?? 0;
                     }
                   } else if (type === 'diff') {
-                    let bidVal = 0;
-                    let askVal = 0;
-                    if (source === 'bybit') {
-                      bidVal = bucket[`bybit_bid_${suffix}`] || 0;
-                      askVal = bucket[`bybit_ask_${suffix}`] || 0;
-                    } else if (source === 'hl') {
-                      bidVal = bucket[`hl_bid_${suffix}`] || 0;
-                      askVal = bucket[`hl_ask_${suffix}`] || 0;
+                    const isCustomDiff = [
+                      '3B_8A', '8B_3A', '8A_3B', '8B_30A', '5B_15A',
+                      '15B_5A', '8B_15A', '15B_8A', '15B_30A', '30B_15A',
+                      '30_15', '30_8', '15_8', '8_5'
+                    ].includes(depth);
+                    if (isCustomDiff) {
+                      targetPrice = bucket[`diff_${depth}`] ?? 0;
                     } else {
-                      bidVal = (bucket[`bybit_bid_${suffix}`] || 0) + (bucket[`hl_bid_${suffix}`] || 0);
-                      askVal = (bucket[`bybit_ask_${suffix}`] || 0) + (bucket[`hl_ask_${suffix}`] || 0);
+                      let bidVal = 0;
+                      let askVal = 0;
+                      if (source === 'bybit') {
+                        bidVal = bucket[`bybit_bid_${suffix}`] || 0;
+                        askVal = bucket[`bybit_ask_${suffix}`] || 0;
+                      } else if (source === 'hl') {
+                        bidVal = bucket[`hl_bid_${suffix}`] || 0;
+                        askVal = bucket[`hl_ask_${suffix}`] || 0;
+                      } else {
+                        bidVal = (bucket[`bybit_bid_${suffix}`] || 0) + (bucket[`hl_bid_${suffix}`] || 0);
+                        askVal = (bucket[`bybit_ask_${suffix}`] || 0) + (bucket[`hl_ask_${suffix}`] || 0);
+                      }
+                      targetPrice = bidVal - askVal;
                     }
-                    targetPrice = bidVal - askVal;
                   }
                 }
               }
@@ -271,6 +280,25 @@ function updateTwapSeriesVisibility() {
 
 // Custom colors mapping based on type and depth percentages
 function getMetricColor(type, depth) {
+  const customColors = {
+    '3B_8A': '#00c6ff',
+    '8B_3A': '#0072ff',
+    '8A_3B': '#5f27cd',
+    '8B_30A': '#ff9f43',
+    '5B_15A': '#f5d020',
+    '15B_5A': '#35d083',
+    '8B_15A': '#ee5253',
+    '15B_8A': '#ff4e50',
+    '15B_30A': '#2af598',
+    '30B_15A': '#95afc0',
+    '30_15': '#e056fd',
+    '30_8': '#ff7979',
+    '15_8': '#badc58',
+    '8_5': '#ffbe76'
+  };
+  if (customColors[depth]) {
+    return customColors[depth];
+  }
   const colors = {
     '1.5': { bid: '#2af598', ask: '#ff4e50', diff: '#5aa7ff' },
     '3':   { bid: '#35d083', ask: '#ef5e5e', diff: '#00c6ff' },
@@ -353,6 +381,22 @@ function createNewPanel() {
             <option value="diff_30">Diff Depth 30%</option>
             <option value="diff_60">Diff Depth 60%</option>
           </optgroup>
+          <optgroup label="Difference (Custom)">
+            <option value="diff_3B_8A">Diff 3B-8A</option>
+            <option value="diff_8B_3A">Diff 8B-3A</option>
+            <option value="diff_8A_3B">Diff 8A-3B</option>
+            <option value="diff_8B_30A">Diff 8B-30A</option>
+            <option value="diff_5B_15A">Diff 5B-15A</option>
+            <option value="diff_15B_5A">Diff 15B-5A</option>
+            <option value="diff_8B_15A">Diff 8B-15A</option>
+            <option value="diff_15B_8A">Diff 15B-8A</option>
+            <option value="diff_15B_30A">Diff 15B-30A</option>
+            <option value="diff_30B_15A">Diff 30B-15A</option>
+            <option value="diff_30_15">Diff 30-15</option>
+            <option value="diff_30_8">Diff 30-8</option>
+            <option value="diff_15_8">Diff 15-8</option>
+            <option value="diff_8_5">Diff 8-5</option>
+          </optgroup>
         </select>
         <button class="close-panel-btn" data-panel-id="${panelId}" type="button">×</button>
       </div>
@@ -405,8 +449,10 @@ function createNewPanel() {
   wrapperDiv.querySelector('.add-metric-select').addEventListener('change', (e) => {
     const val = e.target.value;
     if (!val) return;
-    const parts = val.split('_');
-    addMetricToPanel(panelId, parts[0], parts[1]);
+    const firstUnderscore = val.indexOf('_');
+    const type = val.slice(0, firstUnderscore);
+    const depth = val.slice(firstUnderscore + 1);
+    addMetricToPanel(panelId, type, depth);
     e.target.value = ''; // reset dropdown select
   });
 
@@ -453,6 +499,7 @@ function addMetricToPanel(panelId, type, depth) {
       priceLineVisible: false
     });
   } else if (type === 'diff') {
+    const title = depth.includes('B') || depth.includes('_') ? `DIFF ${depth.replace('_', '-')}` : `Diff ${depth}%`;
     series.diff = panel.chart.addBaselineSeries({
       baseValue: { type: 'price', price: 0 },
       topLineColor: '#35d083',          // Green line for positive values
@@ -462,7 +509,7 @@ function addMetricToPanel(panelId, type, depth) {
       bottomFillColor1: 'rgba(239, 94, 94, 0.0)',
       bottomFillColor2: 'rgba(239, 94, 94, 0.15)',
       lineWidth: 2,
-      title: `Diff ${depth}%`,
+      title: title,
       priceLineVisible: false
     });
   }
@@ -529,7 +576,12 @@ function updatePanelBadges(panelId) {
 
   Object.keys(panel.activeMetrics).forEach((metricKey) => {
     const metric = panel.activeMetrics[metricKey];
-    const label = `${metric.type.toUpperCase()} ${metric.depth}%`;
+    let label;
+    if (metric.type === 'diff' && (metric.depth.includes('B') || metric.depth.includes('_'))) {
+      label = `DIFF ${metric.depth.replace('_', '-')}`;
+    } else {
+      label = `${metric.type.toUpperCase()} ${metric.depth}%`;
+    }
 
     const badge = document.createElement('div');
     badge.className = 'metric-badge';
@@ -661,41 +713,59 @@ function populatePanelDiffData(panel, metricKey) {
   if (!metric) return;
 
   const { depth, series } = metric;
-  const suffix = depth.replace('.', '_');
-  const source = exchangeSourceSelect.value;
   const diffData = [];
 
-  currentBuckets.forEach((bucket) => {
+  const isCustomDiff = [
+    '3B_8A', '8B_3A', '8A_3B', '8B_30A', '5B_15A',
+    '15B_5A', '8B_15A', '15B_8A', '15B_30A', '30B_15A',
+    '30_15', '30_8', '15_8', '8_5'
+  ].includes(depth);
+
+  if (isCustomDiff) {
+    const propKey = `diff_${depth}`;
+    currentBuckets.forEach((bucket) => {
       const time = getLocalTimestamp(bucket.timestamp);
-    const bybitBid = bucket[`bybit_bid_${suffix}`];
-    const bybitAsk = bucket[`bybit_ask_${suffix}`];
-    const hlBid = bucket[`hl_bid_${suffix}`];
-    const hlAsk = bucket[`hl_ask_${suffix}`];
+      const val = bucket[propKey];
+      if (val !== null && val !== undefined) {
+        diffData.push({ time, value: val });
+      }
+    });
+  } else {
+    const suffix = depth.replace('.', '_');
+    const source = exchangeSourceSelect.value;
 
-    let bidVal = null;
-    let askVal = null;
+    currentBuckets.forEach((bucket) => {
+        const time = getLocalTimestamp(bucket.timestamp);
+      const bybitBid = bucket[`bybit_bid_${suffix}`];
+      const bybitAsk = bucket[`bybit_ask_${suffix}`];
+      const hlBid = bucket[`hl_bid_${suffix}`];
+      const hlAsk = bucket[`hl_ask_${suffix}`];
 
-    if (source === 'bybit') {
-      if (Number.isFinite(bybitBid)) bidVal = bybitBid;
-      if (Number.isFinite(bybitAsk)) askVal = bybitAsk;
-    } else if (source === 'hl') {
-      if (Number.isFinite(hlBid)) bidVal = hlBid;
-      if (Number.isFinite(hlAsk)) askVal = hlAsk;
-    } else {
-      // Combined or All: show combined diff
-      const hasBybitBid = Number.isFinite(bybitBid);
-      const hasHlBid = Number.isFinite(hlBid);
-      if (hasBybitBid || hasHlBid) bidVal = (bybitBid || 0) + (hlBid || 0);
+      let bidVal = null;
+      let askVal = null;
 
-      const hasBybitAsk = Number.isFinite(bybitAsk);
-      const hasHlAsk = Number.isFinite(hlAsk);
-      if (hasBybitAsk || hasHlAsk) askVal = (bybitAsk || 0) + (hlAsk || 0);
-    }
+      if (source === 'bybit') {
+        if (Number.isFinite(bybitBid)) bidVal = bybitBid;
+        if (Number.isFinite(bybitAsk)) askVal = bybitAsk;
+      } else if (source === 'hl') {
+        if (Number.isFinite(hlBid)) bidVal = hlBid;
+        if (Number.isFinite(hlAsk)) askVal = hlAsk;
+      } else {
+        // Combined or All: show combined diff
+        const hasBybitBid = Number.isFinite(bybitBid);
+        const hasHlBid = Number.isFinite(hlBid);
+        if (hasBybitBid || hasHlBid) bidVal = (bybitBid || 0) + (hlBid || 0);
 
-    if (bidVal !== null || askVal !== null) {
-      diffData.push({ time, value: (bidVal || 0) - (askVal || 0) });
-    }
-  });
+        const hasBybitAsk = Number.isFinite(bybitAsk);
+        const hasHlAsk = Number.isFinite(hlAsk);
+        if (hasBybitAsk || hasHlAsk) askVal = (bybitAsk || 0) + (hlAsk || 0);
+      }
+
+      if (bidVal !== null || askVal !== null) {
+        diffData.push({ time, value: (bidVal || 0) - (askVal || 0) });
+      }
+    });
+  }
 
   series.diff.setData(diffData);
 }
