@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const DEFAULT_MAX_SNAPSHOTS = 43_200; // 30 days of minute snapshots
+const DEFAULT_MAX_SNAPSHOTS = process.env.MAX_SNAPSHOTS ? parseInt(process.env.MAX_SNAPSHOTS, 10) : 100_000;
 
 export class SnapshotStore {
   constructor(filePath, maxSnapshots = DEFAULT_MAX_SNAPSHOTS) {
