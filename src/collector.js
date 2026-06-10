@@ -142,7 +142,7 @@ export class Collector {
     };
 
     const previousSnapshot = this.state.snapshots.at(-1) || null;
-    this.state.snapshots = await this.store.append(snapshot);
+    this.state.snapshots = await this.store.append(snapshot, this.state.snapshots);
 
     if (this.alertEngine) {
       this.alertEngine.checkAlerts(this.state.snapshots).catch(err => {

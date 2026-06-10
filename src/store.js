@@ -96,7 +96,7 @@ export class SnapshotStore {
     }
   }
 
-  async append(snapshot) {
+  async append(snapshot, currentSnapshots = null) {
     if (this.isSupabase) {
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_snapshots`;
@@ -137,16 +137,24 @@ export class SnapshotStore {
             console.error('Error trimming old Supabase snapshots:', err);
           });
         }
-
-        return await this.readAll();
       } catch (error) {
         console.error('Error appending to Supabase:', error);
-        return await this.readAll();
       }
+
+      if (currentSnapshots) {
+        currentSnapshots.push(snapshot);
+        if (currentSnapshots.length > this.maxSnapshots) {
+          currentSnapshots.shift();
+        }
+        return currentSnapshots;
+      }
+      return await this.readAll();
     }
 
-    const snapshots = await this.readAll();
-    snapshots.push(snapshot);
+    const snapshots = currentSnapshots || await this.readAll();
+    if (!currentSnapshots) {
+      snapshots.push(snapshot);
+    }
     const trimmed = snapshots.slice(-this.maxSnapshots);
     await this.writeAll(trimmed);
     return trimmed;
