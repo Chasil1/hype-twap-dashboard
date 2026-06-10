@@ -54,12 +54,33 @@ export class SnapshotStore {
             const raw = await readFile(this.filePath, 'utf8');
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              console.log(`Found ${parsed.length} local snapshots. Migrating to Supabase...`);
-              for (const snapshot of parsed) {
-                await this.append(snapshot);
+              const sliced = parsed.slice(-this.maxSnapshots);
+              console.log(`Found ${parsed.length} local snapshots. Migrating latest ${sliced.length} to Supabase...`);
+              
+              const url = `${this.supabaseUrl}/rest/v1/hype_snapshots`;
+              const body = sliced.map(snapshot => ({
+                timestamp: snapshot.timestamp,
+                data: snapshot
+              }));
+
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'apikey': this.supabaseKey,
+                  'Authorization': `Bearer ${this.supabaseKey}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify(body)
+              });
+
+              if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Bulk migration write failed: ${response.status} ${response.statusText} - ${errText}`);
               }
+
               console.log('Migration to Supabase completed successfully!');
-              return parsed;
+              return sliced;
             }
           } catch (fileErr) {
             if (fileErr.code !== 'ENOENT') {
