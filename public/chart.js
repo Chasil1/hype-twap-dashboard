@@ -2208,6 +2208,24 @@ async function checkAuthState() {
         } else {
           loginContainer.innerHTML = '<span style="color: var(--red); font-size: 11px;">Telegram Bot token not configured on server. Set token in Settings or env.</span>';
         }
+
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalhost) {
+          const devDiv = document.createElement('div');
+          devDiv.style.marginTop = '10px';
+          devDiv.innerHTML = `<button id="devLoginBypassBtn" class="action-btn" type="button" style="background: #2b3846; border-color: #3b4e63; color: #fff; font-size: 12px; padding: 6px 12px;">🔧 Dev Login (Bypass)</button>`;
+          loginContainer.appendChild(devDiv);
+          document.getElementById('devLoginBypassBtn').addEventListener('click', async () => {
+            const res = await fetch('/api/auth/dev-login', { method: 'POST' });
+            if (res.ok) {
+              localStorage.removeItem('tg_logged_out');
+              await checkAuthState();
+              window.location.reload();
+            } else {
+              alert('Dev login failed');
+            }
+          });
+        }
       }
     }
     await initializePresets();

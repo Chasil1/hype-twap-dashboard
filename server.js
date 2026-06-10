@@ -303,6 +303,36 @@ app.post('/api/auth/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/auth/dev-login', async (req, res) => {
+  const isLocal = req.hostname === 'localhost' || req.hostname === '127.0.0.1' || req.ip === '::1' || req.ip === '127.0.0.1';
+  if (!isLocal && process.env.NODE_ENV === 'production') {
+    res.status(403).json({ error: 'Developer login only allowed on localhost' });
+    return;
+  }
+
+  let token = await configStore.get('telegram_bot_token');
+  if (!token || token === '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11') {
+    token = process.env.TELEGRAM_BOT_TOKEN || 'mock_token';
+  }
+
+  const sessionData = JSON.stringify({
+    id: 388735415,
+    username: 'dev_user',
+    first_name: 'Developer',
+    photo_url: ''
+  });
+
+  const signature = crypto
+    .createHmac('sha256', token.trim())
+    .update(sessionData)
+    .digest('hex');
+
+  const cookieValue = Buffer.from(JSON.stringify({ sessionData, signature })).toString('base64');
+  
+  res.setHeader('Set-Cookie', `tg_session=${cookieValue}; Path=/; HttpOnly; Max-Age=${30 * 86400}; SameSite=Lax; Secure`);
+  res.json({ ok: true, user: JSON.parse(sessionData) });
+});
+
 // --- Presets API ---
 
 app.get('/api/presets', authMiddleware, async (req, res) => {
