@@ -346,6 +346,7 @@ export class ConfigStore {
   }
 
   async get(key) {
+    let value = null;
     if (this.isSupabase) {
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config?key=eq.${key}&select=value`;
@@ -361,21 +362,32 @@ export class ConfigStore {
           throw new Error(`Supabase get config failed: ${response.status}`);
         }
         const data = await response.json();
-        return data[0]?.value ?? null;
+        value = data[0]?.value ?? null;
       } catch (error) {
         console.error(`Error reading config ${key} from Supabase:`, error);
-        return null;
+        value = null;
+      }
+    } else {
+      try {
+        const raw = await readFile(this.filePath, 'utf8');
+        const data = JSON.parse(raw);
+        value = data[key] ?? null;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
       }
     }
 
-    try {
-      const raw = await readFile(this.filePath, 'utf8');
-      const data = JSON.parse(raw);
-      return data[key] ?? null;
-    } catch (error) {
-      if (error.code === 'ENOENT') return null;
-      throw error;
+    if (key === 'telegram_bot_token') {
+      if (!value || value === '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11') {
+        value = process.env.TELEGRAM_BOT_TOKEN || value;
+      }
+    } else if (key === 'telegram_chat_id') {
+      if (!value || value === '-100987654321') {
+        value = process.env.TELEGRAM_CHAT_ID || value;
+      }
     }
+
+    return value;
   }
 
   async set(key, value) {
