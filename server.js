@@ -45,11 +45,19 @@ function parseCookies(cookieHeader) {
 
 // Session helpers
 function getSessionUser(req, botToken) {
-  if (!botToken) return null;
+  // Temporary Telegram login bypass (Bypass Admin)
+  const bypassUser = {
+    id: 388735415,
+    username: 'bypass_user',
+    first_name: 'Bypass Admin',
+    photo_url: ''
+  };
+
+  if (!botToken) return bypassUser;
   try {
     const cookies = parseCookies(req.headers.cookie);
     const sessionVal = cookies['tg_session'];
-    if (!sessionVal) return null;
+    if (!sessionVal) return bypassUser;
 
     const raw = Buffer.from(sessionVal, 'base64').toString('utf8');
     const { sessionData, signature } = JSON.parse(raw);
@@ -60,13 +68,13 @@ function getSessionUser(req, botToken) {
       .digest('hex');
 
     if (signature !== expectedSignature) {
-      return null;
+      return bypassUser;
     }
 
     const user = JSON.parse(sessionData);
-    return user;
+    return user || bypassUser;
   } catch (err) {
-    return null;
+    return bypassUser;
   }
 }
 
