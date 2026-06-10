@@ -46,11 +46,40 @@ export class SnapshotStore {
             }
           }
         }
+
+        // Auto-migration: if Supabase returns 0 snapshots, migrate existing local snapshots
+        if (allRows.length === 0) {
+          try {
+            console.log('Supabase has 0 snapshots. Checking local file for migration...');
+            const raw = await readFile(this.filePath, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              console.log(`Found ${parsed.length} local snapshots. Migrating to Supabase...`);
+              for (const snapshot of parsed) {
+                await this.append(snapshot);
+              }
+              console.log('Migration to Supabase completed successfully!');
+              return parsed;
+            }
+          } catch (fileErr) {
+            if (fileErr.code !== 'ENOENT') {
+              console.error('Failed to migrate local snapshots to Supabase:', fileErr);
+            }
+          }
+        }
+
         // Extracted objects are in descending order from DB. Reverse them to restore ascending order.
         return allRows.map(r => r.data).reverse();
       } catch (error) {
-        console.error('Error reading from Supabase, returning empty array:', error);
-        return [];
+        console.error('Error reading from Supabase, falling back to local snapshots file:', error);
+        try {
+          const raw = await readFile(this.filePath, 'utf8');
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (fileError) {
+          if (fileError.code === 'ENOENT') return [];
+          throw fileError;
+        }
       }
     }
 
