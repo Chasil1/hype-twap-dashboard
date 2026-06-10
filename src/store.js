@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const DEFAULT_MAX_SNAPSHOTS = 100_000;
+const DEFAULT_MAX_SNAPSHOTS = 43_200; // 30 days of minute snapshots
 
 export class SnapshotStore {
   constructor(filePath, maxSnapshots = DEFAULT_MAX_SNAPSHOTS) {
@@ -117,6 +117,27 @@ export class SnapshotStore {
           const errText = await response.text();
           throw new Error(`Supabase write failed: ${response.status} ${response.statusText} - ${errText}`);
         }
+
+        // Periodically trim old snapshots in the background (roughly once every 20 minutes)
+        if (Math.random() < 0.05) {
+          const cutoffMs = Date.now() - (this.maxSnapshots * 60_000);
+          const cutoffIso = new Date(cutoffMs).toISOString();
+          const deleteUrl = `${this.supabaseUrl}/rest/v1/hype_snapshots?timestamp=lt.${encodeURIComponent(cutoffIso)}`;
+          fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+              'apikey': this.supabaseKey,
+              'Authorization': `Bearer ${this.supabaseKey}`
+            }
+          }).then(res => {
+            if (!res.ok) {
+              console.error('Failed to trim old Supabase snapshots:', res.statusText);
+            }
+          }).catch(err => {
+            console.error('Error trimming old Supabase snapshots:', err);
+          });
+        }
+
         return await this.readAll();
       } catch (error) {
         console.error('Error appending to Supabase:', error);
