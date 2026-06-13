@@ -2382,6 +2382,10 @@ const TRANSLATIONS = {
     cancelBtn: "Cancel",
     sharePreset: "Share",
     linkCopied: "Link copied to clipboard!",
+    profitFactorLabel: "Profit Factor",
+    avgWinLossLabel: "Avg Win / Loss",
+    maxWinLossLabel: "Max Win / Loss",
+    winLossCountLabel: "Wins / Losses",
     
     authPlaceholder: "🔒 Log in with Telegram to configure bot settings and alerts:",
     dontSeeButton: "Don't see the button?",
@@ -2535,6 +2539,10 @@ const TRANSLATIONS = {
     cancelBtn: "Отмена",
     sharePreset: "Поделиться",
     linkCopied: "Ссылка скопирована в буфер обмена!",
+    profitFactorLabel: "Профит-фактор",
+    avgWinLossLabel: "Ср. Прибыль / Убыток",
+    maxWinLossLabel: "Макс. Прибыль / Убыток",
+    winLossCountLabel: "Побед / Поражений",
     
     authPlaceholder: "🔒 Войдите через Telegram для настройки бота и алертов:",
     dontSeeButton: "Не видите кнопку?",
@@ -2966,8 +2974,10 @@ function applyLanguage(lang) {
   const backtestDirectionSelect = document.getElementById('backtestDirectionSelect');
   if (backtestDirectionSelect) {
     backtestDirectionSelect.options[0].textContent = lang === 'en' ? 'Auto (From Crossover)' : 'Авто (из пересечения)';
-    backtestDirectionSelect.options[1].textContent = lang === 'en' ? 'Force Long' : 'Только Лонг';
-    backtestDirectionSelect.options[2].textContent = lang === 'en' ? 'Force Short' : 'Только Шорт';
+    backtestDirectionSelect.options[1].textContent = lang === 'en' ? 'Long (Crossover Only)' : 'Лонг (только пересечение)';
+    backtestDirectionSelect.options[2].textContent = lang === 'en' ? 'Short (Crossover Only)' : 'Шорт (только пересечение)';
+    backtestDirectionSelect.options[3].textContent = lang === 'en' ? 'Trend Long (Price Crossover)' : 'Трендовый Лонг (с ростом цены)';
+    backtestDirectionSelect.options[4].textContent = lang === 'en' ? 'Trend Short (Price Crossover)' : 'Трендовый Шорт (с падением цены)';
   }
   
   const lblBacktestTradeAmount = document.getElementById('lblBacktestTradeAmount');
@@ -3056,6 +3066,15 @@ function applyLanguage(lang) {
   
   const lblStatMaxDrawdown = document.getElementById('lblStatMaxDrawdown');
   if (lblStatMaxDrawdown) lblStatMaxDrawdown.textContent = t.maxDrawdown;
+
+  const lblStatProfitFactor = document.getElementById('lblStatProfitFactor');
+  if (lblStatProfitFactor) lblStatProfitFactor.textContent = t.profitFactorLabel;
+  const lblStatAvgWinLoss = document.getElementById('lblStatAvgWinLoss');
+  if (lblStatAvgWinLoss) lblStatAvgWinLoss.textContent = t.avgWinLossLabel;
+  const lblStatMaxWinLoss = document.getElementById('lblStatMaxWinLoss');
+  if (lblStatMaxWinLoss) lblStatMaxWinLoss.textContent = t.maxWinLossLabel;
+  const lblStatWinLossCount = document.getElementById('lblStatWinLossCount');
+  if (lblStatWinLossCount) lblStatWinLossCount.textContent = t.winLossCountLabel;
   
   const titleMetricsResults = document.getElementById('titleMetricsResults');
   if (titleMetricsResults) titleMetricsResults.textContent = t.metricsAnalysisResults;
@@ -3091,6 +3110,15 @@ function applyLanguage(lang) {
   
   const lblMetricsStatNetProfit = document.getElementById('lblMetricsStatNetProfit');
   if (lblMetricsStatNetProfit) lblMetricsStatNetProfit.textContent = t.totalNetProfit;
+
+  const lblMetricsStatProfitFactor = document.getElementById('lblMetricsStatProfitFactor');
+  if (lblMetricsStatProfitFactor) lblMetricsStatProfitFactor.textContent = t.profitFactorLabel;
+  const lblMetricsStatAvgWinLoss = document.getElementById('lblMetricsStatAvgWinLoss');
+  if (lblMetricsStatAvgWinLoss) lblMetricsStatAvgWinLoss.textContent = t.avgWinLossLabel;
+  const lblMetricsStatMaxWinLoss = document.getElementById('lblMetricsStatMaxWinLoss');
+  if (lblMetricsStatMaxWinLoss) lblMetricsStatMaxWinLoss.textContent = t.maxWinLossLabel;
+  const lblMetricsStatWinLossCount = document.getElementById('lblMetricsStatWinLossCount');
+  if (lblMetricsStatWinLossCount) lblMetricsStatWinLossCount.textContent = t.winLossCountLabel;
 
   // Auto Trading tab translations
   const tabAutoTrading = document.getElementById('tabAutoTrading');
@@ -3129,8 +3157,10 @@ function applyLanguage(lang) {
   const autoTradeDirection = document.getElementById('autoTradeDirection');
   if (autoTradeDirection) {
     autoTradeDirection.options[0].textContent = lang === 'en' ? 'Auto (Crossover Badge)' : 'Авто (из пересечения)';
-    autoTradeDirection.options[1].textContent = lang === 'en' ? 'Force Long' : 'Только Лонг';
-    autoTradeDirection.options[2].textContent = lang === 'en' ? 'Force Short' : 'Только Шорт';
+    autoTradeDirection.options[1].textContent = lang === 'en' ? 'Long (Crossover Only)' : 'Лонг (только пересечение)';
+    autoTradeDirection.options[2].textContent = lang === 'en' ? 'Short (Crossover Only)' : 'Шорт (только пересечение)';
+    autoTradeDirection.options[3].textContent = lang === 'en' ? 'Trend Long (Price Crossover)' : 'Трендовый Лонг (с ростом цены)';
+    autoTradeDirection.options[4].textContent = lang === 'en' ? 'Trend Short (Price Crossover)' : 'Трендовый Шорт (с падением цены)';
   }
 
   const lblAutoTradeOrderCount = document.getElementById('lblAutoTradeOrderCount');
@@ -3838,26 +3868,61 @@ function generateBacktestSignals(snapshots1m, alert, directionOverride) {
     const isTriggered = evaluateExpression(currentBucketAgg, alert.expression);
     if (isTriggered) {
       const currentPrice = currentBucketAgg.price;
-      const trendMode = (directionOverride && directionOverride !== 'auto') ? directionOverride : (alert.trend_mode || 'none');
-      let shouldTrigger = false;
+      const wasTriggeredPrev = previousBucketAgg ? evaluateExpression(previousBucketAgg, alert.expression) : false;
       
-      if (trendMode === 'long' || trendMode === 'short') {
-        const wasTriggeredPrev = previousBucketAgg ? evaluateExpression(previousBucketAgg, alert.expression) : false;
+      let shouldTrigger = false;
+      let signalType = 'long';
+
+      const dirMode = directionOverride || 'auto';
+
+      if (dirMode === 'long') {
         if (!wasTriggeredPrev) {
-          if (trendMode === 'long') {
+          shouldTrigger = true;
+        }
+        signalType = 'long';
+      } else if (dirMode === 'short') {
+        if (!wasTriggeredPrev) {
+          shouldTrigger = true;
+        }
+        signalType = 'short';
+      } else if (dirMode === 'trend_long') {
+        if (!wasTriggeredPrev) {
+          if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
+            shouldTrigger = true;
+          }
+          lastTriggerPrice = currentPrice;
+        }
+        signalType = 'long';
+      } else if (dirMode === 'trend_short') {
+        if (!wasTriggeredPrev) {
+          if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
+            shouldTrigger = true;
+          }
+          lastTriggerPrice = currentPrice;
+        }
+        signalType = 'short';
+      } else { // 'auto'
+        const alertTrendMode = alert.trend_mode || 'none';
+        if (alertTrendMode === 'long') {
+          if (!wasTriggeredPrev) {
             if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
               shouldTrigger = true;
             }
             lastTriggerPrice = currentPrice;
-          } else if (trendMode === 'short') {
+          }
+          signalType = 'long';
+        } else if (alertTrendMode === 'short') {
+          if (!wasTriggeredPrev) {
             if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
               shouldTrigger = true;
             }
             lastTriggerPrice = currentPrice;
           }
+          signalType = 'short';
+        } else { // 'none'
+          shouldTrigger = true;
+          signalType = 'long';
         }
-      } else {
-        shouldTrigger = true;
       }
       
       if (shouldTrigger) {
@@ -3867,7 +3932,7 @@ function generateBacktestSignals(snapshots1m, alert, directionOverride) {
           signals.push({
             timestamp: s.timestamp,
             price: s.price,
-            type: trendMode === 'short' ? 'short' : 'long',
+            type: signalType,
             index: i
           });
           lastTriggerTime = sTime;
@@ -4254,16 +4319,37 @@ function runTradingSimulation(snapshots1m, signals, legs, tpCloseSignals, slClos
   }
 
   const totalTrades = trades.length;
-  const winningTrades = trades.filter(t => t.profit > 0).length;
-  const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+  const winningTradeObjects = trades.filter(t => t.profit > 0);
+  const losingTradeObjects = trades.filter(t => t.profit < 0);
+  
+  const totalWinsCount = winningTradeObjects.length;
+  const totalLossesCount = losingTradeObjects.length;
+  const winRate = totalTrades > 0 ? (totalWinsCount / totalTrades) * 100 : 0;
   const netProfit = trades.reduce((sum, t) => sum + t.profit, 0);
   const maxDrawdown = trades.length > 0 ? Math.max(...trades.map(t => t.maxDrawdown)) : 0;
+
+  const grossProfit = winningTradeObjects.reduce((sum, t) => sum + t.profit, 0);
+  const grossLoss = Math.abs(losingTradeObjects.reduce((sum, t) => sum + t.profit, 0));
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
+  
+  const avgWin = totalWinsCount > 0 ? grossProfit / totalWinsCount : 0;
+  const avgLoss = totalLossesCount > 0 ? grossLoss / totalLossesCount : 0;
+  
+  const maxWin = totalWinsCount > 0 ? Math.max(...winningTradeObjects.map(t => t.profit)) : 0;
+  const maxLoss = totalLossesCount > 0 ? Math.max(...losingTradeObjects.map(t => Math.abs(t.profit))) : 0;
 
   return {
     totalTrades,
     winRate,
     netProfit,
     maxDrawdown,
+    profitFactor,
+    avgWin,
+    avgLoss,
+    maxWin,
+    maxLoss,
+    totalWinsCount,
+    totalLossesCount,
     markers
   };
 }
@@ -4449,13 +4535,35 @@ function runMetricsAnalysis(snapshots1m, signals, tpCloseSignals, slCloseSignals
   let tradingStats = null;
   if (tradeAmount && tradeAmount > 0 && metricTrades.length > 0) {
     const totalTrades = metricTrades.length;
-    const winningTrades = metricTrades.filter(t => t.profit > 0).length;
-    const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+    const winningTradeObjects = metricTrades.filter(t => t.profit > 0);
+    const losingTradeObjects = metricTrades.filter(t => t.profit < 0);
+    
+    const totalWinsCount = winningTradeObjects.length;
+    const totalLossesCount = losingTradeObjects.length;
+    const winRate = totalTrades > 0 ? (totalWinsCount / totalTrades) * 100 : 0;
     const netProfit = metricTrades.reduce((sum, t) => sum + t.profit, 0);
+    
+    const grossProfit = winningTradeObjects.reduce((sum, t) => sum + t.profit, 0);
+    const grossLoss = Math.abs(losingTradeObjects.reduce((sum, t) => sum + t.profit, 0));
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
+    
+    const avgWin = totalWinsCount > 0 ? grossProfit / totalWinsCount : 0;
+    const avgLoss = totalLossesCount > 0 ? grossLoss / totalLossesCount : 0;
+    
+    const maxWin = totalWinsCount > 0 ? Math.max(...winningTradeObjects.map(t => t.profit)) : 0;
+    const maxLoss = totalLossesCount > 0 ? Math.max(...losingTradeObjects.map(t => Math.abs(t.profit))) : 0;
+    
     tradingStats = {
       totalTrades,
       winRate,
-      netProfit
+      netProfit,
+      profitFactor,
+      avgWin,
+      avgLoss,
+      maxWin,
+      maxLoss,
+      totalWinsCount,
+      totalLossesCount
     };
   }
 
@@ -4503,6 +4611,12 @@ function renderTradingResults(results) {
   
   document.getElementById('statMaxDrawdown').textContent = `${results.maxDrawdown.toFixed(2)}%`;
   
+  // New metrics
+  document.getElementById('statProfitFactor').textContent = Number.isFinite(results.profitFactor) ? results.profitFactor.toFixed(2) : (results.profitFactor === Infinity ? '∞' : '0.00');
+  document.getElementById('statAvgWinLoss').textContent = `$${results.avgWin.toFixed(2)} / $${results.avgLoss.toFixed(2)}`;
+  document.getElementById('statMaxWinLoss').textContent = `$${results.maxWin.toFixed(2)} / $${results.maxLoss.toFixed(2)}`;
+  document.getElementById('statWinLossCount').textContent = `${results.totalWinsCount} / ${results.totalLossesCount}`;
+  
   priceSeries.setMarkers(results.markers);
 }
 
@@ -4528,6 +4642,12 @@ function renderMetricsResults(results) {
       const profitEl = document.getElementById('metricsStatNetProfit');
       profitEl.textContent = `$${results.tradingStats.netProfit.toFixed(2)}`;
       profitEl.style.color = results.tradingStats.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+      
+      // New metrics
+      document.getElementById('metricsStatProfitFactor').textContent = Number.isFinite(results.tradingStats.profitFactor) ? results.tradingStats.profitFactor.toFixed(2) : (results.tradingStats.profitFactor === Infinity ? '∞' : '0.00');
+      document.getElementById('metricsStatAvgWinLoss').textContent = `$${results.tradingStats.avgWin.toFixed(2)} / $${results.tradingStats.avgLoss.toFixed(2)}`;
+      document.getElementById('metricsStatMaxWinLoss').textContent = `$${results.tradingStats.maxWin.toFixed(2)} / $${results.tradingStats.maxLoss.toFixed(2)}`;
+      document.getElementById('metricsStatWinLossCount').textContent = `${results.tradingStats.totalWinsCount} / ${results.tradingStats.totalLossesCount}`;
     } else {
       metricsTradingStatsBlock.classList.add('hidden');
     }
@@ -5010,8 +5130,21 @@ function renderStrategiesList() {
       walletLabel = wallet ? ` | 💼 ${wallet.name}` : ' | 💼 (Deleted)';
     }
 
-    const directionStr = strategy.direction === 'long' ? 'Force Long' : (strategy.direction === 'short' ? 'Force Short' : 'Auto');
-    const directionColor = strategy.direction === 'long' ? '#35d083' : (strategy.direction === 'short' ? '#ef5e5e' : 'var(--amber)');
+    let directionStr = 'Auto';
+    let directionColor = 'var(--amber)';
+    if (strategy.direction === 'long') {
+      directionStr = 'Long';
+      directionColor = '#35d083';
+    } else if (strategy.direction === 'short') {
+      directionStr = 'Short';
+      directionColor = '#ef5e5e';
+    } else if (strategy.direction === 'trend_long') {
+      directionStr = 'Trend Long';
+      directionColor = '#35d083';
+    } else if (strategy.direction === 'trend_short') {
+      directionStr = 'Trend Short';
+      directionColor = '#ef5e5e';
+    }
     const directionBadge = ` <span style="color: ${directionColor}; background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-left: 4px;">${directionStr}</span>`;
 
     // Compute strategy metrics

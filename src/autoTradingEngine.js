@@ -187,28 +187,58 @@ export class AutoTradingEngine {
       let crossoverDirection = 'long';
 
       if (isTriggered && prevSnapshot) {
-        const directionOverride = strategy.direction || 'auto';
-        const trendMode = (directionOverride !== 'auto') ? directionOverride : (alert.trend_mode || 'none');
-        crossoverDirection = trendMode === 'short' ? 'short' : 'long';
+        const wasTriggeredPrev = alertEngineInstance.evaluate(prevSnapshot, alert.expression);
+        const currentPrice = latestSnapshot.price;
+        const dirMode = strategy.direction || 'auto';
 
-        if (trendMode === 'long' || trendMode === 'short') {
-          const wasTriggeredPrev = alertEngineInstance.evaluate(prevSnapshot, alert.expression);
+        if (dirMode === 'long') {
+          if (!wasTriggeredPrev) {
+            triggerOccurred = true;
+          }
+          crossoverDirection = 'long';
+        } else if (dirMode === 'short') {
+          if (!wasTriggeredPrev) {
+            triggerOccurred = true;
+          }
+          crossoverDirection = 'short';
+        } else if (dirMode === 'trend_long') {
           if (!wasTriggeredPrev) {
             const lastCrossoverPrice = alert.last_crossover_price;
-            const currentPrice = latestSnapshot.price;
-
-            if (trendMode === 'long') {
+            if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice > lastCrossoverPrice) {
+              triggerOccurred = true;
+            }
+          }
+          crossoverDirection = 'long';
+        } else if (dirMode === 'trend_short') {
+          if (!wasTriggeredPrev) {
+            const lastCrossoverPrice = alert.last_crossover_price;
+            if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice < lastCrossoverPrice) {
+              triggerOccurred = true;
+            }
+          }
+          crossoverDirection = 'short';
+        } else { // 'auto'
+          const alertTrendMode = alert.trend_mode || 'none';
+          if (alertTrendMode === 'long') {
+            if (!wasTriggeredPrev) {
+              const lastCrossoverPrice = alert.last_crossover_price;
               if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice > lastCrossoverPrice) {
                 triggerOccurred = true;
               }
-            } else if (trendMode === 'short') {
+            }
+            crossoverDirection = 'long';
+          } else if (alertTrendMode === 'short') {
+            if (!wasTriggeredPrev) {
+              const lastCrossoverPrice = alert.last_crossover_price;
               if (lastCrossoverPrice === null || lastCrossoverPrice === undefined || currentPrice < lastCrossoverPrice) {
                 triggerOccurred = true;
               }
             }
+            crossoverDirection = 'short';
+          } else { // 'none'
+            triggerOccurred = true;
+            crossoverDirection = 'long';
           }
-        } else {
-          triggerOccurred = true;
         }
       }
 

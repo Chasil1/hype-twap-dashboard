@@ -260,8 +260,10 @@
                   <label for="backtestDirectionSelect" id="lblBacktestDirection">Signal Direction</label>
                   <select id="backtestDirectionSelect" required>
                     <option value="auto" selected>Auto (From Crossover)</option>
-                    <option value="long">Force Long</option>
-                    <option value="short">Force Short</option>
+                    <option value="long">Long (Crossover Only)</option>
+                    <option value="short">Short (Crossover Only)</option>
+                    <option value="trend_long">Trend Long (Price Crossover)</option>
+                    <option value="trend_short">Trend Short (Price Crossover)</option>
                   </select>
                 </div>
               </div>
@@ -415,6 +417,22 @@
                   <span class="label" id="lblStatMaxDrawdown">Max Drawdown</span>
                   <strong style="color: var(--red);" id="statMaxDrawdown">0.00%</strong>
                 </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatProfitFactor">Profit Factor</span>
+                  <strong id="statProfitFactor">0.00</strong>
+                </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatAvgWinLoss">Avg Win / Loss</span>
+                  <strong id="statAvgWinLoss">$0.00 / $0.00</strong>
+                </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatMaxWinLoss">Max Win / Loss</span>
+                  <strong id="statMaxWinLoss">$0.00 / $0.00</strong>
+                </div>
+                <div class="stat-card">
+                  <span class="label" id="lblStatWinLossCount">Wins / Losses</span>
+                  <strong id="statWinLossCount">0 / 0</strong>
+                </div>
               </div>
             </div>
 
@@ -461,7 +479,7 @@
               <!-- Metrics Trading Simulation Stats Block (only shown if Trade Amount > 0) -->
               <div id="metricsTradingStatsBlock" class="metrics-section hidden" style="border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 12px;">
                 <h4 id="titleMetricsTradingSection" style="color: var(--amber);">Trading Results</h4>
-                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                   <div class="stat-card" style="text-align: center;">
                     <span class="label" style="font-size: 9px;" id="lblMetricsStatTotalTrades">Total Trades</span>
                     <strong style="font-size: 16px;" id="metricsStatTotalTrades">0</strong>
@@ -473,6 +491,26 @@
                   <div class="stat-card" style="text-align: center;">
                     <span class="label" style="font-size: 9px;" id="lblMetricsStatNetProfit">Net Profit</span>
                     <strong style="font-size: 16px;" id="metricsStatNetProfit">$0.00</strong>
+                  </div>
+                </div>
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatProfitFactor">Profit Factor</span>
+                    <strong style="font-size: 14px;" id="metricsStatProfitFactor">0.00</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatAvgWinLoss">Avg Win / Loss</span>
+                    <strong style="font-size: 14px;" id="metricsStatAvgWinLoss">$0.00 / $0.00</strong>
+                  </div>
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatMaxWinLoss">Max Win / Loss</span>
+                    <strong style="font-size: 14px;" id="metricsStatMaxWinLoss">$0.00 / $0.00</strong>
+                  </div>
+                </div>
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                  <div class="stat-card" style="text-align: center;">
+                    <span class="label" style="font-size: 9px;" id="lblMetricsStatWinLossCount">Wins / Losses</span>
+                    <strong style="font-size: 14px;" id="metricsStatWinLossCount">0 / 0</strong>
                   </div>
                 </div>
               </div>
@@ -621,8 +659,10 @@
                   <label for="autoTradeDirection" id="lblAutoTradeDirection">Signal Direction</label>
                   <select id="autoTradeDirection">
                     <option value="auto" selected>Auto (Crossover Badge)</option>
-                    <option value="long">Force Long</option>
-                    <option value="short">Force Short</option>
+                    <option value="long">Long (Crossover Only)</option>
+                    <option value="short">Short (Crossover Only)</option>
+                    <option value="trend_long">Trend Long (Price Crossover)</option>
+                    <option value="trend_short">Trend Short (Price Crossover)</option>
                   </select>
                 </div>
               </div>
