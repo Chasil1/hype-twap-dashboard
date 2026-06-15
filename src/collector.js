@@ -185,11 +185,22 @@ export class Collector {
   }
 
   async start() {
-    this.state.snapshots = await this.store.readAll();
-    this.state.latest = this.state.snapshots.at(-1) ?? null;
+    try {
+      this.state.snapshots = await this.store.readAll();
+      this.state.latest = this.state.snapshots.at(-1) ?? null;
+    } catch (err) {
+      console.error('Failed to read initial snapshots:', err);
+      this.state.snapshots = [];
+      this.state.latest = null;
+    }
     this.state.status.running = true;
-    await this.collectOnce();
-    this.scheduleNext();
+    try {
+      await this.collectOnce();
+    } catch (error) {
+      console.error('Initial collection failed:', error);
+    } finally {
+      this.scheduleNext();
+    }
   }
 
   stop() {
@@ -215,90 +226,95 @@ export class Collector {
     let twapError = null;
     let depthMetrics = null;
 
-    const [priceResult, depthResult] = await Promise.allSettled([
-      this.priceFetcher(),
-      fetchDepths()
-    ]);
+    try {
+      const [priceResult, depthResult] = await Promise.allSettled([
+        this.priceFetcher(),
+        fetchDepths()
+      ]);
 
-    if (priceResult.status === 'fulfilled') {
-      price = priceResult.value;
-    } else {
-      priceError = buildErrorMessage(priceResult.reason);
-    }
-
-    if (depthResult.status === 'fulfilled') {
-      depthMetrics = depthResult.value;
-    }
-
-    let twapSource = null;
-
-    if (this.twapFetcher && price !== null) {
-      try {
-        twapMetrics = await this.twapFetcher({ price });
-        twapSource = 'hypurrscan';
-      } catch (error) {
-        twapError = `hypurrscan: ${buildErrorMessage(error)}`;
+      if (priceResult.status === 'fulfilled') {
+        price = priceResult.value;
+      } else {
+        priceError = buildErrorMessage(priceResult.reason);
       }
-    }
 
-    if (this.twapCache) {
-      if (!twapMetrics) {
+      if (depthResult.status === 'fulfilled') {
+        depthMetrics = depthResult.value;
+      }
+
+      let twapSource = null;
+
+      if (this.twapFetcher && price !== null) {
         try {
-          twapMetrics = this.twapCache.read();
-          twapSource = 'browser-bridge';
+          twapMetrics = await this.twapFetcher({ price });
+          twapSource = 'hypurrscan';
+        } catch (error) {
+          twapError = `hypurrscan: ${buildErrorMessage(error)}`;
+        }
+      }
+
+      if (this.twapCache) {
+        if (!twapMetrics) {
+          try {
+            twapMetrics = this.twapCache.read();
+            twapSource = 'browser-bridge';
+            twapError = null;
+          } catch (error) {
+            const bridgeError = buildErrorMessage(error);
+            twapError = twapError ? `${twapError}; bridge: ${bridgeError}` : `bridge: ${bridgeError}`;
+          }
+        }
+      }
+
+      if (!twapMetrics && this.scraper) {
+        try {
+          twapMetrics = await this.scraper.read();
+          twapSource = 'playwright';
           twapError = null;
         } catch (error) {
-          const bridgeError = buildErrorMessage(error);
-          twapError = twapError ? `${twapError}; bridge: ${bridgeError}` : `bridge: ${bridgeError}`;
+          const scraperError = buildErrorMessage(error);
+          twapError = twapError ? `${twapError}; scraper: ${scraperError}` : scraperError;
         }
       }
-    }
 
-    if (!twapMetrics && this.scraper) {
-      try {
-        twapMetrics = await this.scraper.read();
-        twapSource = 'playwright';
-        twapError = null;
-      } catch (error) {
-        const scraperError = buildErrorMessage(error);
-        twapError = twapError ? `${twapError}; scraper: ${scraperError}` : scraperError;
+      if (!twapMetrics && !twapError) {
+        twapError = 'no TWAP source available';
       }
+
+      if (price !== null || twapMetrics !== null) {
+        const previous = this.state.latest ?? {};
+        const sample = {
+          timestamp: new Date(timestampMs).toISOString(),
+          price: price ?? previous.price ?? null,
+          twapNet1h: twapMetrics?.twapNet1h ?? null,
+          twapNet24h: twapMetrics?.twapNet24h ?? null,
+          twapBuy24h: twapMetrics?.twapBuy24h ?? null,
+          twapSell24h: twapMetrics?.twapSell24h ?? null,
+          activeBuyCount: twapMetrics?.activeBuyCount ?? null,
+          activeSellCount: twapMetrics?.activeSellCount ?? null,
+          twapModes: twapMetrics?.twapModes ?? null,
+          ...Object.fromEntries(DEPTH_KEYS.map((key) => [key, depthMetrics?.[key] ?? null])),
+          status: {
+            priceOk: priceError === null,
+            twapOk: twapError === null
+          }
+        };
+
+        this.state.latest = sample;
+        await this.addMinuteSample(sample, timestampMs);
+      }
+
+      this.state.status.priceError = priceError;
+      this.state.status.twapError = twapError;
+      this.state.status.twapSource = twapSource;
+      this.state.status.bridge = this.twapCache?.getStatus() ?? null;
+      this.state.status.scraper = this.scraper?.getStatus() ?? null;
+      this.state.status.lastCompletedAt = new Date(timestampMs).toISOString();
+    } catch (error) {
+      console.error('Error in collectOnce:', error);
+    } finally {
+      this.running = false;
     }
-
-    if (!twapMetrics && !twapError) {
-      twapError = 'no TWAP source available';
-    }
-
-    if (price !== null || twapMetrics !== null) {
-      const previous = this.state.latest ?? {};
-      const sample = {
-        timestamp: new Date(timestampMs).toISOString(),
-        price: price ?? previous.price ?? null,
-        twapNet1h: twapMetrics?.twapNet1h ?? null,
-        twapNet24h: twapMetrics?.twapNet24h ?? null,
-        twapBuy24h: twapMetrics?.twapBuy24h ?? null,
-        twapSell24h: twapMetrics?.twapSell24h ?? null,
-        activeBuyCount: twapMetrics?.activeBuyCount ?? null,
-        activeSellCount: twapMetrics?.activeSellCount ?? null,
-        twapModes: twapMetrics?.twapModes ?? null,
-        ...Object.fromEntries(DEPTH_KEYS.map((key) => [key, depthMetrics?.[key] ?? null])),
-        status: {
-          priceOk: priceError === null,
-          twapOk: twapError === null
-        }
-      };
-
-      this.state.latest = sample;
-      await this.addMinuteSample(sample, timestampMs);
-    }
-
-    this.state.status.priceError = priceError;
-    this.state.status.twapError = twapError;
-    this.state.status.twapSource = twapSource;
-    this.state.status.bridge = this.twapCache?.getStatus() ?? null;
-    this.state.status.scraper = this.scraper?.getStatus() ?? null;
-    this.state.status.lastCompletedAt = new Date(timestampMs).toISOString();
-    this.running = false;
 
     return this.state.latest;
   }
@@ -307,8 +323,13 @@ export class Collector {
     const nextRun = this.now() + this.intervalMs;
     this.state.status.nextRunAt = new Date(nextRun).toISOString();
     this.timer = setTimeout(async () => {
-      await this.collectOnce();
-      this.scheduleNext();
+      try {
+        await this.collectOnce();
+      } catch (error) {
+        console.error('Collection cycle failed:', error);
+      } finally {
+        this.scheduleNext();
+      }
     }, this.intervalMs);
   }
 
