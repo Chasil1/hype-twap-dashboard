@@ -29,7 +29,8 @@ export class SnapshotStore {
             headers: {
               'apikey': this.supabaseKey,
               'Authorization': `Bearer ${this.supabaseKey}`
-            }
+            },
+            signal: AbortSignal.timeout(10000)
           });
           if (!response.ok) {
             const errText = await response.text();
@@ -71,7 +72,8 @@ export class SnapshotStore {
                   'Content-Type': 'application/json',
                   'Prefer': 'resolution=merge-duplicates'
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(15000)
               });
 
               if (!response.ok) {
@@ -132,7 +134,8 @@ export class SnapshotStore {
           body: JSON.stringify({
             timestamp: snapshot.timestamp,
             data: snapshot
-          })
+          }),
+          signal: AbortSignal.timeout(5000)
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -149,7 +152,8 @@ export class SnapshotStore {
             headers: {
               'apikey': this.supabaseKey,
               'Authorization': `Bearer ${this.supabaseKey}`
-            }
+            },
+            signal: AbortSignal.timeout(5000)
           }).then(res => {
             if (!res.ok) {
               console.error('Failed to trim old Supabase snapshots:', res.statusText);

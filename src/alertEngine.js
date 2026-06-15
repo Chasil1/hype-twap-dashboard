@@ -180,7 +180,8 @@ export class AlertEngine {
           chat_id: chatId,
           text: message,
           parse_mode: 'HTML'
-        })
+        }),
+        signal: AbortSignal.timeout(5000)
       });
 
       if (!response.ok) {
@@ -205,31 +206,31 @@ export class AlertEngine {
       const conditions = expr.conditions || [];
       
       conditionText = conditions.map((cond) => {
-        const leftName = metricLabels[cond.field1] || cond.field1;
-        const opSymbol = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[cond.operator] || cond.operator;
+        const leftName = escapeHTML(metricLabels[cond.field1] || cond.field1);
+        const opSymbol = escapeHTML({ gt: '>', lt: '<', gte: '>=', lte: '<=' }[cond.operator] || cond.operator);
         let rightVal;
         if (cond.compareType === 'value') {
-          rightVal = formatMetricValue(cond.field1, cond.value);
+          rightVal = escapeHTML(formatMetricValue(cond.field1, cond.value));
         } else {
-          rightVal = metricLabels[cond.field2] || cond.field2;
+          rightVal = escapeHTML(metricLabels[cond.field2] || cond.field2);
         }
         return `(${leftName} ${opSymbol} ${rightVal})`;
-      }).join(` <b>${logicalOp}</b> `);
+      }).join(` <b>${escapeHTML(logicalOp)}</b> `);
 
       stateText = '<b>Current State:</b>\n';
       conditions.forEach((cond) => {
-        const leftName = metricLabels[cond.field1] || cond.field1;
+        const leftName = escapeHTML(metricLabels[cond.field1] || cond.field1);
         const val1 = snapshot[cond.field1];
-        const formattedVal1 = formatMetricValue(cond.field1, val1);
+        const formattedVal1 = escapeHTML(formatMetricValue(cond.field1, val1));
         
         stateText += `• ${leftName}: <code>${formattedVal1}</code>`;
         if (cond.compareType === 'metric') {
-          const rightName = metricLabels[cond.field2] || cond.field2;
+          const rightName = escapeHTML(metricLabels[cond.field2] || cond.field2);
           const val2 = snapshot[cond.field2];
-          const formattedVal2 = formatMetricValue(cond.field2, val2);
+          const formattedVal2 = escapeHTML(formatMetricValue(cond.field2, val2));
           stateText += ` (vs ${rightName}: <code>${formattedVal2}</code>)`;
         } else {
-          const formattedVal2 = formatMetricValue(cond.field1, cond.value);
+          const formattedVal2 = escapeHTML(formatMetricValue(cond.field1, cond.value));
           stateText += ` (target: <code>${formattedVal2}</code>)`;
         }
         stateText += '\n';
@@ -238,13 +239,13 @@ export class AlertEngine {
       const v1 = snapshot[expr.field1];
       let v2 = expr.compareType === 'value' ? expr.value : snapshot[expr.field2];
 
-      const name1 = metricLabels[expr.field1] || expr.field1;
-      const name2 = expr.compareType === 'value' ? formatMetricValue(expr.field1, v2) : (metricLabels[expr.field2] || expr.field2);
+      const name1 = escapeHTML(metricLabels[expr.field1] || expr.field1);
+      const name2 = expr.compareType === 'value' ? escapeHTML(formatMetricValue(expr.field1, v2)) : escapeHTML(metricLabels[expr.field2] || expr.field2);
 
-      const formattedV1 = formatMetricValue(expr.field1, v1);
-      const formattedV2 = expr.compareType === 'value' ? name2 : formatMetricValue(expr.field2, v2);
+      const formattedV1 = escapeHTML(formatMetricValue(expr.field1, v1));
+      const formattedV2 = expr.compareType === 'value' ? name2 : escapeHTML(formatMetricValue(expr.field2, v2));
 
-      const opSymbol = { gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator;
+      const opSymbol = escapeHTML({ gt: '>', lt: '<', gte: '>=', lte: '<=' }[expr.operator] || expr.operator);
 
       conditionText = `${name1} ${opSymbol} ${expr.compareType === 'value' ? formattedV2 : name2}`;
       stateText = `<b>Current State:</b>\n` +
@@ -259,8 +260,8 @@ export class AlertEngine {
       modeText = `📉 <b>Short Crossover Mode</b>\n(Triggered because HYPE price <code>$${snapshot.price?.toFixed(4)}</code> < last crossover price <code>$${alert.last_crossover_price?.toFixed(4) || 'none'}</code>)\n\n`;
     }
 
-    return `🚨 <b>ALERT TRIGGERED: ${alert.name}</b>\n\n` +
-           `<b>Timeframe:</b> <code>${alert.timeframe || '1m'}</code>\n` +
+    return `🚨 <b>ALERT TRIGGERED: ${escapeHTML(alert.name)}</b>\n\n` +
+           `<b>Timeframe:</b> <code>${escapeHTML(alert.timeframe || '1m')}</code>\n` +
            modeText +
            `<b>Condition:</b> ${conditionText}\n` +
            stateText +
@@ -268,6 +269,14 @@ export class AlertEngine {
            `<b>Price:</b> $${snapshot.price?.toFixed(4) || '--'}\n` +
            `<b>Timestamp:</b> ${new Date(snapshot.timestamp).toLocaleString()}`;
   }
+}
+
+function escapeHTML(text) {
+  if (typeof text !== 'string') return String(text ?? '');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function formatMetricValue(field, val) {

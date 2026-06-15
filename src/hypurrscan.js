@@ -110,7 +110,9 @@ export function summarizeHypurrscanTwapModes(orders, price, nowMs = Date.now()) 
 }
 
 export async function fetchHypurrscanTwaps({ price, nowMs = Date.now() } = {}) {
-  const response = await fetch(`${HYPURRSCAN_TWAP_URL}/*`);
+  const response = await fetch(`${HYPURRSCAN_TWAP_URL}/*`, {
+    signal: AbortSignal.timeout(5000)
+  });
 
   if (!response.ok) {
     throw new Error(`Hypurrscan TWAP request failed: ${response.status}`);

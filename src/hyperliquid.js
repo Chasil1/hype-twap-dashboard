@@ -4,7 +4,8 @@ export async function fetchHypePrice() {
   const response = await fetch(HYPERLIQUID_INFO_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ type: 'allMids' })
+    body: JSON.stringify({ type: 'allMids' }),
+    signal: AbortSignal.timeout(5000)
   });
 
   if (!response.ok) {
