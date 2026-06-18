@@ -139,14 +139,20 @@ async function restrictToOwner(req, res, next) {
 }
 
 async function getBotUsername(botToken) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
-    const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
+      signal: controller.signal
+    });
     const data = await res.json();
     if (data.ok && data.result) {
       return data.result.username;
     }
   } catch (err) {
     console.error('Error fetching bot username from telegram:', err);
+  } finally {
+    clearTimeout(timeoutId);
   }
   return null;
 }

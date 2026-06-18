@@ -24,27 +24,33 @@ export class SnapshotStore {
         while (hasMore && allRows.length < this.maxSnapshots) {
           const chunkLimit = Math.min(limit, this.maxSnapshots - allRows.length);
           const url = `${this.supabaseUrl}/rest/v1/hype_snapshots?select=data&order=timestamp.desc&limit=${chunkLimit}&offset=${offset}`;
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'apikey': this.supabaseKey,
-              'Authorization': `Bearer ${this.supabaseKey}`
-            },
-            signal: AbortSignal.timeout(10000)
-          });
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Supabase read failed at offset ${offset}: ${response.status} ${response.statusText} - ${errText}`);
-          }
-          const rows = await response.json();
-          if (rows.length === 0) {
-            hasMore = false;
-          } else {
-            allRows = allRows.concat(rows);
-            offset += rows.length;
-            if (rows.length < chunkLimit) {
-              hasMore = false;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          try {
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'apikey': this.supabaseKey,
+                'Authorization': `Bearer ${this.supabaseKey}`
+              },
+              signal: controller.signal
+            });
+            if (!response.ok) {
+              const errText = await response.text();
+              throw new Error(`Supabase read failed at offset ${offset}: ${response.status} ${response.statusText} - ${errText}`);
             }
+            const rows = await response.json();
+            if (rows.length === 0) {
+              hasMore = false;
+            } else {
+              allRows = allRows.concat(rows);
+              offset += rows.length;
+              if (rows.length < chunkLimit) {
+                hasMore = false;
+              }
+            }
+          } finally {
+            clearTimeout(timeoutId);
           }
         }
 
@@ -64,25 +70,31 @@ export class SnapshotStore {
                 data: snapshot
               }));
 
-              const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                  'apikey': this.supabaseKey,
-                  'Authorization': `Bearer ${this.supabaseKey}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'resolution=merge-duplicates'
-                },
-                body: JSON.stringify(body),
-                signal: AbortSignal.timeout(15000)
-              });
+              const migrationController = new AbortController();
+              const migrationTimeoutId = setTimeout(() => migrationController.abort(), 15000);
+              try {
+                const response = await fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    'apikey': this.supabaseKey,
+                    'Authorization': `Bearer ${this.supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                  },
+                  body: JSON.stringify(body),
+                  signal: migrationController.signal
+                });
 
-              if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`Bulk migration write failed: ${response.status} ${response.statusText} - ${errText}`);
+                if (!response.ok) {
+                  const errText = await response.text();
+                  throw new Error(`Bulk migration write failed: ${response.status} ${response.statusText} - ${errText}`);
+                }
+
+                console.log('Migration to Supabase completed successfully!');
+                return sliced;
+              } finally {
+                clearTimeout(migrationTimeoutId);
               }
-
-              console.log('Migration to Supabase completed successfully!');
-              return sliced;
             }
           } catch (fileErr) {
             if (fileErr.code !== 'ENOENT') {
@@ -121,6 +133,8 @@ export class SnapshotStore {
 
   async append(snapshot, currentSnapshots = null) {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_snapshots`;
         const response = await fetch(url, {
@@ -135,7 +149,7 @@ export class SnapshotStore {
             timestamp: snapshot.timestamp,
             data: snapshot
           }),
-          signal: AbortSignal.timeout(5000)
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -147,23 +161,29 @@ export class SnapshotStore {
           const cutoffMs = Date.now() - (this.maxSnapshots * 60_000);
           const cutoffIso = new Date(cutoffMs).toISOString();
           const deleteUrl = `${this.supabaseUrl}/rest/v1/hype_snapshots?timestamp=lt.${encodeURIComponent(cutoffIso)}`;
+          const deleteController = new AbortController();
+          const deleteTimeoutId = setTimeout(() => deleteController.abort(), 5000);
           fetch(deleteUrl, {
             method: 'DELETE',
             headers: {
               'apikey': this.supabaseKey,
               'Authorization': `Bearer ${this.supabaseKey}`
             },
-            signal: AbortSignal.timeout(5000)
+            signal: deleteController.signal
           }).then(res => {
             if (!res.ok) {
               console.error('Failed to trim old Supabase snapshots:', res.statusText);
             }
           }).catch(err => {
             console.error('Error trimming old Supabase snapshots:', err);
+          }).finally(() => {
+            clearTimeout(deleteTimeoutId);
           });
         }
       } catch (error) {
         console.error('Error appending to Supabase:', error);
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       if (currentSnapshots) {
@@ -316,6 +336,8 @@ export class AlertsStore {
   async readAll() {
     let list = [];
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_alerts?select=*&order=created_at.desc`;
         const response = await fetch(url, {
@@ -323,7 +345,8 @@ export class AlertsStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -333,6 +356,8 @@ export class AlertsStore {
       } catch (error) {
         console.error('Error reading alerts from Supabase, returning empty array:', error);
         list = [];
+      } finally {
+        clearTimeout(timeoutId);
       }
     } else {
       try {
@@ -349,6 +374,8 @@ export class AlertsStore {
 
   async save(alert) {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_alerts`;
         const response = await fetch(url, {
@@ -359,7 +386,8 @@ export class AlertsStore {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify(alert)
+          body: JSON.stringify(alert),
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -369,6 +397,8 @@ export class AlertsStore {
       } catch (error) {
         console.error('Error saving alert to Supabase:', error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -385,6 +415,8 @@ export class AlertsStore {
 
   async delete(id) {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_alerts?id=eq.${id}`;
         const response = await fetch(url, {
@@ -392,7 +424,8 @@ export class AlertsStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -402,6 +435,8 @@ export class AlertsStore {
       } catch (error) {
         console.error('Error deleting alert from Supabase:', error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -431,6 +466,8 @@ export class ConfigStore {
   async get(key) {
     let value = null;
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config?key=eq.${key}&select=value`;
         const response = await fetch(url, {
@@ -438,7 +475,8 @@ export class ConfigStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           if (response.status === 404) return null;
@@ -449,6 +487,8 @@ export class ConfigStore {
       } catch (error) {
         console.error(`Error reading config ${key} from Supabase:`, error);
         value = null;
+      } finally {
+        clearTimeout(timeoutId);
       }
     } else {
       try {
@@ -475,6 +515,8 @@ export class ConfigStore {
 
   async set(key, value) {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config`;
         const response = await fetch(url, {
@@ -485,7 +527,8 @@ export class ConfigStore {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({ key, value: typeof value === 'object' ? JSON.stringify(value) : value })
+          body: JSON.stringify({ key, value: typeof value === 'object' ? JSON.stringify(value) : value }),
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -495,6 +538,8 @@ export class ConfigStore {
       } catch (error) {
         console.error(`Error writing config ${key} to Supabase:`, error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -529,6 +574,8 @@ export class PresetsStore {
   async readAll(telegramUserId) {
     if (!telegramUserId) return [];
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_presets?telegram_user_id=eq.${telegramUserId}&select=*&order=created_at.desc`;
         const response = await fetch(url, {
@@ -536,7 +583,8 @@ export class PresetsStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -547,6 +595,8 @@ export class PresetsStore {
       } catch (error) {
         console.error('Error reading presets from Supabase:', error);
         return [];
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -567,6 +617,8 @@ export class PresetsStore {
   async save(telegramUserId, name, presetData) {
     if (!telegramUserId || !name) return false;
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_presets`;
         const response = await fetch(url, {
@@ -581,7 +633,8 @@ export class PresetsStore {
             telegram_user_id: telegramUserId,
             name: name,
             preset_data: presetData
-          })
+          }),
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -591,6 +644,8 @@ export class PresetsStore {
       } catch (error) {
         console.error('Error saving preset to Supabase:', error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -620,6 +675,8 @@ export class PresetsStore {
   async delete(telegramUserId, name) {
     if (!telegramUserId || !name) return false;
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_presets?telegram_user_id=eq.${telegramUserId}&name=eq.${name}`;
         const response = await fetch(url, {
@@ -627,7 +684,8 @@ export class PresetsStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -637,6 +695,8 @@ export class PresetsStore {
       } catch (error) {
         console.error('Error deleting preset from Supabase:', error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -669,6 +729,8 @@ export class AutoTradeStore {
 
   async getConfig() {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config?key=eq.autotrade_config&select=value`;
         const response = await fetch(url, {
@@ -676,7 +738,8 @@ export class AutoTradeStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           if (response.status === 404) return { strategies: [], wallets: [] };
@@ -694,6 +757,8 @@ export class AutoTradeStore {
       } catch (error) {
         console.error('Error reading autotrade config from Supabase:', error);
         return { strategies: [], wallets: [] };
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -747,6 +812,8 @@ export class AutoTradeStore {
 
   async saveConfig(config) {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config`;
         const response = await fetch(url, {
@@ -757,7 +824,8 @@ export class AutoTradeStore {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({ key: 'autotrade_config', value: JSON.stringify(config) })
+          body: JSON.stringify({ key: 'autotrade_config', value: JSON.stringify(config) }),
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -767,6 +835,8 @@ export class AutoTradeStore {
       } catch (error) {
         console.error('Error writing autotrade config to Supabase:', error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -778,6 +848,8 @@ export class AutoTradeStore {
 
   async getState() {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config?key=eq.autotrade_state&select=value`;
         const response = await fetch(url, {
@@ -785,7 +857,8 @@ export class AutoTradeStore {
           headers: {
             'apikey': this.supabaseKey,
             'Authorization': `Bearer ${this.supabaseKey}`
-          }
+          },
+          signal: controller.signal
         });
         if (!response.ok) {
           if (response.status === 404) return { activePositions: [], logs: [], tradeHistory: [] };
@@ -804,6 +877,8 @@ export class AutoTradeStore {
       } catch (error) {
         console.error('Error reading autotrade state from Supabase:', error);
         return { activePositions: [], logs: [], tradeHistory: [] };
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -824,6 +899,8 @@ export class AutoTradeStore {
 
   async saveState(state) {
     if (this.isSupabase) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
         const url = `${this.supabaseUrl}/rest/v1/hype_config`;
         const response = await fetch(url, {
@@ -834,7 +911,8 @@ export class AutoTradeStore {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({ key: 'autotrade_state', value: JSON.stringify(state) })
+          body: JSON.stringify({ key: 'autotrade_state', value: JSON.stringify(state) }),
+          signal: controller.signal
         });
         if (!response.ok) {
           const errText = await response.text();
@@ -844,6 +922,8 @@ export class AutoTradeStore {
       } catch (error) {
         console.error('Error writing autotrade state to Supabase:', error);
         return false;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 

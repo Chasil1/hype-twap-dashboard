@@ -708,6 +708,8 @@ export class AutoTradingEngine {
   }
 
   async sendTelegramMessage(text) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
       let token = await this.configStore.get('telegram_bot_token');
       if (!token) token = process.env.TELEGRAM_BOT_TOKEN;
@@ -726,10 +728,13 @@ export class AutoTradingEngine {
           chat_id: chatId.trim(),
           text,
           parse_mode: 'HTML'
-        })
+        }),
+        signal: controller.signal
       });
     } catch (err) {
       console.error('Error sending telegram message from autotrade bot:', err);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 }

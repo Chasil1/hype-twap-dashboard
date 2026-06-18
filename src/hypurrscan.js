@@ -1,3 +1,5 @@
+import { fetchJsonWithTimeout } from './fetchHelper.js';
+
 const HYPURRSCAN_TWAP_URL = 'https://api.hypurrscan.io/twap';
 const ONE_HOUR_MS = 60 * 60_000;
 const ONE_DAY_MS = 24 * ONE_HOUR_MS;
@@ -110,22 +112,18 @@ export function summarizeHypurrscanTwapModes(orders, price, nowMs = Date.now()) 
 }
 
 export async function fetchHypurrscanTwaps({ price, nowMs = Date.now() } = {}) {
-  const response = await fetch(`${HYPURRSCAN_TWAP_URL}/*`, {
-    signal: AbortSignal.timeout(5000)
-  });
+  try {
+    const orders = await fetchJsonWithTimeout(`${HYPURRSCAN_TWAP_URL}/*`, {}, 5000);
+    if (!Array.isArray(orders)) {
+      throw new Error('Hypurrscan TWAP response was not an array');
+    }
 
-  if (!response.ok) {
-    throw new Error(`Hypurrscan TWAP request failed: ${response.status}`);
+    const modes = summarizeHypurrscanTwapModes(orders, price, nowMs);
+    return {
+      ...modes.spotPerp,
+      twapModes: modes
+    };
+  } catch (error) {
+    throw new Error(`Hypurrscan TWAP request failed: ${error.message}`);
   }
-
-  const orders = await response.json();
-  if (!Array.isArray(orders)) {
-    throw new Error('Hypurrscan TWAP response was not an array');
-  }
-
-  const modes = summarizeHypurrscanTwapModes(orders, price, nowMs);
-  return {
-    ...modes.spotPerp,
-    twapModes: modes
-  };
 }

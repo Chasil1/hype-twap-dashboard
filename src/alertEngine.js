@@ -169,6 +169,8 @@ export class AlertEngine {
   async sendTelegramNotification(token, chatId, alert, snapshot) {
     const message = this.formatAlertMessage(alert, snapshot);
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     try {
       const response = await fetch(url, {
@@ -181,7 +183,7 @@ export class AlertEngine {
           text: message,
           parse_mode: 'HTML'
         }),
-        signal: AbortSignal.timeout(5000)
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -191,6 +193,8 @@ export class AlertEngine {
       console.log(`Telegram alert successfully sent: "${alert.name}"`);
     } catch (error) {
       console.error(`Failed to dispatch Telegram message for alert "${alert.name}":`, error);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

@@ -1,3 +1,5 @@
+import { fetchJsonWithTimeout } from './fetchHelper.js';
+
 const DEPTHS = [1.5, 3, 5, 8, 15, 30, 60];
 
 function calculateDepth(bids, asks, mid, depthPct, side) {
@@ -38,18 +40,11 @@ async function fetchBybitOrderbook() {
   for (const domain of domains) {
     const url = `https://${domain}/v5/market/orderbook?category=linear&symbol=HYPEUSDT&limit=500`;
     try {
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(3000) // 3 seconds timeout
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.retCode === 0 && json.result && json.result.b?.length > 0 && json.result.a?.length > 0) {
-          return json;
-        } else {
-          errors.push(`${domain} (retCode=${json?.retCode} retMsg=${json?.retMsg})`);
-        }
+      const json = await fetchJsonWithTimeout(url, {}, 3000);
+      if (json && json.retCode === 0 && json.result && json.result.b?.length > 0 && json.result.a?.length > 0) {
+        return json;
       } else {
-        errors.push(`${domain} (HTTP ${res.status} ${res.statusText})`);
+        errors.push(`${domain} (retCode=${json?.retCode} retMsg=${json?.retMsg})`);
       }
     } catch (err) {
       errors.push(`${domain} (Error: ${err.message})`);
@@ -87,18 +82,16 @@ export async function fetchDepths() {
 
   try {
     const [resHL3, resHL2, bybitData] = await Promise.allSettled([
-      fetch('https://api.hyperliquid.xyz/info', {
+      fetchJsonWithTimeout('https://api.hyperliquid.xyz/info', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 3 }),
-        signal: AbortSignal.timeout(3000)
-      }).then(res => res.ok ? res.json() : null),
-      fetch('https://api.hyperliquid.xyz/info', {
+        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 3 })
+      }, 3000),
+      fetchJsonWithTimeout('https://api.hyperliquid.xyz/info', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 2 }),
-        signal: AbortSignal.timeout(3000)
-      }).then(res => res.ok ? res.json() : null),
+        body: JSON.stringify({ type: 'l2Book', coin: 'HYPE', nSigFigs: 2 })
+      }, 3000),
       fetchBybitOrderbook()
     ]);
 

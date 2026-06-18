@@ -1,24 +1,24 @@
+import { fetchJsonWithTimeout } from './fetchHelper.js';
+
 const HYPERLIQUID_INFO_URL = 'https://api.hyperliquid.xyz/info';
 
 export async function fetchHypePrice() {
-  const response = await fetch(HYPERLIQUID_INFO_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ type: 'allMids' }),
-    signal: AbortSignal.timeout(5000)
-  });
+  try {
+    const mids = await fetchJsonWithTimeout(HYPERLIQUID_INFO_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'allMids' })
+    }, 5000);
 
-  if (!response.ok) {
-    throw new Error(`Hyperliquid price request failed: ${response.status}`);
+    const raw = mids?.HYPE;
+    const price = Number(raw);
+
+    if (!Number.isFinite(price)) {
+      throw new Error('Hyperliquid response did not include HYPE price');
+    }
+
+    return price;
+  } catch (error) {
+    throw new Error(`Hyperliquid price request failed: ${error.message}`);
   }
-
-  const mids = await response.json();
-  const raw = mids.HYPE;
-  const price = Number(raw);
-
-  if (!Number.isFinite(price)) {
-    throw new Error('Hyperliquid response did not include HYPE price');
-  }
-
-  return price;
 }
