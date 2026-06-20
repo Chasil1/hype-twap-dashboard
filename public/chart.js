@@ -3803,6 +3803,7 @@ function generateBacktestSignals(snapshots1m, alert, directionOverride) {
   let completedBuckets = [];
   let activeBucket = null;
   let lastTriggerPrice = null;
+  let lastCrossoverBucketStartMs = null;
   let lastTriggerTime = 0;
   const signals = [];
   
@@ -3876,51 +3877,60 @@ function generateBacktestSignals(snapshots1m, alert, directionOverride) {
       const dirMode = directionOverride || 'auto';
 
       if (dirMode === 'long') {
-        if (!wasTriggeredPrev) {
+        if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
           shouldTrigger = true;
+          lastCrossoverBucketStartMs = startMs;
         }
         signalType = 'long';
       } else if (dirMode === 'short') {
-        if (!wasTriggeredPrev) {
+        if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
           shouldTrigger = true;
+          lastCrossoverBucketStartMs = startMs;
         }
         signalType = 'short';
       } else if (dirMode === 'trend_long') {
-        if (!wasTriggeredPrev) {
+        if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
           if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
             shouldTrigger = true;
-            lastTriggerPrice = currentPrice;
           }
+          lastTriggerPrice = currentPrice;
+          lastCrossoverBucketStartMs = startMs;
         }
         signalType = 'long';
       } else if (dirMode === 'trend_short') {
-        if (!wasTriggeredPrev) {
+        if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
           if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
             shouldTrigger = true;
-            lastTriggerPrice = currentPrice;
           }
+          lastTriggerPrice = currentPrice;
+          lastCrossoverBucketStartMs = startMs;
         }
         signalType = 'short';
       } else { // 'auto'
         const alertTrendMode = alert.trend_mode || 'none';
         if (alertTrendMode === 'long') {
-          if (!wasTriggeredPrev) {
+          if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
             if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
               shouldTrigger = true;
-              lastTriggerPrice = currentPrice;
             }
+            lastTriggerPrice = currentPrice;
+            lastCrossoverBucketStartMs = startMs;
           }
           signalType = 'long';
         } else if (alertTrendMode === 'short') {
-          if (!wasTriggeredPrev) {
+          if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
             if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
               shouldTrigger = true;
-              lastTriggerPrice = currentPrice;
             }
+            lastTriggerPrice = currentPrice;
+            lastCrossoverBucketStartMs = startMs;
           }
           signalType = 'short';
         } else { // 'none'
-          shouldTrigger = true;
+          if (!wasTriggeredPrev && lastCrossoverBucketStartMs !== startMs) {
+            shouldTrigger = true;
+            lastCrossoverBucketStartMs = startMs;
+          }
           signalType = 'long';
         }
       }

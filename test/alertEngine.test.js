@@ -106,26 +106,26 @@ test('AlertEngine processes Long crossover modes correctly', async () => {
   const s7 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.1, timestamp: baseTime + 360000 };
   await engine.checkAlerts(s7, s6);
   assert.equal(notificationCount, 2, 'No alert triggers since current price 5.1 is not higher than last crossover price 5.3');
-  assert.equal(alerts[0].last_crossover_price, 5.3, 'last_crossover_price remains 5.3 since alert was skipped');
+  assert.equal(alerts[0].last_crossover_price, 5.1, 'last_crossover_price updates to 5.1 even though the alert was skipped');
 
   // 8. Bid <= Ask (Condition false again)
   const s8 = { hl_bid_3: 15, hl_ask_3: 20, price: 5.2, timestamp: baseTime + 420000 };
   await engine.checkAlerts(s8, s7);
 
-  // 9. Bid > Ask (Condition true - Fourth Crossover, price 5.2 <= 5.3)
+  // 9. Bid > Ask (Condition true - Fourth Crossover, price 5.2 > 5.1)
   const s9 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.2, timestamp: baseTime + 480000 };
   await engine.checkAlerts(s9, s8);
-  assert.equal(notificationCount, 2, 'No alert triggers since current price 5.2 is still not higher than last triggered crossover price 5.3');
-  assert.equal(alerts[0].last_crossover_price, 5.3, 'last_crossover_price remains 5.3');
+  assert.equal(notificationCount, 3, 'Alert triggers since current price 5.2 is higher than last crossover price 5.1');
+  assert.equal(alerts[0].last_crossover_price, 5.2, 'last_crossover_price updates to 5.2');
 
   // 10. Bid <= Ask (Condition false again)
   const s10 = { hl_bid_3: 15, hl_ask_3: 20, price: 5.5, timestamp: baseTime + 540000 };
   await engine.checkAlerts(s10, s9);
 
-  // 11. Bid > Ask (Condition true - Fifth Crossover, price 5.5 > 5.3)
+  // 11. Bid > Ask (Condition true - Fifth Crossover, price 5.5 > 5.2)
   const s11 = { hl_bid_3: 30, hl_ask_3: 20, price: 5.5, timestamp: baseTime + 600000 };
   await engine.checkAlerts(s11, s10);
-  assert.equal(notificationCount, 3, 'Alert triggers since current price 5.5 is higher than last triggered crossover price 5.3');
+  assert.equal(notificationCount, 4, 'Alert triggers since current price 5.5 is higher than last crossover price 5.2');
   assert.equal(alerts[0].last_crossover_price, 5.5, 'Updates last crossover price to 5.5');
 });
 

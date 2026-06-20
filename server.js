@@ -421,6 +421,7 @@ app.post('/api/alerts', express.json(), authMiddleware, async (req, res) => {
       timeframe: timeframe || '1m',
       telegram_user_id: String(req.user.id),
       last_crossover_price: null,
+      last_crossover_bucket_timestamp: null,
       last_triggered_at: null,
       active: true,
       created_at: new Date().toISOString()
@@ -470,8 +471,9 @@ app.put('/api/alerts/:id', express.json(), authMiddleware, async (req, res) => {
     if (!alert.telegram_user_id) {
       alert.telegram_user_id = String(req.user.id);
     }
-    if (expressionChanged || timeframeChanged) {
+    if (expressionChanged || timeframeChanged || alert.trend_mode !== (trend_mode || 'none')) {
       alert.last_crossover_price = null;
+      alert.last_crossover_bucket_timestamp = null;
     }
 
     const ok = await alertsStore.save(alert);

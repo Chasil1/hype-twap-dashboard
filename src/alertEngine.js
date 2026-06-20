@@ -66,6 +66,11 @@ export class AlertEngine {
               continue;
             }
 
+            // Prevent multiple crossover triggers within the same timeframe bucket/candle
+            if (alert.last_crossover_bucket_timestamp === currentBucket.timestamp) {
+              continue;
+            }
+
             // A crossover has occurred! Now verify the price direction
             const currentPrice = currentBucket.price;
             if (currentPrice === null || currentPrice === undefined) {
@@ -73,17 +78,25 @@ export class AlertEngine {
             }
 
             const lastCrossoverPrice = alert.last_crossover_price;
+            let shouldSkipAlert = false;
 
             if (trendMode === 'long') {
               if (lastCrossoverPrice !== null && lastCrossoverPrice !== undefined && currentPrice <= lastCrossoverPrice) {
-                // Current crossover price is NOT higher than the last crossover price, skip alert without updating crossover price
-                continue;
+                shouldSkipAlert = true;
               }
             } else if (trendMode === 'short') {
               if (lastCrossoverPrice !== null && lastCrossoverPrice !== undefined && currentPrice >= lastCrossoverPrice) {
-                // Current crossover price is NOT lower than the last crossover price, skip alert without updating crossover price
-                continue;
+                shouldSkipAlert = true;
               }
+            }
+
+            alert.last_crossover_bucket_timestamp = currentBucket.timestamp;
+            alert.last_crossover_price = currentPrice;
+
+            if (shouldSkipAlert) {
+              // Save the new crossover threshold but skip sending notifications
+              await this.alertsStore.save(alert);
+              continue;
             }
 
             // Crossover price matches direction criteria (or baseline case). Trigger the alert!
@@ -96,7 +109,6 @@ export class AlertEngine {
               alert.last_triggered_at = new Date(now).toISOString();
             }
 
-            alert.last_crossover_price = currentPrice;
             await this.alertsStore.save(alert);
 
           } else {

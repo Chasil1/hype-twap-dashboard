@@ -241,7 +241,9 @@ const DEFAULT_ALERTS = [
     created_at: "2026-06-01T00:00:00.000Z",
     last_triggered_at: null,
     last_trigger_price: null,
-    last_trend_price: null
+    last_trend_price: null,
+    last_crossover_price: null,
+    last_crossover_bucket_timestamp: null
   },
   {
     id: "preset-hl-depth-imbalance-asks",
@@ -261,7 +263,9 @@ const DEFAULT_ALERTS = [
     created_at: "2026-06-01T00:00:00.000Z",
     last_triggered_at: null,
     last_trigger_price: null,
-    last_trend_price: null
+    last_trend_price: null,
+    last_crossover_price: null,
+    last_crossover_bucket_timestamp: null
   },
   {
     id: "preset-hype-twap-net-1h-acc",
@@ -281,7 +285,9 @@ const DEFAULT_ALERTS = [
     created_at: "2026-06-01T00:00:00.000Z",
     last_triggered_at: null,
     last_trigger_price: null,
-    last_trend_price: null
+    last_trend_price: null,
+    last_crossover_price: null,
+    last_crossover_bucket_timestamp: null
   },
   {
     id: "preset-hype-twap-net-1h-dist",
@@ -301,7 +307,9 @@ const DEFAULT_ALERTS = [
     created_at: "2026-06-01T00:00:00.000Z",
     last_triggered_at: null,
     last_trigger_price: null,
-    last_trend_price: null
+    last_trend_price: null,
+    last_crossover_price: null,
+    last_crossover_bucket_timestamp: null
   },
   {
     id: "preset-hype-buys-vs-sells-crossover",
@@ -321,7 +329,9 @@ const DEFAULT_ALERTS = [
     created_at: "2026-06-01T00:00:00.000Z",
     last_triggered_at: null,
     last_trigger_price: null,
-    last_trend_price: null
+    last_trend_price: null,
+    last_crossover_price: null,
+    last_crossover_bucket_timestamp: null
   }
 ];
 
