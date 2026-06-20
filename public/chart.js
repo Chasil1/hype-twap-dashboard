@@ -3889,16 +3889,16 @@ function generateBacktestSignals(snapshots1m, alert, directionOverride) {
         if (!wasTriggeredPrev) {
           if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
             shouldTrigger = true;
+            lastTriggerPrice = currentPrice;
           }
-          lastTriggerPrice = currentPrice;
         }
         signalType = 'long';
       } else if (dirMode === 'trend_short') {
         if (!wasTriggeredPrev) {
           if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
             shouldTrigger = true;
+            lastTriggerPrice = currentPrice;
           }
-          lastTriggerPrice = currentPrice;
         }
         signalType = 'short';
       } else { // 'auto'
@@ -3907,16 +3907,16 @@ function generateBacktestSignals(snapshots1m, alert, directionOverride) {
           if (!wasTriggeredPrev) {
             if (lastTriggerPrice === null || currentPrice > lastTriggerPrice) {
               shouldTrigger = true;
+              lastTriggerPrice = currentPrice;
             }
-            lastTriggerPrice = currentPrice;
           }
           signalType = 'long';
         } else if (alertTrendMode === 'short') {
           if (!wasTriggeredPrev) {
             if (lastTriggerPrice === null || currentPrice < lastTriggerPrice) {
               shouldTrigger = true;
+              lastTriggerPrice = currentPrice;
             }
-            lastTriggerPrice = currentPrice;
           }
           signalType = 'short';
         } else { // 'none'

@@ -76,16 +76,12 @@ export class AlertEngine {
 
             if (trendMode === 'long') {
               if (lastCrossoverPrice !== null && lastCrossoverPrice !== undefined && currentPrice <= lastCrossoverPrice) {
-                // Current crossover price is NOT higher than the last crossover price, update price but skip alert
-                alert.last_crossover_price = currentPrice;
-                await this.alertsStore.save(alert);
+                // Current crossover price is NOT higher than the last crossover price, skip alert without updating crossover price
                 continue;
               }
             } else if (trendMode === 'short') {
               if (lastCrossoverPrice !== null && lastCrossoverPrice !== undefined && currentPrice >= lastCrossoverPrice) {
-                // Current crossover price is NOT lower than the last crossover price, update price but skip alert
-                alert.last_crossover_price = currentPrice;
-                await this.alertsStore.save(alert);
+                // Current crossover price is NOT lower than the last crossover price, skip alert without updating crossover price
                 continue;
               }
             }
