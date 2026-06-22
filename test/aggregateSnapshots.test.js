@@ -187,3 +187,23 @@ test('calculates custom DIFF metrics correctly', () => {
   assert.equal(result[0].diff_30_15, 100); // (300-100) - (150-50) = 200 - 100 = 100
   assert.equal(result[0].diff_8_5, 0); // (80-40) - (50-10) = 40 - 40 = 0
 });
+
+test('calculates custom AVG metrics correctly', () => {
+  const snapshots = [
+    {
+      timestamp: '2026-05-29T10:00:00.000Z',
+      price: 10,
+      hl_bid_3: 10,
+      hl_ask_3: 5,
+      hl_bid_30: 300,
+      hl_ask_30: 0,
+      hl_bid_5: 0,
+      hl_ask_5: 0
+    }
+  ];
+
+  const result = aggregateSnapshots(snapshots, '1m');
+  assert.equal(result[0].hl_avg_3, 2.0); // 10 / 5
+  assert.equal(result[0].hl_avg_30, 0.0); // ask 0, bid > 0
+  assert.equal(result[0].hl_avg_5, 1.0); // ask 0, bid 0
+});

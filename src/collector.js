@@ -1,7 +1,7 @@
 import { fetchHypePrice } from './hyperliquid.js';
 import { fetchHypurrscanTwaps } from './hypurrscan.js';
 import { fetchDepths } from './depths.js';
-import { computeCustomDiffs } from './aggregateSnapshots.js';
+import { computeCustomDiffs, computeAverages } from './aggregateSnapshots.js';
 import { withTimeout } from './fetchHelper.js';
 
 
@@ -124,6 +124,10 @@ export class Collector {
       ])
     );
     const customDiffs = computeCustomDiffs(averagedDepths);
+    const customAverages = computeAverages(averagedDepths);
+    Object.keys(customAverages).forEach((key) => {
+      customAverages[key] = roundMetric(customAverages[key]);
+    });
     const snapshot = {
       timestamp: new Date(this.minuteBucket.minuteMs).toISOString(),
       price: roundMetric(average(samples.map((sample) => sample.price))),
@@ -131,6 +135,7 @@ export class Collector {
       ...averagedTwaps,
       ...averagedDepths,
       ...customDiffs,
+      ...customAverages,
       twapModes: Object.fromEntries(
         TWAP_MODES.map((mode) => [
           mode,

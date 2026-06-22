@@ -298,6 +298,10 @@ function formatMetricValue(field, val) {
     return `$${val.toFixed(4)}`;
   }
 
+  if (field.includes('_avg_') || field.startsWith('avg_')) {
+    return val.toFixed(4);
+  }
+
   if (field.startsWith('hl_') || field.startsWith('bybit_') || field.startsWith('twap') || field.startsWith('diff_')) {
     if (Math.abs(val) >= 1_000_000) {
       return `$${(val / 1_000_000).toFixed(2)}M`;

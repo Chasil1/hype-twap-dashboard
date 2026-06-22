@@ -68,6 +68,11 @@ function formatKandM(val) {
   return sign + '$' + absVal.toFixed(2);
 }
 
+function formatRatio(val) {
+  if (val === null || val === undefined || !Number.isFinite(val)) return '';
+  return val.toFixed(2);
+}
+
 function formatPrice(value) {
   return Number.isFinite(value) ? `$${value.toFixed(4)}` : '--';
 }
@@ -174,6 +179,20 @@ function handleCrosshairMove(srcChart, param) {
                       }
                       targetPrice = bidVal - askVal;
                     }
+                  } else if (type === 'avg') {
+                    let bidVal = 0;
+                    let askVal = 0;
+                    if (source === 'bybit') {
+                      bidVal = bucket[`bybit_bid_${suffix}`] || 0;
+                      askVal = bucket[`bybit_ask_${suffix}`] || 0;
+                    } else if (source === 'hl') {
+                      bidVal = bucket[`hl_bid_${suffix}`] || 0;
+                      askVal = bucket[`hl_ask_${suffix}`] || 0;
+                    } else {
+                      bidVal = (bucket[`bybit_bid_${suffix}`] || 0) + (bucket[`hl_bid_${suffix}`] || 0);
+                      askVal = (bucket[`bybit_ask_${suffix}`] || 0) + (bucket[`hl_ask_${suffix}`] || 0);
+                    }
+                    targetPrice = askVal > 0 ? (bidVal / askVal) : (bidVal === 0 ? 1.0 : 0.0);
                   }
                 }
               }
@@ -300,13 +319,13 @@ function getMetricColor(type, depth) {
     return customColors[depth];
   }
   const colors = {
-    '1.5': { bid: '#2af598', ask: '#ff4e50', diff: '#5aa7ff' },
-    '3':   { bid: '#35d083', ask: '#ef5e5e', diff: '#00c6ff' },
-    '5':   { bid: '#7efeb4', ask: '#ff9595', diff: '#0072ff' },
-    '8':   { bid: '#10ac84', ask: '#ee5253', diff: '#5f27cd' },
-    '15':  { bid: '#05c46b', ask: '#ff3f34', diff: '#ff9f43' },
-    '30':  { bid: '#00d2d3', ask: '#ff6b6b', diff: '#f5d020' },
-    '60':  { bid: '#1dd1a1', ask: '#ff6b81', diff: '#95afc0' }
+    '1.5': { bid: '#2af598', ask: '#ff4e50', diff: '#5aa7ff', avg: '#c56cf0' },
+    '3':   { bid: '#35d083', ask: '#ef5e5e', diff: '#00c6ff', avg: '#ff9f1c' },
+    '5':   { bid: '#7efeb4', ask: '#ff9595', diff: '#0072ff', avg: '#ff5252' },
+    '8':   { bid: '#10ac84', ask: '#ee5253', diff: '#5f27cd', avg: '#33d9b2' },
+    '15':  { bid: '#05c46b', ask: '#ff3f34', diff: '#ff9f43', avg: '#34ace0' },
+    '30':  { bid: '#00d2d3', ask: '#ff6b6b', diff: '#f5d020', avg: '#ff7979' },
+    '60':  { bid: '#1dd1a1', ask: '#ff6b81', diff: '#95afc0', avg: '#70a1ff' }
   };
   return colors[depth]?.[type] ?? '#ffffff';
 }
@@ -324,6 +343,8 @@ function updatePanelMetricVisibility(panel, metricKey) {
     s.combined.applyOptions({ visible: (source === 'combined') });
   } else if (metric.type === 'diff') {
     metric.series.diff.applyOptions({ visible: true });
+  } else if (metric.type === 'avg') {
+    metric.series.avg.applyOptions({ visible: true });
   }
 }
 
@@ -334,6 +355,8 @@ function updateAllSubcharts() {
       updatePanelMetricVisibility(panel, metricKey);
       if (panel.activeMetrics[metricKey].type === 'diff') {
         populatePanelDiffData(panel, metricKey);
+      } else if (panel.activeMetrics[metricKey].type === 'avg') {
+        populatePanelAvgData(panel, metricKey);
       }
     });
   });
@@ -395,7 +418,15 @@ function createNewPanel() {
             <option value="diff_30_15">Diff 30-15</option>
             <option value="diff_30_8">Diff 30-8</option>
             <option value="diff_15_8">Diff 15-8</option>
-            <option value="diff_8_5">Diff 8-5</option>
+          </optgroup>
+          <optgroup label="Average Ratio (Bid / Ask)">
+            <option value="avg_1.5">Avg Depth 1.5%</option>
+            <option value="avg_3">Avg Depth 3%</option>
+            <option value="avg_5">Avg Depth 5%</option>
+            <option value="avg_8">Avg Depth 8%</option>
+            <option value="avg_15">Avg Depth 15%</option>
+            <option value="avg_30">Avg Depth 30%</option>
+            <option value="avg_60">Avg Depth 60%</option>
           </optgroup>
         </select>
         <button class="close-panel-btn" data-panel-id="${panelId}" type="button">×</button>
@@ -512,6 +543,20 @@ function addMetricToPanel(panelId, type, depth) {
       title: title,
       priceLineVisible: false
     });
+  } else if (type === 'avg') {
+    const title = `Avg ${depth}%`;
+    series.avg = panel.chart.addBaselineSeries({
+      baseValue: { type: 'price', price: 1.0 },
+      topLineColor: '#35d083',          // Green line for values above 1.0
+      topFillColor1: 'rgba(53, 208, 131, 0.15)',
+      topFillColor2: 'rgba(53, 208, 131, 0.0)',
+      bottomLineColor: '#ef5e5e',       // Red line for values below 1.0
+      bottomFillColor1: 'rgba(239, 94, 94, 0.0)',
+      bottomFillColor2: 'rgba(239, 94, 94, 0.15)',
+      lineWidth: 2,
+      title: title,
+      priceLineVisible: false
+    });
   }
 
   panel.activeMetrics[metricKey] = {
@@ -521,11 +566,21 @@ function addMetricToPanel(panelId, type, depth) {
     series
   };
 
+  // Set appropriate Y-axis formatter based on active metrics (ratio vs absolute numbers)
+  const hasAvg = Object.values(panel.activeMetrics).some(m => m.type === 'avg');
+  panel.chart.applyOptions({
+    localization: {
+      priceFormatter: hasAvg ? formatRatio : formatKandM
+    }
+  });
+
   // Sync crosshair snap series reference to the first metric added
   const firstKey = Object.keys(panel.activeMetrics)[0];
   if (firstKey) {
     const firstMetric = panel.activeMetrics[firstKey];
-    panel.chart._syncSeries = firstMetric.type === 'diff' ? firstMetric.series.diff : firstMetric.series.combined;
+    panel.chart._syncSeries = firstMetric.type === 'diff' 
+      ? firstMetric.series.diff 
+      : (firstMetric.type === 'avg' ? firstMetric.series.avg : firstMetric.series.combined);
   }
 
   updatePanelBadges(panelId);
@@ -533,6 +588,8 @@ function addMetricToPanel(panelId, type, depth) {
 
   if (type === 'diff') {
     populatePanelDiffData(panel, metricKey);
+  } else if (type === 'avg') {
+    populatePanelAvgData(panel, metricKey);
   } else {
     populatePanelDepthData(panel, metricKey);
   }
@@ -552,11 +609,21 @@ function removeMetricFromPanel(panelId, metricKey) {
 
   delete panel.activeMetrics[metricKey];
 
+  // Set appropriate Y-axis formatter based on remaining active metrics
+  const hasAvg = Object.values(panel.activeMetrics).some(m => m.type === 'avg');
+  panel.chart.applyOptions({
+    localization: {
+      priceFormatter: hasAvg ? formatRatio : formatKandM
+    }
+  });
+
   // Update crosshair snap reference
   const firstKey = Object.keys(panel.activeMetrics)[0];
   if (firstKey) {
     const firstMetric = panel.activeMetrics[firstKey];
-    panel.chart._syncSeries = firstMetric.type === 'diff' ? firstMetric.series.diff : firstMetric.series.combined;
+    panel.chart._syncSeries = firstMetric.type === 'diff' 
+      ? firstMetric.series.diff 
+      : (firstMetric.type === 'avg' ? firstMetric.series.avg : firstMetric.series.combined);
   } else {
     panel.chart._syncSeries = null;
   }
@@ -770,6 +837,51 @@ function populatePanelDiffData(panel, metricKey) {
   series.diff.setData(diffData);
 }
 
+function populatePanelAvgData(panel, metricKey) {
+  const metric = panel.activeMetrics[metricKey];
+  if (!metric) return;
+
+  const { depth, series } = metric;
+  const avgData = [];
+  const suffix = depth.replace('.', '_');
+  const source = exchangeSourceSelect.value;
+
+  currentBuckets.forEach((bucket) => {
+    const time = getLocalTimestamp(bucket.timestamp);
+    const bybitBid = bucket[`bybit_bid_${suffix}`];
+    const bybitAsk = bucket[`bybit_ask_${suffix}`];
+    const hlBid = bucket[`hl_bid_${suffix}`];
+    const hlAsk = bucket[`hl_ask_${suffix}`];
+
+    let bidVal = null;
+    let askVal = null;
+
+    if (source === 'bybit') {
+      if (Number.isFinite(bybitBid)) bidVal = bybitBid;
+      if (Number.isFinite(bybitAsk)) askVal = bybitAsk;
+    } else if (source === 'hl') {
+      if (Number.isFinite(hlBid)) bidVal = hlBid;
+      if (Number.isFinite(hlAsk)) askVal = hlAsk;
+    } else {
+      // Combined or All: show combined avg ratio
+      const hasBybitBid = Number.isFinite(bybitBid);
+      const hasHlBid = Number.isFinite(hlBid);
+      if (hasBybitBid || hasHlBid) bidVal = (bybitBid || 0) + (hlBid || 0);
+
+      const hasBybitAsk = Number.isFinite(bybitAsk);
+      const hasHlAsk = Number.isFinite(hlAsk);
+      if (hasBybitAsk || hasHlAsk) askVal = (bybitAsk || 0) + (hlAsk || 0);
+    }
+
+    if (bidVal !== null && askVal !== null) {
+      const ratio = askVal > 0 ? (bidVal / askVal) : (bidVal === 0 ? 1.0 : 0.0);
+      avgData.push({ time, value: ratio });
+    }
+  });
+
+  series.avg.setData(avgData);
+}
+
 function populateAllChartsData() {
   populatePriceData();
   populateTwapData();
@@ -778,6 +890,8 @@ function populateAllChartsData() {
       const metric = panel.activeMetrics[metricKey];
       if (metric.type === 'diff') {
         populatePanelDiffData(panel, metricKey);
+      } else if (metric.type === 'avg') {
+        populatePanelAvgData(panel, metricKey);
       } else {
         populatePanelDepthData(panel, metricKey);
       }
@@ -1480,11 +1594,15 @@ depthsList.forEach(d => {
   METRIC_LABELS.en[`hl_ask_${suffix}`] = `HL Ask ${d}%`;
   METRIC_LABELS.en[`bybit_bid_${suffix}`] = `Bybit Bid ${d}%`;
   METRIC_LABELS.en[`bybit_ask_${suffix}`] = `Bybit Ask ${d}%`;
+  METRIC_LABELS.en[`hl_avg_${suffix}`] = `HL Avg ${d}%`;
+  METRIC_LABELS.en[`bybit_avg_${suffix}`] = `Bybit Avg ${d}%`;
 
   METRIC_LABELS.ru[`hl_bid_${suffix}`] = `HL Бид ${d}%`;
   METRIC_LABELS.ru[`hl_ask_${suffix}`] = `HL Аск ${d}%`;
   METRIC_LABELS.ru[`bybit_bid_${suffix}`] = `Bybit Бид ${d}%`;
   METRIC_LABELS.ru[`bybit_ask_${suffix}`] = `Bybit Аск ${d}%`;
+  METRIC_LABELS.ru[`hl_avg_${suffix}`] = `HL Avg ${d}%`;
+  METRIC_LABELS.ru[`bybit_avg_${suffix}`] = `Bybit Avg ${d}%`;
 });
 
 const customDiffLabels = {
@@ -1527,7 +1645,6 @@ function populateMetricSelect(select, lang) {
     select.appendChild(opt);
   });
 
-  // Optgroups for depths
   const optGroupHlBid = document.createElement('optgroup');
   optGroupHlBid.label = lang === 'en' ? 'Hyperliquid Bid Depth' : 'Hyperliquid Бид Глубина';
   const optGroupHlAsk = document.createElement('optgroup');
@@ -1536,6 +1653,11 @@ function populateMetricSelect(select, lang) {
   optGroupBybitBid.label = lang === 'en' ? 'Bybit Bid Depth' : 'Bybit Бид Глубина';
   const optGroupBybitAsk = document.createElement('optgroup');
   optGroupBybitAsk.label = lang === 'en' ? 'Bybit Ask Depth' : 'Bybit Аск Глубина';
+
+  const optGroupHlAvg = document.createElement('optgroup');
+  optGroupHlAvg.label = lang === 'en' ? 'Hyperliquid Avg Ratio (Bid/Ask)' : 'Hyperliquid Avg Коэффициент (Бид/Аск)';
+  const optGroupBybitAvg = document.createElement('optgroup');
+  optGroupBybitAvg.label = lang === 'en' ? 'Bybit Avg Ratio (Bid/Ask)' : 'Bybit Avg Коэффициент (Бид/Аск)';
 
   depthsList.forEach(d => {
     const suffix = String(d).replace('.', '_');
@@ -1559,12 +1681,24 @@ function populateMetricSelect(select, lang) {
     optBybitAsk.value = `bybit_ask_${suffix}`;
     optBybitAsk.textContent = lang === 'en' ? `Bybit Ask ${d}%` : `Bybit Аск ${d}%`;
     optGroupBybitAsk.appendChild(optBybitAsk);
+
+    const optHlAvg = document.createElement('option');
+    optHlAvg.value = `hl_avg_${suffix}`;
+    optHlAvg.textContent = lang === 'en' ? `HL Avg ${d}%` : `HL Avg ${d}%`;
+    optGroupHlAvg.appendChild(optHlAvg);
+
+    const optBybitAvg = document.createElement('option');
+    optBybitAvg.value = `bybit_avg_${suffix}`;
+    optBybitAvg.textContent = lang === 'en' ? `Bybit Avg ${d}%` : `Bybit Avg ${d}%`;
+    optGroupBybitAvg.appendChild(optBybitAvg);
   });
 
   select.appendChild(optGroupHlBid);
   select.appendChild(optGroupHlAsk);
   select.appendChild(optGroupBybitBid);
   select.appendChild(optGroupBybitAsk);
+  select.appendChild(optGroupHlAvg);
+  select.appendChild(optGroupBybitAvg);
 
   const optGroupDiff = document.createElement('optgroup');
   optGroupDiff.label = lang === 'en' ? 'Difference Metrics (DIFF)' : 'Метрики разности (DIFF)';
@@ -1920,6 +2054,9 @@ function renderAlertsList(alerts) {
 
 function formatStaticValue(field, val) {
   if (field === 'price') return `$${Number(val).toFixed(2)}`;
+  if (field.includes('_avg_') || field.startsWith('avg_')) {
+    return Number(val).toFixed(4);
+  }
   if (field.startsWith('hl_') || field.startsWith('bybit_') || field.startsWith('twap') || field.startsWith('diff_')) {
     const num = Number(val);
     if (Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;

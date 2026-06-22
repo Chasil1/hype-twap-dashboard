@@ -48,6 +48,28 @@ export function computeCustomDiffs(source) {
   return diffs;
 }
 
+export function computeAverages(source) {
+  const averages = {};
+  const val = (k) => (Number.isFinite(source[k]) ? source[k] : 0);
+  const depths = [1.5, 3, 5, 8, 15, 30, 60];
+
+  depths.forEach((d) => {
+    const suffix = String(d).replace('.', '_');
+
+    // Hyperliquid AVG
+    const hlBid = val(`hl_bid_${suffix}`);
+    const hlAsk = val(`hl_ask_${suffix}`);
+    averages[`hl_avg_${suffix}`] = hlAsk > 0 ? hlBid / hlAsk : (hlBid === 0 ? 1.0 : 0.0);
+
+    // Bybit AVG
+    const bybitBid = val(`bybit_bid_${suffix}`);
+    const bybitAsk = val(`bybit_ask_${suffix}`);
+    averages[`bybit_avg_${suffix}`] = bybitAsk > 0 ? bybitBid / bybitAsk : (bybitBid === 0 ? 1.0 : 0.0);
+  });
+
+  return averages;
+}
+
 function bucketStart(timestamp, timeframeMs) {
   return Math.floor(new Date(timestamp).getTime() / timeframeMs) * timeframeMs;
 }
@@ -143,6 +165,7 @@ export function aggregateSnapshots(snapshots, timeframe = '1m') {
         DEPTH_KEYS.map((key) => [key, average(bucket.depths[key])])
       );
       const customDiffs = computeCustomDiffs(depthAverages);
+      const customAverages = computeAverages(depthAverages);
       return {
         timestamp: bucket.timestamp,
         open: bucket.open,
@@ -158,7 +181,8 @@ export function aggregateSnapshots(snapshots, timeframe = '1m') {
           TWAP_MODES.map((mode) => [mode, averageTwapArrays(bucket.twapModes[mode])])
         ),
         ...depthAverages,
-        ...customDiffs
+        ...customDiffs,
+        ...customAverages
       };
     });
 }
