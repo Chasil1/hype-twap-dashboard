@@ -499,14 +499,14 @@ function createNewPanel() {
 }
 
 // Add a specific metric onto a dynamic subchart panel
-function addMetricToPanel(panelId, type, depth) {
+function addMetricToPanel(panelId, type, depth, customColor = null) {
   const panel = dynamicPanels.find(p => p.panelId === panelId);
   if (!panel) return;
 
   const metricKey = `${type}_${depth}`;
   if (panel.activeMetrics[metricKey]) return; // already added
 
-  const color = getMetricColor(type, depth);
+  const color = customColor || getMetricColor(type, depth);
   const series = {};
 
   if (type === 'bid' || type === 'ask') {
@@ -531,12 +531,17 @@ function addMetricToPanel(panelId, type, depth) {
     });
   } else if (type === 'diff') {
     const title = depth.includes('B') || depth.includes('_') ? `DIFF ${depth.replace('_', '-')}` : `Diff ${depth}%`;
+    
+    // Check if customColor was provided (meaning color is overridden)
+    const topCol = customColor || '#35d083';
+    const botCol = customColor || '#ef5e5e';
+    
     series.diff = panel.chart.addBaselineSeries({
       baseValue: { type: 'price', price: 0 },
-      topLineColor: '#35d083',          // Green line for positive values
+      topLineColor: topCol,
       topFillColor1: 'rgba(53, 208, 131, 0.15)',
       topFillColor2: 'rgba(53, 208, 131, 0.0)',
-      bottomLineColor: '#ef5e5e',       // Red line for negative values
+      bottomLineColor: botCol,
       bottomFillColor1: 'rgba(239, 94, 94, 0.0)',
       bottomFillColor2: 'rgba(239, 94, 94, 0.15)',
       lineWidth: 2,
@@ -547,10 +552,10 @@ function addMetricToPanel(panelId, type, depth) {
     const title = `Avg ${depth}%`;
     series.avg = panel.chart.addBaselineSeries({
       baseValue: { type: 'price', price: 1.0 },
-      topLineColor: '#35d083',          // Green line for values above 1.0
+      topLineColor: color,          // Uniform line color
       topFillColor1: 'rgba(53, 208, 131, 0.15)',
       topFillColor2: 'rgba(53, 208, 131, 0.0)',
-      bottomLineColor: '#ef5e5e',       // Red line for values below 1.0
+      bottomLineColor: color,       // Uniform line color (no red line!)
       bottomFillColor1: 'rgba(239, 94, 94, 0.0)',
       bottomFillColor2: 'rgba(239, 94, 94, 0.15)',
       lineWidth: 2,
@@ -653,10 +658,24 @@ function updatePanelBadges(panelId) {
     const badge = document.createElement('div');
     badge.className = 'metric-badge';
     badge.innerHTML = `
-      <span class="badge-color-dot" style="background-color: ${metric.color};"></span>
+      <span class="badge-color-dot" style="background-color: ${metric.color}; cursor: pointer;" title="Change Color"></span>
+      <input type="color" class="badge-color-picker" value="${metric.color}" style="display: none;">
       <span>${label}</span>
       <button class="remove-badge-btn" type="button" data-metric-key="${metricKey}">×</button>
     `;
+
+    const colorDot = badge.querySelector('.badge-color-dot');
+    const colorPicker = badge.querySelector('.badge-color-picker');
+
+    colorDot.addEventListener('click', () => {
+      colorPicker.click();
+    });
+
+    colorPicker.addEventListener('change', (e) => {
+      const newColor = e.target.value;
+      colorDot.style.backgroundColor = newColor;
+      updateMetricColor(panelId, metricKey, newColor);
+    });
 
     badge.querySelector('.remove-badge-btn').addEventListener('click', () => {
       removeMetricFromPanel(panelId, metricKey);
@@ -664,6 +683,36 @@ function updatePanelBadges(panelId) {
 
     badgesDiv.appendChild(badge);
   });
+}
+
+function updateMetricColor(panelId, metricKey, newColor) {
+  const panel = dynamicPanels.find(p => p.panelId === panelId);
+  if (!panel) return;
+
+  const metric = panel.activeMetrics[metricKey];
+  if (!metric) return;
+
+  metric.color = newColor;
+
+  if (metric.type === 'bid' || metric.type === 'ask') {
+    if (metric.series.bybit) metric.series.bybit.applyOptions({ color: newColor });
+    if (metric.series.hl) metric.series.hl.applyOptions({ color: newColor });
+    if (metric.series.combined) metric.series.combined.applyOptions({ color: newColor });
+  } else if (metric.type === 'diff') {
+    if (metric.series.diff) {
+      metric.series.diff.applyOptions({
+        topLineColor: newColor,
+        bottomLineColor: newColor
+      });
+    }
+  } else if (metric.type === 'avg') {
+    if (metric.series.avg) {
+      metric.series.avg.applyOptions({
+        topLineColor: newColor,
+        bottomLineColor: newColor
+      });
+    }
+  }
 }
 
 // Remove dynamic panel instance
@@ -987,7 +1036,7 @@ async function saveCurrentAsPreset(presetName, includeTimeframe) {
   const panelsData = dynamicPanels.map((panel) => {
     const metrics = Object.keys(panel.activeMetrics).map((metricKey) => {
       const m = panel.activeMetrics[metricKey];
-      return { type: m.type, depth: m.depth };
+      return { type: m.type, depth: m.depth, color: m.color };
     });
     return { metrics };
   });
@@ -1048,7 +1097,7 @@ function loadPreset(presetName) {
     const newPanel = dynamicPanels[dynamicPanels.length - 1];
     if (newPanel) {
       panelData.metrics.forEach((metric) => {
-        addMetricToPanel(newPanel.panelId, metric.type, metric.depth);
+        addMetricToPanel(newPanel.panelId, metric.type, metric.depth, metric.color);
       });
     }
   });
@@ -1152,7 +1201,7 @@ function shareCurrentPreset() {
   const panelsData = dynamicPanels.map((panel) => {
     const metrics = Object.keys(panel.activeMetrics).map((metricKey) => {
       const m = panel.activeMetrics[metricKey];
-      return { type: m.type, depth: m.depth };
+      return { type: m.type, depth: m.depth, color: m.color };
     });
     return { metrics };
   });
@@ -1217,7 +1266,7 @@ function applySharedPreset(preset) {
       const newPanel = dynamicPanels[dynamicPanels.length - 1];
       if (newPanel && panelData.metrics && Array.isArray(panelData.metrics)) {
         panelData.metrics.forEach((metric) => {
-          addMetricToPanel(newPanel.panelId, metric.type, metric.depth);
+          addMetricToPanel(newPanel.panelId, metric.type, metric.depth, metric.color);
         });
       }
     });
