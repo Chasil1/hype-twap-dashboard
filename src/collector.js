@@ -2,6 +2,8 @@ import { fetchHypePrice } from './hyperliquid.js';
 import { fetchHypurrscanTwaps } from './hypurrscan.js';
 import { fetchDepths } from './depths.js';
 import { computeCustomDiffs } from './aggregateSnapshots.js';
+import { withTimeout } from './fetchHelper.js';
+
 
 const DEFAULT_INTERVAL_MS = 1_000;
 const TWAP_KEYS = ['twapNet1h', 'twapNet24h', 'twapBuy24h', 'twapSell24h', 'activeBuyCount', 'activeSellCount'];
@@ -228,8 +230,8 @@ export class Collector {
 
     try {
       const [priceResult, depthResult] = await Promise.allSettled([
-        this.priceFetcher(),
-        fetchDepths()
+        withTimeout(this.priceFetcher(), 10000, 'Price fetcher timed out'),
+        withTimeout(fetchDepths(), 10000, 'Depths fetcher timed out')
       ]);
 
       if (priceResult.status === 'fulfilled') {
@@ -246,7 +248,7 @@ export class Collector {
 
       if (this.twapFetcher && price !== null) {
         try {
-          twapMetrics = await this.twapFetcher({ price });
+          twapMetrics = await withTimeout(this.twapFetcher({ price }), 10000, 'TWAP fetcher timed out');
           twapSource = 'hypurrscan';
         } catch (error) {
           twapError = `hypurrscan: ${buildErrorMessage(error)}`;
@@ -268,7 +270,7 @@ export class Collector {
 
       if (!twapMetrics && this.scraper) {
         try {
-          twapMetrics = await this.scraper.read();
+          twapMetrics = await withTimeout(this.scraper.read(), 30000, 'Scraper timed out');
           twapSource = 'playwright';
           twapError = null;
         } catch (error) {
@@ -301,7 +303,7 @@ export class Collector {
         };
 
         this.state.latest = sample;
-        await this.addMinuteSample(sample, timestampMs);
+        await withTimeout(this.addMinuteSample(sample, timestampMs), 15000, 'Add minute sample timed out');
       }
 
       this.state.status.priceError = priceError;

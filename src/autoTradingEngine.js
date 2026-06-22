@@ -726,7 +726,7 @@ export class AutoTradingEngine {
         },
         body: JSON.stringify({
           chat_id: chatId.trim(),
-          text,
+          text: escapeHTML(text),
           parse_mode: 'HTML'
         }),
         signal: controller.signal
@@ -737,4 +737,12 @@ export class AutoTradingEngine {
       clearTimeout(timeoutId);
     }
   }
+}
+
+function escapeHTML(text) {
+  if (typeof text !== 'string') return String(text ?? '');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
